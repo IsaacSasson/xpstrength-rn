@@ -11,7 +11,7 @@ export default function App() {
 
 const {isLoading, isLoggedIn} = useGlobalContext();
 
-if (!isLoading && isLoggedIn) return <Redirect href = "/home"/>
+if (!isLoading && isLoggedIn) return <Redirect href = "/friends"/>
 
   return (
     <SafeAreaView className="bg-primary flex-1">
@@ -38,12 +38,12 @@ if (!isLoading && isLoggedIn) return <Redirect href = "/home"/>
             </Text>
           </View>
 
-          <Link href="/home" className="text-secondary">Go to Home (testing)</Link>
+          <Link href="/friends" className="text-secondary">Go to Home (testing)</Link>
 
           <Text className="text-sm font-pregular text-gray-100 mt-7 text-center">
             Where creativity meets innovation: embark on a journey of limitless exploration with Appraisal
           </Text>
-          <Link href="/home">YAYAYAYAYAYAY</Link>
+          
 
           <CustomButton 
             title="Continue with Email"

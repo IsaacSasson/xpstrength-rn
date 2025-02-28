@@ -2,6 +2,8 @@ import React from 'react';
 import { View } from 'react-native';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import Foundation from '@expo/vector-icons/Foundation';
 
 type TabIconProps = {
   icon: string;
@@ -12,11 +14,19 @@ type TabIconProps = {
 const TabIcon = ({ icon, color, focused }: TabIconProps): JSX.Element => {
   return (
     <View className="flex items-center justify-center h-full -mb-9">
-      {icon === 'camera' ? (
+      {icon === 'dumbbell' ? (
         <View className="flex items-center justify-center">
-          <MaterialIcons 
+          <MaterialCommunityIcons 
             name={icon} 
-            size={30} 
+            size={31} 
+            color={color}
+          />
+        </View>
+      ) : icon === 'graph-pie' ? (
+        <View className="flex items-center justify-center">
+          <Foundation 
+            name={icon} 
+            size={32} 
             color={color}
           />
         </View>

@@ -3,7 +3,7 @@ import { Slot, SplashScreen, Stack } from 'expo-router';
 import { useFonts } from 'expo-font';
 import { useEffect } from 'react';
 import "../global.css"
-import GlobalProvider from "../context/GlobalProvider";
+//import GlobalProvider from "../context/GlobalProvider";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -33,7 +33,7 @@ const RootLayout = () => {
   }
   
   return (
-    <GlobalProvider>
+    //<GlobalProvider>
     <Stack>
       <Stack.Screen name="index" options={{ headerShown: false }}/>
       <Stack.Screen name="(auth)" options={{ headerShown: false }}/>
@@ -41,7 +41,7 @@ const RootLayout = () => {
       {/* New appraisal screen */}
       <Stack.Screen name="(appraise)" options={{ headerShown: false }}/>
     </Stack>
-    </GlobalProvider>
+   //</GlobalProvider>
   )
 }
 
