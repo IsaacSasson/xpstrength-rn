@@ -18,7 +18,7 @@ interface TabTrailIndicatorProps {
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 // Background color to which we fade the trail
-const BACKGROUND_COLOR = '#161622';
+const BACKGROUND_COLOR = '#0F0E1A';
 
 const TabTrailIndicator: React.FC<TabTrailIndicatorProps> = ({
   activeIndex,
@@ -29,7 +29,7 @@ const TabTrailIndicator: React.FC<TabTrailIndicatorProps> = ({
   fadeOutDuration = 800,
   maxTrailLength = 50,
 }) => {
-  // Animated values for the circle’s position
+  // Animated values for the circle's position
   const dotPositionX = useRef(new Animated.Value(0)).current;
   const dotPositionY = useRef(new Animated.Value(0)).current;
 
@@ -163,7 +163,7 @@ const TabTrailIndicator: React.FC<TabTrailIndicatorProps> = ({
   }, [dotPositionX, dotPositionY]);
 
   /**
-   * Continuously sample the circle’s position for the trailing path.
+   * Continuously sample the circle's position for the trailing path.
    */
   useEffect(() => {
     let rafId: number;
@@ -241,6 +241,7 @@ const TabTrailIndicator: React.FC<TabTrailIndicatorProps> = ({
 
   /**
    * Interpolate the segment color from the main color to BACKGROUND_COLOR over time.
+   * Returns an object with the color and whether the segment has fully faded.
    */
   const interpolateColor = (linearPercent: number) => {
     const fadePercent = getNonLinearFade(linearPercent);
@@ -257,9 +258,15 @@ const TabTrailIndicator: React.FC<TabTrailIndicatorProps> = ({
     const g = Math.round(g1 + fadePercent * (g2 - g1));
     const b = Math.round(b1 + fadePercent * (b2 - b1));
 
-    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b
-      .toString(16)
-      .padStart(2, '0')}`;
+    // Check if the color has fully faded to the background color
+    const fullyFaded = fadePercent >= 0.99;
+
+    return {
+      color: `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b
+        .toString(16)
+        .padStart(2, '0')}`,
+      fullyFaded
+    };
   };
 
   // Build path segments
@@ -275,7 +282,11 @@ const TabTrailIndicator: React.FC<TabTrailIndicatorProps> = ({
 
     if (age < fadeOutDuration) {
       const fadeRatio = age / fadeOutDuration;
-      const segmentColor = interpolateColor(fadeRatio);
+      const { color: segmentColor, fullyFaded } = interpolateColor(fadeRatio);
+
+      // If the segment has fully faded to the background color, set opacity to 0
+      // Otherwise, keep it visible
+      const opacity = fullyFaded ? 0 : 1;
 
       // Convert local y=0 (circle baseline) to top-based for SVG
       const p1y = screenHeight - (tabBarHeight + p1.y);
@@ -292,6 +303,7 @@ const TabTrailIndicator: React.FC<TabTrailIndicatorProps> = ({
           strokeWidth={strokeWidth}
           strokeLinecap="round"
           fill="none"
+          opacity={opacity}
         />
       );
     }
