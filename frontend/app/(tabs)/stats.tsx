@@ -1,20 +1,14 @@
 import { 
   View, 
   StatusBar,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  Dimensions,
-  Animated,
-  Easing,
-  FlatList
+  ScrollView
 } from 'react-native';
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import TopBar from '@/components/TopBar';
-import CustomButton from '@/components/CustomButton';
-import Svg, { Polygon, Line, Circle, Text as SvgText, LinearGradient, Stop } from 'react-native-svg';
-import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
+import MetricTabs from '@/components/stats/MetricTabs';
+import RadarChart from '@/components/stats/RadarChart';
+import StatButtons from '@/components/stats/StatButtons';
 
 const Stats = () => {
   // Define types for our data structure
@@ -135,29 +129,13 @@ const Stats = () => {
     }
   };
 
-  // Get screen width for responsive sizing
-  const screenWidth = Dimensions.get('window').width;
-  const chartSize = screenWidth * 0.85;
-  const centerX = chartSize / 2;
-  const centerY = chartSize / 2;
-  const radius = chartSize * 0.4;
-  
-  // Function to calculate point coordinates on the radar chart
-  const calculatePoint = (index: number, total: number, value: number): { x: number; y: number } => {
-    const angle = (Math.PI * 2 * index) / total - Math.PI / 2;
-    const x = centerX + (radius * value / 100) * Math.cos(angle);
-    const y = centerY + (radius * value / 100) * Math.sin(angle);
-    return { x, y };
-  };
-  
-  // Prepare data for the chart using the animated values
-  const muscleGroups = Object.keys(displayData) as MuscleGroup[];
-  const dataPoints = muscleGroups.map((muscle, index) => {
-    return calculatePoint(index, muscleGroups.length, displayData[muscle]);
-  });
-  
-  // Create the polygon string for the radar chart
-  const polygonPoints = dataPoints.map(point => `${point.x},${point.y}`).join(' ');
+  // Define buttons for StatButtons component
+  const statButtons = [
+    { title: 'Personal Bests', icon: 'trophy', onPress: () => console.log('Navigate to Personal Bests') },
+    { title: 'Workout History', icon: 'history', onPress: () => console.log('Navigate to Workout History') },
+    { title: 'Stats Over Time', icon: 'chart-line', onPress: () => console.log('Navigate to Stats Over Time') },
+    { title: 'Goals & Achievements', icon: 'medal', onPress: () => console.log('Navigate to Goals') }
+  ];
 
   return (
     <SafeAreaView className="bg-primary flex-1">
@@ -169,148 +147,20 @@ const Stats = () => {
       
       <ScrollView showsVerticalScrollIndicator={false} className="px-4">
         {/* Tabs for switching metrics */}
-        <View className="flex-row justify-between bg-black-100 rounded-xl p-1 mb-6">
-          {(['volume', 'reps', 'sets', 'weight'] as MetricType[]).map((metric) => (
-            <TouchableOpacity 
-              key={metric}
-              onPress={() => handleMetricChange(metric)}
-              className={`flex-1 py-3 rounded-lg ${activeMetric === metric ? 'bg-secondary' : ''}`}
-              disabled={isAnimating}
-            >
-              <Text 
-                className={`text-center text-base font-pmedium ${activeMetric === metric ? 'text-white' : 'text-gray-100'}`}
-              >
-                {metric.charAt(0).toUpperCase() + metric.slice(1)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        <MetricTabs 
+          activeMetric={activeMetric} 
+          onMetricChange={handleMetricChange} 
+          isAnimating={isAnimating} 
+        />
         
         {/* Radar Chart */}
-        <View className="items-center justify-center bg-black-100 rounded-2xl p-4 mb-6">
-          <Text className="text-white text-xl font-psemibold mb-4">
-            {activeMetric.charAt(0).toUpperCase() + activeMetric.slice(1)} by Muscle Group
-          </Text>
-          
-          <View style={{ width: chartSize, height: chartSize }}>
-            <Svg width={chartSize} height={chartSize}>
-              {/* Background circles (30%, 60%, 90%) */}
-              {[0.3, 0.6, 0.9].map((fraction, i) => (
-                <Circle 
-                  key={i}
-                  cx={centerX}
-                  cy={centerY}
-                  r={radius * fraction}
-                  fill="none"
-                  stroke="#232533"
-                  strokeWidth="1"
-                />
-              ))}
-              
-              {/* Spokes for each muscle group */}
-              {muscleGroups.map((_, index) => {
-                const angle = (Math.PI * 2 * index) / muscleGroups.length - Math.PI / 2;
-                const x = centerX + radius * Math.cos(angle);
-                const y = centerY + radius * Math.sin(angle);
-                
-                return (
-                  <Line
-                    key={index}
-                    x1={centerX}
-                    y1={centerY}
-                    x2={x}
-                    y2={y}
-                    stroke="#232533"
-                    strokeWidth="1"
-                  />
-                );
-              })}
-              
-              {/* Labels for muscle groups */}
-              {muscleGroups.map((muscle, index) => {
-                const angle = (Math.PI * 2 * index) / muscleGroups.length - Math.PI / 2;
-                const labelDistance = radius * 1.15; // Position labels outside the chart
-                const x = centerX + labelDistance * Math.cos(angle);
-                const y = centerY + labelDistance * Math.sin(angle);
-                
-                return (
-                  <SvgText
-                    key={index}
-                    x={x}
-                    y={y}
-                    fill="#CDCDE0"
-                    fontSize="12"
-                    fontWeight="bold"
-                    textAnchor="middle"
-                    alignmentBaseline="middle"
-                  >
-                    {muscle.charAt(0).toUpperCase() + muscle.slice(1)}
-                  </SvgText>
-                );
-              })}
-              
-              {/* Define gradient */}
-              <LinearGradient
-                id="grad"
-                x1="0"
-                y1="0"
-                x2="0"
-                y2={chartSize.toString()}
-              >
-                <Stop offset="0" stopColor="#A742FF" stopOpacity="0.8" />
-                <Stop offset="1" stopColor="#A742FF" stopOpacity="0.2" />
-              </LinearGradient>
-              
-              {/* Data polygon with gradient fill */}
-              <Polygon
-                points={polygonPoints}
-                fill="url(#grad)"
-                fillOpacity="0.6"
-                stroke="#A742FF"
-                strokeWidth="2"
-              />
-              
-              {/* Data points */}
-              {dataPoints.map((point, index) => (
-                <Circle
-                  key={index}
-                  cx={point.x}
-                  cy={point.y}
-                  r={5}
-                  fill="#A742FF"
-                  stroke="#fff"
-                  strokeWidth="1"
-                />
-              ))}
-            </Svg>
-          </View>
-        </View>
+        <RadarChart 
+          activeMetric={activeMetric} 
+          displayData={displayData} 
+        />
         
-        {/* Section buttons in 2-column grid */}
-        <View className="mb-8">
-          <FlatList
-            data={[
-              { title: 'Personal Bests', icon: 'trophy', onPress: () => console.log('Navigate to Personal Bests') },
-              { title: 'Workout History', icon: 'history', onPress: () => console.log('Navigate to Workout History') },
-              { title: 'Stats Over Time', icon: 'chart-line', onPress: () => console.log('Navigate to Stats Over Time') },
-              { title: 'Goals & Achievements', icon: 'medal', onPress: () => console.log('Navigate to Goals') }
-            ]}
-            numColumns={2}
-            keyExtractor={(item) => item.title}
-            renderItem={({ item }) => (
-              <View className="flex-1 p-2">
-                <TouchableOpacity 
-                  onPress={item.onPress}
-                  className="bg-black-100 rounded-xl h-[110px] justify-center items-center p-4"
-                  activeOpacity={0.7}
-                >
-                  <FontAwesome5 name={item.icon} size={28} color="#A742FF" />
-                  <Text className="text-white font-pmedium text-center mt-3">{item.title}</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          />
-        </View>
+        {/* Stat Buttons */}
+        <StatButtons buttons={statButtons} />
       </ScrollView>
     </SafeAreaView>
   );
