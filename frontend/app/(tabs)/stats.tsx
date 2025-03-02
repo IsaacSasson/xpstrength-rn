@@ -141,7 +141,7 @@ const Stats = () => {
     <SafeAreaView className="bg-primary flex-1">
       <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
       
-      <View className="px-4 py-6">
+      <View className="px-4 pt-6">
         <TopBar subtext="Level 100" title="Your Stats" titleTop={true} />
       </View>
       
