@@ -14,9 +14,9 @@ const TabsLayout = () => {
 
   // Determine the active tab index based on the URL
   let activeTabIndex = 0;
-  if (pathname.includes('/camera')) {
+  if (pathname.includes('/home')) {
     activeTabIndex = 1;
-  } else if (pathname.includes('/profile')) {
+  } else if (pathname.includes('/stats')) {
     activeTabIndex = 2;
   }
 
@@ -55,9 +55,9 @@ const TabsLayout = () => {
           }}
         />
         <Tabs.Screen
-          name="camera"
+          name="home"
           options={{
-            title: "Camera",
+            title: "Home",
             headerShown: false,
             tabBarIcon: ({ color, focused }) => (
               <TabIcon 
@@ -69,9 +69,9 @@ const TabsLayout = () => {
           }}
         />
         <Tabs.Screen
-          name="profile"
+          name="stats"
           options={{
-            title: "Profile",
+            title: "Stats",
             headerShown: false,
             tabBarIcon: ({ color, focused }) => (
               <TabIcon 

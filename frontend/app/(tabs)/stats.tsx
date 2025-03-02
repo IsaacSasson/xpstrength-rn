@@ -5,7 +5,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import TopBar from '@/components/TopBar';
 
-const Friends = () => {
+const Stats = () => {
 
   return (
     <SafeAreaView className="bg-primary flex-1">
@@ -18,4 +18,4 @@ const Friends = () => {
   );
 };
 
-export default Friends;
+export default Stats;

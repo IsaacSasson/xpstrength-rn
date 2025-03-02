@@ -18,7 +18,7 @@ const EmptyState = ({title, subtitle}: {title: string, subtitle: string}) => {
       <Text className="font-pmedium text-sm text-gray-100">{subtitle}</Text>
       <CustomButton 
        title="Appraise an item"
-       handlePress={() => router.push('/camera')}
+       handlePress={() => router.push('/home')}
        containerStyles="w-full my-5"
       />
     </View>
