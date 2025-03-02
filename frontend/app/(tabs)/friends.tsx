@@ -4,6 +4,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import TopBar from '@/components/TopBar';
+import Personalbest from '@/components/FriendsBar';
+import SearchInput from '@/components/SearchInput';
 
 const Friends = () => {
 
@@ -13,6 +15,8 @@ const Friends = () => {
       
       <View className="px-4 py-6">
         <TopBar subtext="250 Friends" title="Your Friends" titleTop={true} />
+        <SearchInput />
+        <Personalbest />
       </View>
     </SafeAreaView>
   );
