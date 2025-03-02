@@ -21,24 +21,19 @@ const StatButtons: React.FC<StatButtonsProps> = ({
   ]
 }) => {
   return (
-    <View className="mb-8">
-      <FlatList
-        data={buttons}
-        numColumns={2}
-        keyExtractor={(item) => item.title}
-        renderItem={({ item }) => (
-          <View className="flex-1 p-2">
-            <TouchableOpacity 
-              onPress={item.onPress}
-              className="bg-black-100 rounded-xl h-[110px] justify-center items-center p-4"
-              activeOpacity={0.7}
-            >
-              <FontAwesome5 name={item.icon} size={28} color="#A742FF" />
-              <Text className="text-white font-pmedium text-center mt-3">{item.title}</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      />
+    <View className="mb-8 flex-row flex-wrap">
+    {buttons.map((item) => (
+        <View key={item.title} className="w-1/2 p-2">
+        <TouchableOpacity 
+            onPress={item.onPress}
+            className="bg-black-100 rounded-xl h-[110px] justify-center items-center p-4"
+            activeOpacity={0.7}
+        >
+            <FontAwesome5 name={item.icon} size={28} color="#A742FF" />
+            <Text className="text-white font-pmedium text-center mt-3">{item.title}</Text>
+        </TouchableOpacity>
+        </View>
+    ))}
     </View>
   );
 };
