@@ -1,16 +1,20 @@
 import { 
   View, 
   StatusBar,
-  ScrollView
+  ScrollView,
+  Platform 
 } from 'react-native';
-import React, { useState, useEffect } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useState } from 'react';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import TopBar from '@/components/TopBar';
 import MetricTabs from '@/components/stats/MetricTabs';
 import RadarChart from '@/components/stats/RadarChart';
 import StatButtons from '@/components/stats/StatButtons';
 
 const Stats = () => {
+  // Get safe area insets to calculate proper padding
+  const insets = useSafeAreaInsets();
+  
   // Define types for our data structure
   type MuscleGroup = 'chest' | 'back' | 'shoulders' | 'biceps' | 'triceps' | 'legs' | 'core';
   
@@ -138,14 +142,24 @@ const Stats = () => {
   ];
 
   return (
-    <SafeAreaView className="bg-primary flex-1">
+    <View style={{ flex: 1, backgroundColor: '#0F0E1A' }}>
       <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
       
-      <View className="px-4 pt-6">
-        <TopBar subtext="Level 100" title="Your Stats" titleTop={true} />
-      </View>
+      {/* Use a View with SafeAreaView for top safety only */}
+      <SafeAreaView edges={['top']} className="bg-primary">
+        <View className="px-4 pt-6">
+          <TopBar subtext="Level 100" title="Your Stats" titleTop={true} />
+        </View>
+      </SafeAreaView>
       
-      <ScrollView showsVerticalScrollIndicator={false} className="px-4">
+      {/* ScrollView with explicit bottom padding */}
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        className="px-4"
+        contentContainerStyle={{
+          paddingBottom: Platform.OS === 'ios' ? 120 : 10,
+        }}
+      >
         {/* Tabs for switching metrics */}
         <MetricTabs 
           activeMetric={activeMetric} 
@@ -162,7 +176,7 @@ const Stats = () => {
         {/* Stat Buttons */}
         <StatButtons buttons={statButtons} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
