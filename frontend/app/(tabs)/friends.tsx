@@ -1,154 +1,213 @@
 import React, { useState } from "react";
-import { View, StatusBar, Text, ScrollView, TouchableOpacity } from "react-native";
+import {
+  View,
+  StatusBar,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
+import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import TopBar from "@/components/TopBar";
 import SearchInput from "@/components/SearchInput";
 import Tabs from "@/components/TabList";
 import FriendCard from "@/components/friends/FriendCard";
 import pfptest from "@/assets/images/favicon.png";
 
+interface User {
+  id: string;
+  name: string;
+  level: number;
+  status: string;
+  lastActive: string;
+  workouts?: number;
+}
+
 // Mock data for friends
-const mockFriends = [
-  { id: '1', name: 'Wiiwho', level: 25, status: 'Online', lastActive: 'Now', workouts: 42 },
-  { id: '2', name: 'Alex', level: 31, status: 'Online', lastActive: 'Now', workouts: 67 },
-  { id: '3', name: 'Jordan', level: 19, status: 'Offline', lastActive: '2h ago', workouts: 23 },
-  { id: '4', name: 'Taylor', level: 45, status: 'In Workout', lastActive: 'Now', workouts: 128 },
-  { id: '5', name: 'Casey', level: 37, status: 'Offline', lastActive: '1d ago', workouts: 85 },
-  { id: '6', name: 'Morgan', level: 22, status: 'Online', lastActive: 'Now', workouts: 31 },
+const mockFriends: User[] = [
+  { id: "1", name: "Wiiwho", level: 25, status: "Online", lastActive: "Now", workouts: 42 },
+  { id: "2", name: "Alex", level: 31, status: "Online", lastActive: "Now", workouts: 67 },
+  { id: "3", name: "Jordan", level: 19, status: "Offline", lastActive: "2h ago", workouts: 23 },
+  { id: "4", name: "Taylor", level: 45, status: "In Workout", lastActive: "Now", workouts: 128 },
+  { id: "5", name: "Casey", level: 37, status: "Offline", lastActive: "1d ago", workouts: 85 },
+  { id: "6", name: "Morgan", level: 22, status: "Online", lastActive: "Now", workouts: 31 },
 ];
 
 // Mock data for friend requests
-const mockRequests = [
-  { id: '7', name: 'Riley', level: 15, status: 'Pending', lastActive: '3h ago' },
-  { id: '8', name: 'Jamie', level: 28, status: 'Pending', lastActive: '1d ago' },
+const mockRequests: User[] = [
+  { id: "7", name: "Riley", level: 15, status: "Pending", lastActive: "3h ago" },
+  { id: "8", name: "Jamie", level: 28, status: "Pending", lastActive: "1d ago" },
 ];
 
 // Mock data for pending requests
-const mockPending = [
-  { id: '9', name: 'Quinn', level: 33, status: 'Pending', lastActive: '4h ago' },
+const mockPending: User[] = [
+  { id: "9", name: "Quinn", level: 33, status: "Pending", lastActive: "4h ago" },
 ];
 
-const Friends = () => {
-  // State to track the active tab
-  const [activeTab, setActiveTab] = useState("Friends");
-  const [searchQuery, setSearchQuery] = useState("");
+// Helper function to compute the Levenshtein distance between two strings.
+function levenshteinDistance(a: string, b: string): number {
+  const matrix: number[][] = [];
+  // Increment along the first column of each row.
+  for (let i = 0; i <= a.length; i++) {
+    matrix[i] = [i];
+  }
+  // Increment each column in the first row.
+  for (let j = 0; j <= b.length; j++) {
+    matrix[0][j] = j;
+  }
+  // Fill in the rest of the matrix.
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      if (a[i - 1] === b[j - 1]) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1, // substitution
+          matrix[i][j - 1] + 1,     // insertion
+          matrix[i - 1][j] + 1      // deletion
+        );
+      }
+    }
+  }
+  return matrix[a.length][b.length];
+}
 
-  // Handler to change the active tab
-  const handleTabChange = (tab: string) => {
+// Helper function for fuzzy matching using the Levenshtein distance.
+const fuzzyMatch = (text: string, query: string): boolean => {
+  const lowerText = text.toLowerCase();
+  const lowerQuery = query.toLowerCase();
+  if (lowerText.includes(lowerQuery)) return true;
+  const distance = levenshteinDistance(lowerText, lowerQuery);
+  const similarity = 1 - distance / Math.max(lowerText.length, lowerQuery.length);
+  return similarity >= 0.5; // Adjust threshold as needed.
+};
+
+const Friends = () => {
+  // State to track the active tab and search query.
+  const [activeTab, setActiveTab] = useState<string>("Friends");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+
+  // Filter users based on search query.
+  // For one letter, check for inclusion.
+  // For multiple letters, use fuzzy matching.
+  const filterUsers = (users: User[]): User[] => {
+    if (searchQuery.trim() === "") return users;
+    const query = searchQuery.toLowerCase();
+    if (query.length === 1) {
+      return users.filter((user: User) =>
+        user.name.toLowerCase().includes(query)
+      );
+    } else {
+      return users.filter((user: User) => fuzzyMatch(user.name, query));
+    }
+  };
+
+  // Handler to change the active tab.
+  const handleTabChange = (tab: string): void => {
     setActiveTab(tab);
   };
 
-  // Render different content based on the active tab
-  const renderTabContent = () => {
+  // Render different content based on the active tab.
+  const renderTabContent = (): JSX.Element | null => {
     switch (activeTab) {
-      case "Friends":
+      case "Friends": {
+        const filteredFriends = filterUsers(mockFriends);
         return (
           <View className="space-y-4">
-            {mockFriends.length > 0 ? (
-              <>
-                <Text className="text-white font-pmedium text-base mb-2">My Friends ({mockFriends.length})</Text>
-                <View className="bg-black-100 rounded-xl p-4 mb-4">
-                  {mockFriends.map((friend) => (
-                    <FriendCard
-                      key={friend.id}
-                      pfp={pfptest}
-                      name={friend.name}
-                      level={friend.level.toString()}
-                      status={friend.status}
-                      lastActive={friend.lastActive}
-                      workouts={friend.workouts}
-                    />
-                  ))}
-                </View>
-              </>
+            {filteredFriends.length > 0 ? (
+              <View className="bg-black-100 rounded-xl p-4 mb-4">
+                {filteredFriends.map((friend: User) => (
+                  <FriendCard
+                    key={friend.id}
+                    pfp={pfptest}
+                    name={friend.name}
+                    level={friend.level.toString()}
+                    status={friend.status}
+                    lastActive={friend.lastActive}
+                    workouts={friend.workouts}
+                  />
+                ))}
+              </View>
             ) : (
               <View className="items-center justify-center py-10">
                 <FontAwesome5 name="user-friends" size={50} color="#A742FF" />
                 <Text className="text-white font-pmedium text-center mt-4 text-lg">
-                  No friends yet
+                  No friends found
                 </Text>
                 <Text className="text-gray-100 text-center mt-2">
-                  Start adding friends to see them here
+                  Try searching with different letters.
                 </Text>
-                <TouchableOpacity 
-                  className="bg-secondary rounded-xl px-6 py-3 mt-6"
-                  activeOpacity={0.7}
-                >
-                  <Text className="text-white font-pmedium">Find Friends</Text>
-                </TouchableOpacity>
               </View>
             )}
           </View>
         );
-      case "Requests":
+      }
+      case "Requests": {
+        const filteredRequests = filterUsers(mockRequests);
         return (
           <View className="space-y-4">
-            {mockRequests.length > 0 ? (
-              <>
-                <Text className="text-white font-pmedium text-base mb-2">Friend Requests ({mockRequests.length})</Text>
-                <View className="bg-black-100 rounded-xl p-4">
-                  {mockRequests.map((request) => (
-                    <FriendCard
-                      key={request.id}
-                      pfp={pfptest}
-                      name={request.name}
-                      level={request.level.toString()}
-                      status={request.status}
-                      lastActive={request.lastActive}
-                      showActions={true}
-                      actionType="request"
-                    />
-                  ))}
-                </View>
-              </>
+            {filteredRequests.length > 0 ? (
+              <View className="bg-black-100 rounded-xl p-4">
+                {filteredRequests.map((request: User) => (
+                  <FriendCard
+                    key={request.id}
+                    pfp={pfptest}
+                    name={request.name}
+                    level={request.level.toString()}
+                    status={request.status}
+                    lastActive={request.lastActive}
+                    showActions={true}
+                    actionType="request"
+                  />
+                ))}
+              </View>
             ) : (
               <View className="items-center justify-center py-10">
                 <FontAwesome5 name="user-check" size={50} color="#A742FF" />
                 <Text className="text-white font-pmedium text-center mt-4 text-lg">
-                  No friend requests
+                  No friend requests found
                 </Text>
                 <Text className="text-gray-100 text-center mt-2">
-                  When someone sends you a friend request, it will appear here
+                  When someone sends you a friend request, it will appear here.
                 </Text>
               </View>
             )}
           </View>
         );
-      case "Pending":
+      }
+      case "Pending": {
+        const filteredPending = filterUsers(mockPending);
         return (
           <View className="space-y-4">
-            {mockPending.length > 0 ? (
-              <>
-                <Text className="text-white font-pmedium text-base mb-2">Pending Requests ({mockPending.length})</Text>
-                <View className="bg-black-100 rounded-xl p-4">
-                  {mockPending.map((pending) => (
-                    <FriendCard
-                      key={pending.id}
-                      pfp={pfptest}
-                      name={pending.name}
-                      level={pending.level.toString()}
-                      status={pending.status}
-                      lastActive={pending.lastActive}
-                      showActions={true}
-                      actionType="pending"
-                    />
-                  ))}
-                </View>
-              </>
+            {filteredPending.length > 0 ? (
+              <View className="bg-black-100 rounded-xl p-4">
+                {filteredPending.map((pending: User) => (
+                  <FriendCard
+                    key={pending.id}
+                    pfp={pfptest}
+                    name={pending.name}
+                    level={pending.level.toString()}
+                    status={pending.status}
+                    lastActive={pending.lastActive}
+                    showActions={true}
+                    actionType="pending"
+                  />
+                ))}
+              </View>
             ) : (
               <View className="items-center justify-center py-10">
                 <FontAwesome5 name="user-clock" size={50} color="#A742FF" />
                 <Text className="text-white font-pmedium text-center mt-4 text-lg">
-                  No pending requests
+                  No pending requests found
                 </Text>
                 <Text className="text-gray-100 text-center mt-2">
-                  Requests you've sent will appear here until they're accepted
+                  Requests you've sent will appear here until they're accepted.
                 </Text>
               </View>
             )}
           </View>
         );
+      }
       default:
         return null;
     }
@@ -160,16 +219,16 @@ const Friends = () => {
 
       <SafeAreaView edges={["top"]} className="bg-primary">
         <View className="px-4 pt-6">
-          <TopBar 
+          <TopBar
             subtext={
-              activeTab === "Friends" 
-                ? `${mockFriends.length} Friends` 
-                : activeTab === "Requests" 
-                  ? `${mockRequests.length} Requests` 
-                  : `${mockPending.length} Pending`
-            } 
-            title="Your Friends" 
-            titleTop={true} 
+              activeTab === "Friends"
+                ? `${mockFriends.length} Friends`
+                : activeTab === "Requests"
+                ? `${mockRequests.length} Requests`
+                : `${mockPending.length} Pending`
+            }
+            title="Your Friends"
+            titleTop={true}
           />
         </View>
       </SafeAreaView>
@@ -178,25 +237,18 @@ const Friends = () => {
         <SearchInput
           title="Search for friends"
           placeHolder="Search for friends"
-          handleChangeText={(text) => setSearchQuery(text)}
+          handleChangeText={(text: string) => setSearchQuery(text)}
           value={searchQuery}
         />
       </View>
-
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        className="px-4"
-        contentContainerStyle={{
-          paddingBottom: 50, // Add extra padding for the tab bar
-        }}
-      >
+      <View className="px-4">
         <Tabs
           tabs={["Friends", "Requests", "Pending"]}
           activeTab={activeTab}
           onTabChange={handleTabChange}
         />
-        
-        {/* Render tab-specific content */}
+      </View>
+      <ScrollView showsVerticalScrollIndicator={false} className="px-4">
         {renderTabContent()}
       </ScrollView>
     </View>

@@ -15,7 +15,7 @@ const TopBar: React.FC<TopBarProps> = ({ subtext, title, titleTop }) => {
         {titleTop ? (
           <>
             <Text className="text-2xl font-psemibold text-white">{title}</Text>
-            <Text className="font-pmedium text-sm text-gray-100">{subtext}</Text>
+            <Text className="font-psemibold text-sm text-gray-100">{subtext}</Text>
           </>
         ) : (
           <>

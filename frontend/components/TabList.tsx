@@ -87,7 +87,7 @@ function Tabs<T>({ tabs, activeTab, onTabChange, isAnimating = false }: TabsProp
           style={{
             position: 'absolute',
             width: tabWidths[activeIndex] || containerWidth / tabs.length,
-            height: Platform.OS === 'ios' || Platform.OS === 'android' ? '86%' : '84%',
+            height: Platform.OS === 'ios' || Platform.OS === 'android' ? '100%' : '84%',
             backgroundColor: '#A742FF',
             borderRadius: 8,
             top: '7%',

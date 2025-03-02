@@ -28,7 +28,7 @@ const SearchInput: React.FC<FormFieldProps> = ({
       <View
         className={`border-2  ${
           isFocused ? 'border-secondary' : 'border-black-200'
-        } w-full h-16 px-4 bg-black-100 rounded-2xl items-center flex-row space-x-4`}
+        } w-full h-16 px-4 bg-black-100 rounded-2xl items-center flex-row space-x-4 `}
       >
         <TextInput
           className="mt-0.5 text-base text-white flex-1 font-pregular"
@@ -47,7 +47,7 @@ const SearchInput: React.FC<FormFieldProps> = ({
         />
 
         <TouchableOpacity>
-        <FontAwesome5 name="search" size={22} color="#a5bbde" />
+        <FontAwesome5 name="search" size={22} color="#A742FF" />
         </TouchableOpacity>
       </View>
   
