@@ -1,23 +1,28 @@
-import { 
-  View, 
-  StatusBar,
-  ScrollView,
-  Platform 
-} from 'react-native';
-import React, { useState } from 'react';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import TopBar from '@/components/TopBar';
-import MetricTabs from '@/components/stats/MetricTabs';
-import RadarChart from '@/components/stats/RadarChart';
-import StatButtons from '@/components/stats/StatButtons';
+import { View, StatusBar, ScrollView, Platform } from "react-native";
+import React, { useState } from "react";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import TopBar from "@/components/TopBar";
+import Tabs from "@/components/TabList"; // Updated import
+import RadarChart from "@/components/stats/RadarChart";
+import StatButtons from "@/components/stats/StatButtons";
 
 const Stats = () => {
   // Get safe area insets to calculate proper padding
   const insets = useSafeAreaInsets();
-  
+
   // Define types for our data structure
-  type MuscleGroup = 'chest' | 'back' | 'shoulders' | 'biceps' | 'triceps' | 'legs' | 'core';
-  
+  type MuscleGroup =
+    | "chest"
+    | "back"
+    | "shoulders"
+    | "biceps"
+    | "triceps"
+    | "legs"
+    | "core";
+
   type MuscleData = {
     [key in MuscleGroup]: number;
   };
@@ -30,11 +35,11 @@ const Stats = () => {
   };
 
   // Define type for our metrics
-  type MetricType = 'volume' | 'reps' | 'sets' | 'weight';
-  
-  // State for active tab
-  const [activeMetric, setActiveMetric] = useState<MetricType>('volume');
-  
+  type MetricType = "volume" | "reps" | "sets" | "weight";
+
+  // State for active metric
+  const [activeMetric, setActiveMetric] = useState<MetricType>("volume");
+
   // State for radar chart data based on metrics
   const [radarData] = useState<MetricData>({
     volume: {
@@ -44,7 +49,7 @@ const Stats = () => {
       biceps: 75,
       triceps: 65,
       legs: 90,
-      core: 55
+      core: 55,
     },
     reps: {
       chest: 65,
@@ -53,7 +58,7 @@ const Stats = () => {
       biceps: 90,
       triceps: 60,
       legs: 55,
-      core: 80
+      core: 80,
     },
     sets: {
       chest: 75,
@@ -62,7 +67,7 @@ const Stats = () => {
       biceps: 60,
       triceps: 85,
       legs: 75,
-      core: 70
+      core: 70,
     },
     weight: {
       chest: 90,
@@ -71,8 +76,8 @@ const Stats = () => {
       biceps: 55,
       triceps: 70,
       legs: 95,
-      core: 40
-    }
+      core: 40,
+    },
   });
 
   // State for the current displayed data (for animation)
@@ -83,97 +88,95 @@ const Stats = () => {
   const handleMetricChange = (newMetric: MetricType) => {
     if (newMetric !== activeMetric && !isAnimating) {
       setIsAnimating(true);
-      
-      // Store the initial and target data
+
       const startData = { ...displayData };
       const targetData = radarData[newMetric];
-      
-      // Set the active metric immediately for the tabs UI
+
+      // Update active metric for UI
       setActiveMetric(newMetric);
-      
-      // Animation timing
+
       const duration = 500;
-      const frames = 20; // Number of animation frames
+      const frames = 20;
       const frameTime = duration / frames;
-      
-      // Animate between the values
+
       let currentFrame = 0;
-      
+
       const animateValues = () => {
         currentFrame++;
         const progress = currentFrame / frames;
-        
-        // Use an easing function (ease-out cubic)
         const easedProgress = 1 - Math.pow(1 - progress, 3);
-        
-        // Calculate interpolated values for each muscle group
+
         const interpolatedData: MuscleData = {} as MuscleData;
-        
-        (Object.keys(startData) as MuscleGroup[]).forEach(muscle => {
-          interpolatedData[muscle] = startData[muscle] + 
+        (Object.keys(startData) as MuscleGroup[]).forEach((muscle) => {
+          interpolatedData[muscle] =
+            startData[muscle] +
             (targetData[muscle] - startData[muscle]) * easedProgress;
         });
-        
-        // Update the display data
+
         setDisplayData(interpolatedData);
-        
-        // Continue animation until we reach the end
+
         if (currentFrame < frames) {
           setTimeout(animateValues, frameTime);
         } else {
-          // Animation complete
           setIsAnimating(false);
-          // Set to exact final values
           setDisplayData(targetData);
         }
       };
-      
-      // Start the animation
+
       setTimeout(animateValues, 0);
     }
   };
 
-  // Define buttons for StatButtons component
   const statButtons = [
-    { title: 'Personal Bests', icon: 'trophy', onPress: () => console.log('Navigate to Personal Bests') },
-    { title: 'Workout History', icon: 'history', onPress: () => console.log('Navigate to Workout History') },
-    { title: 'Stats Over Time', icon: 'chart-line', onPress: () => console.log('Navigate to Stats Over Time') },
-    { title: 'Goals & Achievements', icon: 'medal', onPress: () => console.log('Navigate to Goals') }
+    {
+      title: "Personal Bests",
+      icon: "trophy",
+      onPress: () => console.log("Navigate to Personal Bests"),
+    },
+    {
+      title: "Workout History",
+      icon: "history",
+      onPress: () => console.log("Navigate to Workout History"),
+    },
+    {
+      title: "Stats Over Time",
+      icon: "chart-line",
+      onPress: () => console.log("Navigate to Stats Over Time"),
+    },
+    {
+      title: "Goals & Achievements",
+      icon: "medal",
+      onPress: () => console.log("Navigate to Goals"),
+    },
   ];
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#0F0E1A' }}>
+    <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
       <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
-      
-      {/* Use a View with SafeAreaView for top safety only */}
-      <SafeAreaView edges={['top']} className="bg-primary">
+
+      <SafeAreaView edges={["top"]} className="bg-primary">
         <View className="px-4 pt-6">
           <TopBar subtext="Level 100" title="Your Stats" titleTop={true} />
         </View>
       </SafeAreaView>
-      
-      {/* ScrollView with explicit bottom padding */}
-      <ScrollView 
+
+      <ScrollView
         showsVerticalScrollIndicator={false}
         className="px-4"
         contentContainerStyle={{
-          paddingBottom: Platform.OS === 'ios' ? 120 : 10,
+          paddingBottom: 10,
         }}
       >
-        {/* Tabs for switching metrics */}
-        <MetricTabs 
-          activeMetric={activeMetric} 
-          onMetricChange={handleMetricChange} 
-          isAnimating={isAnimating} 
+        {/* Use the generic Tabs component with MetricType */}
+        <Tabs<MetricType>
+          tabs={["volume", "reps", "sets", "weight"]}
+          activeTab={activeMetric}
+          onTabChange={handleMetricChange}
+          isAnimating={isAnimating}
         />
-        
-        {/* Radar Chart */}
-        <RadarChart 
-          activeMetric={activeMetric} 
-          displayData={displayData} 
-        />
-        
-        {/* Stat Buttons */}
+
+        <RadarChart activeMetric={activeMetric} displayData={displayData} />
+
         <StatButtons buttons={statButtons} />
       </ScrollView>
     </View>
