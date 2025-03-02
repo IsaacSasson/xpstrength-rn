@@ -1,5 +1,14 @@
 import React, { useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Animated, Dimensions, LayoutChangeEvent, Easing } from 'react-native';
+import { 
+  View, 
+  Text, 
+  TouchableOpacity, 
+  Animated, 
+  Dimensions, 
+  LayoutChangeEvent, 
+  Easing,
+  Platform 
+} from 'react-native';
 
 type MetricType = 'volume' | 'reps' | 'sets' | 'weight';
 
@@ -31,7 +40,6 @@ const MetricTabs: React.FC<MetricTabsProps> = ({
 
   // Calculate the position to move the background to
   useEffect(() => {
-    // Set initial position without animation on first render
     if (containerWidth > 0) {
       const tabWidth = containerWidth / metrics.length;
       const position = tabWidth * activeIndex;
@@ -57,7 +65,7 @@ const MetricTabs: React.FC<MetricTabsProps> = ({
           style={{
             position: 'absolute',
             width: containerWidth / metrics.length - 8, // Subtract padding to match button size
-            height: '84%', // Make it match the button height exactly
+            height: Platform.OS === 'ios' || Platform.OS === 'android' ? '100%' : '84%',
             backgroundColor: '#A742FF',
             borderRadius: 8,
             left: 4, // Add a small padding on the left
@@ -68,7 +76,7 @@ const MetricTabs: React.FC<MetricTabsProps> = ({
       )}
       
       {/* Tab buttons */}
-      {metrics.map((metric, index) => (
+      {metrics.map((metric) => (
         <TouchableOpacity 
           key={metric}
           onPress={() => onMetricChange(metric)}
