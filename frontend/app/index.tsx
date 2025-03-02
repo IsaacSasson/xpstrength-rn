@@ -19,7 +19,7 @@ if (!isLoading && isLoggedIn) return <Redirect href = "/home"/>
         <View className="flex-1 w-full items-center justify-center px-4">
           <Image 
             source={logo}
-            style={{ width: 300, height: 90 }}
+            style={{ width: 250, height: 150 }}
             resizeMode="contain"
           />
           
