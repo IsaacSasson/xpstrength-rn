@@ -1,19 +1,19 @@
 {
   "expo": {
-    "name": "Appraisal",
-    "slug": "appraisal",
+    "name": "XPStrength",
+    "slug": "xpstrength",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "appraisal",
+    "scheme": "XPStrength",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "package": "com.elicky.appraisal",
+      "package": "com.elicky.XPStrength",
       "supportsTablet": true
     },
     "android": {
-      "package": "com.elicky.appraisal",
+      "package": "com.elicky.XPStrength",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"

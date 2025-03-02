@@ -5,11 +5,10 @@ import logo from "../../assets/images/logo.png";
 import FormField from "@/components/FormField";
 import CustomButton from "@/components/CustomButton";
 import { Link, router } from "expo-router";
-import { createUser } from "../../lib/appwrite";
-import { useGlobalContext } from "@/context/GlobalProvider";
+
 
 const SignUp = () => {
-  const { setUser, setIsLogged } = useGlobalContext();
+
 
   const [isSubmitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
@@ -22,19 +21,6 @@ const SignUp = () => {
 
     if(!form.username || !form.email || !form.password) {
       Alert.alert('Error', 'Please fill in all the fields')
-    }
-
-    setSubmitting(true);
-    try {
-      const result = await createUser(form.email, form.password, form.username);
-      setUser(result);
-      setIsLogged(true);
-
-      router.replace('/friends')
-    } catch (error) {
-      Alert.alert('Error', 'error.message')
-    } finally {
-      setSubmitting(false)
     }
 
   };
@@ -54,7 +40,7 @@ const SignUp = () => {
           </View>
 
           <Text className="text-2xl text-white text-semibold mt-10 font-psemibold">
-            Sign Up to Appraisal
+            Sign Up to XPStrength
           </Text>
           <FormField
             title="Username"
