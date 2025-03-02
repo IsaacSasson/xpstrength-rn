@@ -15,8 +15,8 @@ const MetricTabs: React.FC<MetricTabsProps> = ({
   isAnimating 
 }) => {
   const translateX = useRef(new Animated.Value(0)).current;
-  const [tabWidths, setTabWidths] = React.useState<{ [key in MetricType]?: number }>({});
   const [containerWidth, setContainerWidth] = React.useState(0);
+  const containerRef = useRef<View>(null);
   const metrics: MetricType[] = ['volume', 'reps', 'sets', 'weight'];
   
   // Get the index of the active metric
@@ -24,19 +24,14 @@ const MetricTabs: React.FC<MetricTabsProps> = ({
 
   // Handle container layout to get its width
   const onContainerLayout = (e: LayoutChangeEvent) => {
-    setContainerWidth(e.nativeEvent.layout.width);
-  };
-
-  // Handle tab layout to get individual tab widths
-  const onTabLayout = (metric: MetricType, e: LayoutChangeEvent) => {
-    setTabWidths(prev => ({
-      ...prev,
-      [metric]: e.nativeEvent.layout.width
-    }));
+    if (e?.nativeEvent?.layout?.width) {
+      setContainerWidth(e.nativeEvent.layout.width);
+    }
   };
 
   // Calculate the position to move the background to
   useEffect(() => {
+    // Set initial position without animation on first render
     if (containerWidth > 0) {
       const tabWidth = containerWidth / metrics.length;
       const position = tabWidth * activeIndex;
@@ -52,6 +47,7 @@ const MetricTabs: React.FC<MetricTabsProps> = ({
 
   return (
     <View 
+      ref={containerRef}
       className="flex-row justify-between bg-black-100 rounded-xl p-1 mb-6 relative"
       onLayout={onContainerLayout}
     >
@@ -78,7 +74,6 @@ const MetricTabs: React.FC<MetricTabsProps> = ({
           onPress={() => onMetricChange(metric)}
           className="flex-1 py-3 rounded-lg z-10"
           disabled={isAnimating}
-          onLayout={(e) => onTabLayout(metric, e)}
         >
           <Text 
             className={`text-center text-base font-pmedium ${activeMetric === metric ? 'text-white' : 'text-gray-100'}`}
