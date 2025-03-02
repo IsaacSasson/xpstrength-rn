@@ -10,7 +10,7 @@ import useAppwrite from "@/lib/useAppwrite";
 import ImageCard from "@/components/ImageCard";
 
 
-const Home = () => {
+const Friends = () => {
 const { data: posts, refetch } = useAppwrite(getAllPosts);
 
 const [refreshing, setRefreshing] = useState(false)
@@ -73,4 +73,4 @@ const onRefresh = async () => {
   );
 };
 
-export default Home;
+export default Friends;
