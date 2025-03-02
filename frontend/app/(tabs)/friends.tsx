@@ -12,7 +12,7 @@ const Friends = () => {
       <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
       
       <View className="px-4 py-6">
-        <TopBar username="Wiiwho" />
+        <TopBar subtext="250 Friends" title="Your Friends" titleTop={true} />
       </View>
     </SafeAreaView>
   );

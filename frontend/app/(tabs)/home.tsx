@@ -12,7 +12,7 @@ const Home = () => {
       <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
       
       <View className="px-4 py-6">
-        <TopBar username="Wiiwho" />
+      <TopBar subtext="Welcome Back" title="Wiiwho" titleTop={false} />
       </View>
     </SafeAreaView>
   );

@@ -12,7 +12,7 @@ const Stats = () => {
       <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
       
       <View className="px-4 py-6">
-        <TopBar username="Wiiwho" />
+        <TopBar subtext="Level 100" title="Your Stats" titleTop={true} />
       </View>
     </SafeAreaView>
   );
