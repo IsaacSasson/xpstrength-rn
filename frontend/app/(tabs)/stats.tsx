@@ -2,18 +2,14 @@ import { View, StatusBar, ScrollView, Platform } from "react-native";
 import React, { useState } from "react";
 import {
   SafeAreaView,
-  useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import TopBar from "@/components/TopBar";
-import Tabs from "@/components/TabList"; // Updated import
+import Tabs from "@/components/TabList";
 import RadarChart from "@/components/stats/RadarChart";
 import StatButtons from "@/components/stats/StatButtons";
 
 const Stats = () => {
-  // Get safe area insets to calculate proper padding
-  const insets = useSafeAreaInsets();
 
-  // Define types for our data structure
   type MuscleGroup =
     | "chest"
     | "back"
@@ -34,13 +30,10 @@ const Stats = () => {
     weight: MuscleData;
   };
 
-  // Define type for our metrics
   type MetricType = "volume" | "reps" | "sets" | "weight";
 
-  // State for active metric
   const [activeMetric, setActiveMetric] = useState<MetricType>("volume");
 
-  // State for radar chart data based on metrics
   const [radarData] = useState<MetricData>({
     volume: {
       chest: 85,
@@ -80,11 +73,9 @@ const Stats = () => {
     },
   });
 
-  // State for the current displayed data (for animation)
   const [displayData, setDisplayData] = useState<MuscleData>(radarData.volume);
   const [isAnimating, setIsAnimating] = useState(false);
 
-  // Handle switching between metrics
   const handleMetricChange = (newMetric: MetricType) => {
     if (newMetric !== activeMetric && !isAnimating) {
       setIsAnimating(true);
@@ -92,7 +83,6 @@ const Stats = () => {
       const startData = { ...displayData };
       const targetData = radarData[newMetric];
 
-      // Update active metric for UI
       setActiveMetric(newMetric);
 
       const duration = 500;
@@ -167,7 +157,6 @@ const Stats = () => {
           paddingBottom: 10,
         }}
       >
-        {/* Use the generic Tabs component with MetricType */}
         <Tabs<MetricType>
           tabs={["volume", "reps", "sets", "weight"]}
           activeTab={activeMetric}
