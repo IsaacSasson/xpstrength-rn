@@ -15,7 +15,13 @@ const Friends = () => {
       
       <View className="px-4 py-6">
         <TopBar subtext="250 Friends" title="Your Friends" titleTop={true} />
-        <SearchInput />
+        <SearchInput 
+        title="Search for friends"
+        otherStyles="mt-5"
+        placeHolder="Search for friends"
+        handleChangeText={(e) => console.log(e)}
+        value=""
+        />
         <Personalbest />
       </View>
     </SafeAreaView>

@@ -5,12 +5,9 @@ import logo from "../../assets/images/logo.png";
 import FormField from "@/components/FormField";
 import CustomButton from "@/components/CustomButton";
 import { Link, router } from "expo-router";
-import { getCurrentUser, signIn } from "@/lib/appwrite";
-import { useGlobalContext } from "@/context/GlobalProvider";
 
 
 const SignIn = () => {
-  const {setUser, setIsLogged  } = useGlobalContext();
   const [isSubmitting, setisSubmitting] = useState(false);
   const [form, setForm] = useState({
     email: "",
@@ -24,19 +21,7 @@ const SignIn = () => {
       }
       setisSubmitting(true);
 
-      try {
-        await signIn(form.email, form.password);
-        const result = await getCurrentUser();
-        setUser(result);
-        setIsLogged(true);
-        
-        Alert.alert("Success", "User signed in successfully");
-        router.replace('/friends')
-      } catch (error) {
-        Alert.alert('Error', 'error.message')
-      } finally {
-        setisSubmitting(false)
-      }
+     
   
     };
     
@@ -55,7 +40,7 @@ const SignIn = () => {
           </View>
 
           <Text className="text-2xl text-white text-semibold mt-10 font-psemibold">
-            Log in to Appraisal
+            Log in to XPStrength
           </Text>
 
           <FormField

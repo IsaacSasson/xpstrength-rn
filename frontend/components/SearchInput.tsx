@@ -33,10 +33,11 @@ const SearchInput: React.FC<FormFieldProps> = ({
         <TextInput
           className="mt-0.5 text-base text-white flex-1 font-pregular"
           // Conditionally apply web-only style and cast as any to satisfy TypeScript
-          style={Platform.OS === 'web' ? ({ outlineWidth: 0 } as any) : {}}
+          style={Platform.OS === 'web' ? ({ outlineWidth: 0 } as any) : {otherStyles}}
+          autoCapitalize="none"
           underlineColorAndroid="transparent"
           value={value}
-          placeholder={"Search for appraised items"}
+          placeholder={placeHolder}
           placeholderTextColor="#7b7b8b"
           onChangeText={handleChangeText}
           onFocus={() => setIsFocused(true)}
