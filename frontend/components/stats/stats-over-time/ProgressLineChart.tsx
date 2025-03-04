@@ -1,13 +1,8 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Text, ActivityIndicator, Animated } from 'react-native';
+import React from 'react';
+import { View, Text, ActivityIndicator, Platform } from 'react-native';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
-// @ts-ignore - Ignoring type declarations for react-native-svg-charts
-import { LineChart, Grid } from 'react-native-svg-charts';
-// @ts-ignore
-import * as shape from 'd3-shape';
-// Import SVG components for data points and path
-import Svg, { Circle, Path, Defs, LinearGradient, Stop } from 'react-native-svg';
-import { Easing } from 'react-native-reanimated';
+// Import SVG components for custom chart rendering
+import Svg, { Circle, Path, Defs, LinearGradient, Stop, Line } from 'react-native-svg';
 
 export type DataPoint = {
   date: string;
@@ -33,11 +28,6 @@ const ProgressLineChart: React.FC<ProgressLineChartProps> = ({
   loading,
   activeMetric,
 }) => {
-  // Animation value for the entire chart
-  const animatedValue = useRef(new Animated.Value(0)).current;
-  const prevDataRef = useRef<DataPoint[]>([]);
-  const prevMetricRef = useRef<MetricType>(activeMetric);
-  
   // Get the appropriate unit based on active metric
   const getMetricUnit = () => {
     switch(activeMetric) {
@@ -85,74 +75,190 @@ const ProgressLineChart: React.FC<ProgressLineChartProps> = ({
     }
   };
 
-  // Animation effect when data or metric changes
-  useEffect(() => {
-    // If we have data and the metric or data changed
-    if (chartData.length > 0 && 
-        (prevMetricRef.current !== activeMetric || 
-         JSON.stringify(prevDataRef.current) !== JSON.stringify(chartData))) {
+  // Create a custom chart implementation that doesn't rely on react-native-svg-charts
+  const renderCustomChart = () => {
+    const { min, max } = getYAxisBounds();
+    const chartHeight = 250;
+    const chartWidth = Platform.OS === 'web' ? 350 : 320;
+    const paddingLeft = 20;
+    const paddingRight = 50;
+    const paddingTop = 20;
+    const paddingBottom = 20;
+    
+    // Calculate the drawing area
+    const width = chartWidth - paddingLeft - paddingRight;
+    const height = chartHeight - paddingTop - paddingBottom;
+    
+    // Function to map data point value to Y position
+    const getY = (value: number) => {
+      return paddingTop + height - (((value - min) / (max - min)) * height);
+    };
+    
+    // Function to map data point index to X position
+    const getX = (index: number) => {
+      return paddingLeft + (index * (width / (chartData.length - 1)));
+    };
+    
+    // Create the SVG path for the line with monotone curve interpolation
+    // This mimics the d3.curveMonotoneX behavior for very smooth curves
+    let path = '';
+    
+    if (chartData.length > 0) {
+      const points = chartData.map((point, index) => ({
+        x: getX(index),
+        y: getY(point.value)
+      }));
       
-      // Reset animation value
-      animatedValue.setValue(0);
+      // First point
+      path = `M ${points[0].x} ${points[0].y}`;
       
-      // Start animation with a bit of delay to ensure proper transition
-      Animated.timing(animatedValue, {
-        toValue: 1,
-        duration: 1000,
-        useNativeDriver: false,
-        easing: Easing.out(Easing.cubic),
-      }).start();
-      
-      // Store current data and metric for next comparison
-      prevDataRef.current = [...chartData];
-      prevMetricRef.current = activeMetric;
+      // Handle curves for multiple points
+      if (points.length > 1) {
+        // Calculate tangents for each point
+        const tangents: {x: number, y: number}[] = [];
+        
+        for (let i = 0; i < points.length; i++) {
+          if (i === 0) {
+            // For first point, use direction to next point
+            const dx = points[1].x - points[0].x;
+            const dy = points[1].y - points[0].y;
+            tangents.push({ x: dx, y: dy });
+          } 
+          else if (i === points.length - 1) {
+            // For last point, use direction from previous point
+            const dx = points[i].x - points[i-1].x;
+            const dy = points[i].y - points[i-1].y;
+            tangents.push({ x: dx, y: dy });
+          } 
+          else {
+            // For middle points, average directions to adjacent points
+            const dx = (points[i+1].x - points[i-1].x) / 2;
+            const dy = (points[i+1].y - points[i-1].y) / 2;
+            tangents.push({ x: dx, y: dy });
+          }
+        }
+        
+        // Create bezier curves between each pair of points
+        for (let i = 0; i < points.length - 1; i++) {
+          const p0 = points[i];
+          const p1 = points[i+1];
+          
+          // Use tangents to calculate control points
+          // Scale the tangent vectors for smoother curves
+          const t0 = tangents[i];
+          const t1 = tangents[i+1];
+          const scale = 0.33; // Control smoothness (lower = smoother)
+          
+          const cp1x = p0.x + t0.x * scale;
+          const cp1y = p0.y + t0.y * scale;
+          const cp2x = p1.x - t1.x * scale;
+          const cp2y = p1.y - t1.y * scale;
+          
+          path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p1.x} ${p1.y}`;
+        }
+      }
     }
-  }, [chartData, activeMetric, animatedValue]);
-
-  // Create custom decorator for the data points
-  const Decorator = ({ x, y, data }: any) => {
+    
     return (
-      <>
-        {data.map((value: number, index: number) => (
-          <Circle
-            key={index}
-            cx={x(index)}
-            cy={y(value)}
-            r={4}
-            fill="#A742FF"
+      <View style={{ position: 'relative', height: chartHeight, marginRight: Platform.OS === 'web' ? 10 : 35 }}>
+        <Svg height={chartHeight} width={chartWidth}>
+          {/* Define gradient for the line */}
+          <Defs>
+            <LinearGradient id="lineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+              <Stop offset="0%" stopColor="#A742FF" stopOpacity="1" />
+              <Stop offset="100%" stopColor="#A742FF" stopOpacity="1" />
+            </LinearGradient>
+          </Defs>
+          
+          {/* Grid lines */}
+          {[0, 1, 2, 3, 4].map((i) => {
+            const yPos = paddingTop + ((height / 4) * i);
+            return (
+              <Line
+                key={`grid-${i}`}
+                x1={paddingLeft}
+                y1={yPos}
+                x2={width + paddingLeft}
+                y2={yPos}
+                stroke="#232533"
+                strokeWidth="1"
+                strokeDasharray="3,3"
+              />
+            );
+          })}
+          
+          {/* The main line */}
+          <Path
+            d={path}
+            stroke="#A742FF"
+            strokeWidth="3"
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           />
-        ))}
-      </>
+          
+          {/* Data points - outer glow effect */}
+          {chartData.map((point, index) => (
+            <Circle
+              key={`glow-${index}`}
+              cx={getX(index)}
+              cy={getY(point.value)}
+              r="6"
+              fill="#A742FF"
+              opacity="0.3"
+            />
+          ))}
+          
+          {/* Data points */}
+          {chartData.map((point, index) => (
+            <Circle
+              key={`point-${index}`}
+              cx={getX(index)}
+              cy={getY(point.value)}
+              r="4"
+              fill="#A742FF"
+            />
+          ))}
+        </Svg>
+        
+        {/* Y-axis labels */}
+        <View style={{ 
+          position: 'absolute', 
+          right: 5, 
+          top: 0, 
+          height: chartHeight, 
+          width: 40,
+          paddingTop: paddingTop,
+          paddingBottom: paddingBottom,
+          justifyContent: 'space-between',
+        }}>
+          {[0, 1, 2, 3, 4].map((i) => {
+            const bounds = getYAxisBounds();
+            const range = bounds.max - bounds.min;
+            const value = bounds.max - (range * i / 4);
+            
+            return (
+              <View key={`y-label-container-${i}`} style={{
+                position: 'absolute',
+                right: 0,
+                top: paddingTop + ((height / 4) * i) - 10,
+              }}>
+                <Text
+                  style={{
+                    color: '#CDCDE0',
+                    fontSize: 11,
+                    textAlign: 'right',
+                  }}
+                >
+                  {formatYAxis(value)}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+      </View>
     );
   };
-
-  // Create custom gradient for line
-  const GradientLine = ({ data }: any) => {
-    return (
-      <Defs>
-        <LinearGradient id="gradient" x1="0%" y1="0%" x2="0%" y2="100%">
-          <Stop offset="0%" stopColor="#A742FF" stopOpacity={1} />
-          <Stop offset="100%" stopColor="#A742FF" stopOpacity={0.2} />
-        </LinearGradient>
-      </Defs>
-    );
-  };
-
-  // Create custom line with gradient fill
-  const CustomLine = ({ line }: any) => {
-    return (
-      <Path
-        d={line}
-        stroke="#A742FF"
-        strokeWidth={3}
-        fill="transparent"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    );
-  };
-
-  // Custom grid is no longer needed as we're implementing our own grid lines
 
   return (
     <View className="bg-black-100 rounded-2xl p-4 mb-6">
@@ -179,118 +285,31 @@ const ProgressLineChart: React.FC<ProgressLineChartProps> = ({
         <View>
           {chartData.length > 0 ? (
             <>
-              {/* Chart container with animated value */}
-              <Animated.View 
-                style={{
-                  opacity: animatedValue.interpolate({
-                    inputRange: [0, 0.3, 1],
-                    outputRange: [0.6, 0.8, 1]
-                  }),
-                  transform: [
-                    { 
-                      scale: animatedValue.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0.95, 1]
-                      })
+              {/* Custom chart implementation */}
+              {renderCustomChart()}
+              
+              {/* X-axis labels */}
+              <View className="flex-row mt-4 px-4">
+                <View className="flex-1">
+                  <View className="flex-row justify-between">
+                    {chartData
+                      .filter((_, i) => i === 0 || i === Math.floor(chartData.length / 2) || i === chartData.length - 1)
+                      .map((point, index) => (
+                        <Text 
+                          key={index} 
+                          className="text-gray-100 text-xs"
+                          style={{ 
+                            width: '33%',
+                            textAlign: index === 0 ? 'left' : (index === 1 ? 'center' : 'right')
+                          }}
+                        >
+                          {formatDisplayDate(point.date)}
+                        </Text>
+                      ))
                     }
-                  ]
-                }}
-              >
-                {/* Main chart with y-axis labels */}
-                <View style={{ position: 'relative' }}>
-                  {/* Main chart */}
-                  <View style={{ marginRight: 35 }}>
-                    <LineChart
-                      style={{ height: 250 }}
-                      data={chartData.map(point => point.value)}
-                      contentInset={{ top: 20, bottom: 20, left: 10, right: 10 }}
-                      curve={shape.curveMonotoneX}
-                      svg={{ 
-                        stroke: 'url(#gradient)',
-                        strokeWidth: 3,
-                      }}
-                      yMin={getYAxisBounds().min}
-                      yMax={getYAxisBounds().max}
-                      animate={true}
-                      animationDuration={1200}
-                      key={activeMetric} // This forces re-render and triggers animation when metric changes
-                    >
-                      <GradientLine />
-                      <CustomLine />
-                      <Decorator />
-                    </LineChart>
-                  </View>
-                  
-                  {/* Y-axis labels and grid lines (overlaid) */}
-                  <View style={{ 
-                    position: 'absolute', 
-                    right: 0, 
-                    top: 0, 
-                    height: 250, 
-                    width: '100%',
-                    paddingTop: 20,
-                    paddingBottom: 20,
-                    justifyContent: 'space-between',
-                  }}>
-                    {[0, 1, 2, 3, 4].map((i) => {
-                      const bounds = getYAxisBounds();
-                      const range = bounds.max - bounds.min;
-                      const value = bounds.max - (range * i / 4);
-                      
-                      return (
-                        <View key={i} style={{ 
-                          flexDirection: 'row', 
-                          alignItems: 'center',
-                          width: '100%',
-                        }}>
-                          {/* Dotted line */}
-                          <View style={{
-                            flex: 1,
-                            height: 1,
-                            borderBottomWidth: 1,
-                            borderBottomColor: '#232533',
-                            borderStyle: 'dotted',
-                            marginRight: 5
-                          }} />
-                          
-                          {/* Y-axis label */}
-                          <Text style={{
-                            color: '#CDCDE0',
-                            fontSize: 11,
-                            width: 30,
-                            textAlign: 'right'
-                          }}>
-                            {formatYAxis(value)}
-                          </Text>
-                        </View>
-                      );
-                    })}
                   </View>
                 </View>
-                
-                {/* X-axis labels */}
-                <View className="flex-row mt-4 px-4">
-                  <View className="flex-1">
-                    <View className="flex-row justify-between">
-                      {chartData
-                        .filter((_, i) => i === 0 || i === Math.floor(chartData.length / 2) || i === chartData.length - 1)
-                        .map((point, index) => (
-                          <Text 
-                            key={index} 
-                            className="text-gray-100 text-xs"
-                            style={{ 
-                              width: '33%',
-                              textAlign: index === 0 ? 'left' : (index === 1 ? 'center' : 'right')
-                            }}
-                          >
-                            {formatDisplayDate(point.date)}
-                          </Text>
-                        ))
-                      }
-                    </View>
-                  </View>
-                </View>
-              </Animated.View>
+              </View>
             </>
           ) : (
             <View className="h-64 items-center justify-center">
