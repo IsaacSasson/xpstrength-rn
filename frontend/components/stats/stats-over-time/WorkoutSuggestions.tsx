@@ -6,9 +6,10 @@ import { MetricType } from './ProgressLineChart';
 interface WorkoutSuggestionsProps {
   activeMetric: MetricType;
   activeMuscle: string;
+  color?: string;
 }
 
-const WorkoutSuggestions: React.FC<WorkoutSuggestionsProps> = ({ activeMetric, activeMuscle }) => {
+const WorkoutSuggestions: React.FC<WorkoutSuggestionsProps> = ({ activeMetric, activeMuscle, color }) => {
   return (
     <>
       <Text className="text-white text-xl font-psemibold mt-6 mb-4">
@@ -16,7 +17,11 @@ const WorkoutSuggestions: React.FC<WorkoutSuggestionsProps> = ({ activeMetric, a
       </Text>
       <View className="bg-black-100 rounded-2xl p-4 mb-6">
         <View className="flex-row items-start mb-4">
-          <View className="bg-secondary h-10 w-10 rounded-full items-center justify-center mr-3">
+          <View 
+          style={{
+            backgroundColor: color 
+          }}
+          className="h-10 w-10 rounded-full items-center justify-center mr-3">
             <FontAwesome5 name="lightbulb" size={18} color="#FFF" />
           </View>
           <View className="flex-1">
@@ -29,7 +34,7 @@ const WorkoutSuggestions: React.FC<WorkoutSuggestionsProps> = ({ activeMetric, a
         
         <View className="flex-row items-start">
           <View className="bg-black-200 h-10 w-10 rounded-full items-center justify-center mr-3">
-            <FontAwesome5 name="dumbbell" size={18} color="#A742FF" />
+            <FontAwesome5 name="dumbbell" size={18} color={color} />
           </View>
           <View className="flex-1">
             <Text className="text-white font-pmedium">Optimize Recovery</Text>

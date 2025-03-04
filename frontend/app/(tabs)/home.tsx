@@ -279,7 +279,7 @@ const Home = () => {
         </View>
 
         {/* THEME TEST BUTTON */}
-        <View className="items-center justify-center mt-6">
+        {/* <View className="items-center justify-center mt-6">
           <TouchableOpacity
             onPress={cycleTheme}
             style={{
@@ -293,7 +293,8 @@ const Home = () => {
               Cycle Theme Color
             </ThemedText>
           </TouchableOpacity>
-        </View>
+        </View> */}
+
       </ScrollView>
     </View>
   );

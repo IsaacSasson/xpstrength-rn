@@ -5,12 +5,15 @@ interface MuscleGroupSelectorProps {
   activeMuscle: string;
   handleMuscleChange: (muscle: string) => void;
   muscleGroups: string[];
+  backgroundColor?: string;
 }
 
 const MuscleGroupSelector: React.FC<MuscleGroupSelectorProps> = ({
   activeMuscle,
   handleMuscleChange,
-  muscleGroups
+  muscleGroups,
+  backgroundColor
+
 }) => {
   return (
     <View className="mb-4">
@@ -22,21 +25,23 @@ const MuscleGroupSelector: React.FC<MuscleGroupSelectorProps> = ({
       >
         {muscleGroups.map((muscle) => (
           <TouchableOpacity
-            key={muscle}
-            onPress={() => handleMuscleChange(muscle)}
-            className={`px-4 py-2 mr-2 rounded-full ${
-              activeMuscle === muscle ? 'bg-secondary' : 'bg-black-100'
+          key={muscle}
+          onPress={() => handleMuscleChange(muscle)}
+          style={{
+            backgroundColor: activeMuscle === muscle ? backgroundColor : undefined,
+          }}
+          className={`px-4 py-2 mr-2 rounded-full ${activeMuscle !== muscle ? 'bg-black-100' : ''}`}
+          activeOpacity={0.7}
+        >
+          <Text
+            className={`font-pmedium ${
+              activeMuscle === muscle ? 'text-white' : 'text-gray-100'
             }`}
-            activeOpacity={0.7}
           >
-            <Text
-              className={`font-pmedium ${
-                activeMuscle === muscle ? 'text-white' : 'text-gray-100'
-              }`}
-            >
-              {muscle}
-            </Text>
-          </TouchableOpacity>
+            {muscle}
+          </Text>
+        </TouchableOpacity>
+        
         ))}
       </ScrollView>
     </View>

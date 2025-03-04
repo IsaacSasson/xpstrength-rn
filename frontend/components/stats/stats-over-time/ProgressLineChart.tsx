@@ -7,6 +7,8 @@ import Svg, { Circle, Path, Defs, LinearGradient, Stop, Line } from 'react-nativ
 export type DataPoint = {
   date: string;
   value: number;
+  color?: string;
+  colorTwo?: string;
 };
 
 export type MetricType = 'volume' | 'reps' | 'sets' | 'weight';
@@ -15,6 +17,8 @@ interface ProgressLineChartProps {
   chartData: DataPoint[];
   loading: boolean;
   activeMetric: MetricType;
+  color?: string;
+  colorTwo?: string;
 }
 
 // Format date string to display format
@@ -27,6 +31,8 @@ const ProgressLineChart: React.FC<ProgressLineChartProps> = ({
   chartData,
   loading,
   activeMetric,
+  color,
+  colorTwo
 }) => {
   // Get the appropriate unit based on active metric
   const getMetricUnit = () => {
@@ -165,8 +171,8 @@ const ProgressLineChart: React.FC<ProgressLineChartProps> = ({
           {/* Define gradient for the line */}
           <Defs>
             <LinearGradient id="lineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-              <Stop offset="0%" stopColor="#A742FF" stopOpacity="1" />
-              <Stop offset="100%" stopColor="#A742FF" stopOpacity="1" />
+              <Stop offset="0%" stopColor={color} stopOpacity="1" />
+              <Stop offset="100%" stopColor={color} stopOpacity="1" />
             </LinearGradient>
           </Defs>
           
@@ -190,7 +196,7 @@ const ProgressLineChart: React.FC<ProgressLineChartProps> = ({
           {/* The main line */}
           <Path
             d={path}
-            stroke="#A742FF"
+            stroke={color}
             strokeWidth="3"
             fill="none"
             strokeLinecap="round"
@@ -216,7 +222,7 @@ const ProgressLineChart: React.FC<ProgressLineChartProps> = ({
               cx={getX(index)}
               cy={getY(point.value)}
               r="4"
-              fill="#A742FF"
+              fill={color}
             />
           ))}
         </Svg>
@@ -267,7 +273,11 @@ const ProgressLineChart: React.FC<ProgressLineChartProps> = ({
           {activeMetric.charAt(0).toUpperCase() + activeMetric.slice(1)} Progress {getMetricUnit()}
         </Text>
         <View className="bg-black-200 px-3 py-1 rounded-lg">
-          <Text className="text-secondary-100 font-pmedium text-sm">
+          <Text 
+          style={{
+            color: colorTwo
+          }}
+          className="font-pmedium text-sm">
             {chartData.length > 0 ? 
               `${formatDisplayDate(chartData[0].date)} - ${formatDisplayDate(chartData[chartData.length-1].date)}` :
               'Last Workouts'
@@ -278,7 +288,7 @@ const ProgressLineChart: React.FC<ProgressLineChartProps> = ({
       
       {loading ? (
         <View className="h-64 items-center justify-center">
-          <ActivityIndicator size="large" color="#A742FF" />
+          <ActivityIndicator size="large" color={color} />
           <Text className="text-gray-100 mt-2">Loading data...</Text>
         </View>
       ) : (
@@ -313,7 +323,7 @@ const ProgressLineChart: React.FC<ProgressLineChartProps> = ({
             </>
           ) : (
             <View className="h-64 items-center justify-center">
-              <FontAwesome5 name="chart-line" size={50} color="#A742FF" />
+              <FontAwesome5 name="chart-line" size={50} color={color} />
               <Text className="text-white font-pmedium text-center mt-4 text-lg">No Data Available</Text>
               <Text className="text-gray-100 text-center mt-2">Complete more workouts to see your progress.</Text>
             </View>

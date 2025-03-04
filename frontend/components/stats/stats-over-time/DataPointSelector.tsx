@@ -4,11 +4,13 @@ import { View, Text, TouchableOpacity } from 'react-native';
 interface DataPointSelectorProps {
   dataPoints: number;
   handleDataPointsChange: (points: number) => void;
+  backgroundColor?: string;
 }
 
 const DataPointSelector: React.FC<DataPointSelectorProps> = ({
   dataPoints,
-  handleDataPointsChange
+  handleDataPointsChange,
+  backgroundColor
 }) => {
   return (
     <View className="mb-4">
@@ -18,9 +20,8 @@ const DataPointSelector: React.FC<DataPointSelectorProps> = ({
           <TouchableOpacity
             key={num}
             onPress={() => handleDataPointsChange(num)}
-            className={`px-4 py-2 mr-2 rounded-lg ${
-              dataPoints === num ? 'bg-secondary' : 'bg-black-100'
-            }`}
+            className="px-4 py-2 mr-2 rounded-lg"
+            style={{ backgroundColor: dataPoints === num ? backgroundColor : 'bg-black-100' }}
             activeOpacity={0.7}
           >
             <Text

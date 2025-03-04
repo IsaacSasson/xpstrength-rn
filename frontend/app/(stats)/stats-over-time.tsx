@@ -12,6 +12,7 @@ import WorkoutSuggestions from '@/components/stats/stats-over-time/WorkoutSugges
 import MuscleGroupSelector from '@/components/stats/stats-over-time/MuscleGroupSelector';
 import DataPointSelector from '@/components/stats/stats-over-time/DataPointSelector';
 import { generateMockData, WorkoutData } from '@/components/stats/stats-over-time/StatsDataService';
+import { useThemeColors } from '@/context/ThemeContext';
 
 // Mock data for muscle groups
 const muscleGroups = [
@@ -31,7 +32,7 @@ const StatsOverTime: React.FC = () => {
   const [workoutData, setWorkoutData] = useState<WorkoutData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [chartData, setChartData] = useState<DataPoint[]>([]);
-  
+  const { primaryColor, secondaryColor, cycleTheme } = useThemeColors();
   // Generate mock data on component mount
   useEffect(() => {
     setLoading(true);
@@ -107,6 +108,7 @@ const StatsOverTime: React.FC = () => {
           tabs={['volume', 'reps', 'sets', 'weight']}
           activeTab={activeMetric}
           onTabChange={handleMetricChange}
+          backgroundColor={primaryColor}
         />
         
         {/* Muscle Group Selection */}
@@ -114,12 +116,14 @@ const StatsOverTime: React.FC = () => {
           activeMuscle={activeMuscle}
           handleMuscleChange={handleMuscleChange}
           muscleGroups={muscleGroups}
+          backgroundColor={primaryColor}
         />
         
         {/* Data Points Selector */}
         <DataPointSelector 
           dataPoints={dataPoints}
           handleDataPointsChange={handleDataPointsChange}
+          backgroundColor={primaryColor}
         />
         
         {/* Progress Chart */}
@@ -127,15 +131,18 @@ const StatsOverTime: React.FC = () => {
           chartData={chartData}
           loading={loading}
           activeMetric={activeMetric}
+          color={primaryColor}
+          colorTwo={secondaryColor}
         />
         
         {/* Key Stats Section */}
-        <StatKeyMetrics chartData={chartData} />
+        <StatKeyMetrics chartData={chartData} color={primaryColor}/>
         
         {/* Suggestions Section */}
         <WorkoutSuggestions 
           activeMetric={activeMetric}
           activeMuscle={activeMuscle}
+          color={primaryColor}
         />
       </ScrollView>
     </View>
