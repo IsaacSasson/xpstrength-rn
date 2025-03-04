@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   Pressable,
   Animated,
+  Platform,
+  LayoutChangeEvent,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -98,12 +100,12 @@ const weeklyWorkoutData = [
   },
 ];
 
-const ExpandableSection = ({ isExpanded, children }) => {
+const ExpandableSection: React.FC<{ isExpanded: boolean; children: React.ReactNode }> = ({ isExpanded, children }) => {
   const [contentHeight, setContentHeight] = useState(0);
   const animation = useRef(new Animated.Value(0)).current;
 
   // onLayout callback for the hidden measurement container
-  const onMeasure = (event) => {
+  const onMeasure = (event: LayoutChangeEvent) => {
     const { height } = event.nativeEvent.layout;
     if (height > 0 && height !== contentHeight) {
       setContentHeight(height);
@@ -166,7 +168,11 @@ const WeeklyPlan = () => {
 
   // Handle going back to home
   const goBack = () => {
-    router.back();
+    if (Platform.OS === "web") {
+      router.push("/home");
+    } else {
+      router.back();
+    }
   };
 
   // Handle editing a workout
