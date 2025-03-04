@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, FlatList } from 'react-native';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
+import { router } from 'expo-router';
 
 interface StatButtonItem {
   title: string;
@@ -16,7 +17,7 @@ const StatButtons: React.FC<StatButtonsProps> = ({
   buttons = [
     { title: 'Personal Bests', icon: 'trophy', onPress: () => console.log('Navigate to Personal Bests') },
     { title: 'Workout History', icon: 'history', onPress: () => console.log('Navigate to Workout History') },
-    { title: 'Stats Over Time', icon: 'chart-line', onPress: () => console.log('Navigate to Stats Over Time') },
+    { title: 'Stats Over Time', icon: 'chart-line', onPress: () => router.push('/stats-over-time') },
     { title: 'Goals & Achievements', icon: 'medal', onPress: () => console.log('Navigate to Goals') }
   ]
 }) => {

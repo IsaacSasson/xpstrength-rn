@@ -117,29 +117,6 @@ const Stats = () => {
     }
   };
 
-  const statButtons = [
-    {
-      title: "Personal Bests",
-      icon: "trophy",
-      onPress: () => console.log("Navigate to Personal Bests"),
-    },
-    {
-      title: "Workout History",
-      icon: "history",
-      onPress: () => console.log("Navigate to Workout History"),
-    },
-    {
-      title: "Stats Over Time",
-      icon: "chart-line",
-      onPress: () => console.log("Navigate to Stats Over Time"),
-    },
-    {
-      title: "Goals & Achievements",
-      icon: "medal",
-      onPress: () => console.log("Navigate to Goals"),
-    },
-  ];
-
   return (
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
       <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
@@ -166,7 +143,7 @@ const Stats = () => {
 
         <RadarChart activeMetric={activeMetric} displayData={displayData} />
 
-        <StatButtons buttons={statButtons} />
+        <StatButtons/>
       </ScrollView>
     </View>
   );
