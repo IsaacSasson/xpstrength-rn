@@ -4,9 +4,13 @@ import React from 'react';
 import { usePathname } from 'expo-router';
 import TabTrailIndicator from '@/components/TabTrailIndicator';
 import TabIcon from '@/components/TabIcon';
+import { useThemeColors } from '@/context/ThemeContext'; // Adjust the path as needed
+
+
 
 const TabsLayout = () => {
-  const activeColor = '#A742FF';
+  const { primaryColor, secondaryColor, cycleTheme } = useThemeColors();
+  const activeColor = primaryColor;
   const tabBarHeight = 100;
 
   // Get the current pathname

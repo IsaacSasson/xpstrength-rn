@@ -7,6 +7,8 @@ import TopBar from "@/components/TopBar";
 import Tabs from "@/components/TabList";
 import RadarChart from "@/components/stats/RadarChart";
 import StatButtons from "@/components/stats/StatButtons";
+import { useThemeColors } from "@/context/ThemeContext"; // Adjust the path as needed
+
 
 const Stats = () => {
 

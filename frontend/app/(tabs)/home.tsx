@@ -33,7 +33,7 @@ const todaysWorkout = {
 
 const Home = () => {
   // Access the theme state and function from our custom hook
-  const { primaryColor, cycleTheme } = useThemeColors();
+  const { primaryColor, secondaryColor, cycleTheme } = useThemeColors();
 
   // Navigation functions
   const goToEditWorkout = () => {
@@ -63,19 +63,38 @@ const Home = () => {
       <ScrollView showsVerticalScrollIndicator={false} className="px-4 pb-6">
         {/* Today's Date */}
         <View className="flex-row items-center justify-between mb-4">
-          <Text className="text-white font-pmedium text-lg">{formattedDate}</Text>
-          <TouchableOpacity onPress={goToPlannedWorkouts} className="flex-row items-center">
-            <Text className="text-secondary mr-2 font-pmedium">Weekly Plan</Text>
-            <FontAwesome5 name="calendar-alt" size={16} color="#A742FF" />
+          <Text className="text-white font-pmedium text-lg">
+            {formattedDate}
+          </Text>
+          <TouchableOpacity
+            onPress={goToPlannedWorkouts}
+            className="flex-row items-center"
+          >
+            <Text
+              style={{
+                color: primaryColor,
+              }}
+              className=" mr-2 font-pmedium"
+            >
+              Weekly Plan
+            </Text>
+            <FontAwesome5 name="calendar-alt" size={16} color={primaryColor} />
           </TouchableOpacity>
         </View>
 
         {/* Today's Workout Card */}
         <View className="bg-black-100 rounded-2xl p-5 mb-6">
           <View className="flex-row items-center justify-between mb-4">
-            <Text className="text-white text-xl font-psemibold">Today's Workout</Text>
+            <Text className="text-white text-xl font-psemibold">
+              Today's Workout
+            </Text>
             {todaysWorkout.exists && (
-              <View className="bg-secondary px-3 py-1 rounded-lg">
+              <View
+                style={{
+                  backgroundColor: primaryColor,
+                }}
+                className="px-3 py-1 rounded-lg"
+              >
                 <Text className="text-white font-pmedium text-sm">
                   {todaysWorkout.scheduledTime}
                 </Text>
@@ -85,16 +104,30 @@ const Home = () => {
 
           {todaysWorkout.exists ? (
             <View>
-              <Text className="text-secondary-100 text-lg font-pmedium mb-4">
+              <Text
+                style={{
+                  color: secondaryColor,
+                }}
+                className="text-lg font-pmedium mb-4"
+              >
                 {todaysWorkout.name}
               </Text>
 
               {/* Exercise List */}
               <View className="mb-4">
                 {todaysWorkout.exercises.map((exercise, index) => (
-                  <View key={index} className="flex-row items-center mb-3 last:mb-0">
-                    <MaterialCommunityIcons name="dumbbell" size={18} color="#A742FF" />
-                    <Text className="text-white font-pmedium ml-3">{exercise.name}</Text>
+                  <View
+                    key={index}
+                    className="flex-row items-center mb-3 last:mb-0"
+                  >
+                    <MaterialCommunityIcons
+                      name="dumbbell"
+                      size={18}
+                      color={primaryColor}
+                    />
+                    <Text className="text-white font-pmedium ml-3">
+                      {exercise.name}
+                    </Text>
                     <Text className="text-gray-100 ml-auto">
                       {exercise.sets} sets × {exercise.reps}
                     </Text>
@@ -105,22 +138,33 @@ const Home = () => {
               <View className="flex-row items-center justify-between mt-2">
                 <View className="flex-row items-center">
                   <FontAwesome5 name="clock" size={14} color="#CDCDE0" />
-                  <Text className="text-gray-100 ml-2">{todaysWorkout.time}</Text>
+                  <Text className="text-gray-100 ml-2">
+                    {todaysWorkout.time}
+                  </Text>
                 </View>
 
                 <TouchableOpacity
                   onPress={goToEditWorkout}
+                  style={{
+                    backgroundColor: primaryColor,
+                  }}
                   className="bg-secondary flex-row items-center px-4 py-2 rounded-lg"
                   activeOpacity={0.7}
                 >
                   <FontAwesome5 name="edit" size={14} color="#FFF" />
-                  <Text className="text-white font-pmedium ml-2">Edit Workout</Text>
+                  <Text className="text-white font-pmedium ml-2">
+                    Edit Workout
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
           ) : (
             <View className="items-center py-8">
-              <FontAwesome5 name="calendar-times" size={50} color="#A742FF" />
+              <FontAwesome5
+                name="calendar-times"
+                size={50}
+                color={primaryColor}
+              />
               <Text className="text-white font-pmedium text-center mt-4 text-lg">
                 No Workout Scheduled
               </Text>
@@ -130,75 +174,106 @@ const Home = () => {
 
               <TouchableOpacity
                 onPress={goToEditWorkout}
-                className="bg-secondary flex-row items-center px-6 py-3 rounded-lg"
+                style={{
+                  backgroundColor: primaryColor,
+                }}
+                className="flex-row items-center px-6 py-3 rounded-lg"
                 activeOpacity={0.7}
               >
                 <FontAwesome5 name="plus" size={14} color="#FFF" />
-                <Text className="text-white font-pmedium ml-2">Create Workout</Text>
+                <Text className="text-white font-pmedium ml-2">
+                  Create Workout
+                </Text>
               </TouchableOpacity>
             </View>
           )}
         </View>
 
         {/* Quick Actions */}
-        <Text className="text-white text-xl font-psemibold mb-4">Quick Actions</Text>
+        <Text className="text-white text-xl font-psemibold mb-4">
+          Quick Actions
+        </Text>
         <View className="flex-row flex-wrap mb-8">
           <ActionButton
             title="Create New Workout"
             icon="dumbbell"
             iconType="material"
             onPress={goToEditWorkout}
+            iconColor={primaryColor}
           />
           <ActionButton
             title="View Workout Plan"
             icon="calendar-week"
             onPress={goToPlannedWorkouts}
+            iconColor={primaryColor}
           />
           <ActionButton
             title="Invite Friends"
             icon="user-plus"
             onPress={() => console.log("Navigate to invite friends")}
+            iconColor={primaryColor}
           />
           <ActionButton
             title="View Progress"
             icon="chart-line"
             onPress={() => router.push("/stats")}
+            iconColor={primaryColor}
           />
         </View>
 
         {/* Recent Activity */}
-        <Text className="text-white text-xl font-psemibold mb-4">Recent Activity</Text>
+        <Text className="text-white text-xl font-psemibold mb-4">
+          Recent Activity
+        </Text>
         <View className="bg-black-100 rounded-2xl p-5 mb-6">
           <View className="flex-row items-start mb-4">
-            <View className="bg-secondary h-10 w-10 rounded-full items-center justify-center mr-3">
+            <View 
+            style={{
+              backgroundColor: primaryColor,
+            }}
+            className="h-10 w-10 rounded-full items-center justify-center mr-3">
               <FontAwesome5 name="trophy" size={18} color="#FFF" />
             </View>
             <View className="flex-1">
-              <Text className="text-white font-pmedium">New Personal Best!</Text>
-              <Text className="text-gray-100">Bench Press: 225 lbs × 8 reps</Text>
-              <Text className="text-gray-100 text-xs mt-1">Yesterday at 7:24 PM</Text>
+              <Text className="text-white font-pmedium">
+                New Personal Best!
+              </Text>
+              <Text className="text-gray-100">
+                Bench Press: 225 lbs × 8 reps
+              </Text>
+              <Text className="text-gray-100 text-xs mt-1">
+                Yesterday at 7:24 PM
+              </Text>
             </View>
           </View>
 
           <View className="flex-row items-start mb-4">
             <View className="bg-black-200 h-10 w-10 rounded-full items-center justify-center mr-3">
-              <FontAwesome5 name="dumbbell" size={18} color="#A742FF" />
+              <FontAwesome5 name="dumbbell" size={18} color={primaryColor} />
             </View>
             <View className="flex-1">
               <Text className="text-white font-pmedium">Completed Workout</Text>
               <Text className="text-gray-100">Pull Day: 45 minutes</Text>
-              <Text className="text-gray-100 text-xs mt-1">2 days ago at 6:15 PM</Text>
+              <Text className="text-gray-100 text-xs mt-1">
+                2 days ago at 6:15 PM
+              </Text>
             </View>
           </View>
 
           <View className="flex-row items-start">
             <View className="bg-black-200 h-10 w-10 rounded-full items-center justify-center mr-3">
-              <FontAwesome5 name="user-friends" size={16} color="#A742FF" />
+              <FontAwesome5 name="user-friends" size={16} color={primaryColor} />
             </View>
             <View className="flex-1">
-              <Text className="text-white font-pmedium">Friend Request Accepted</Text>
-              <Text className="text-gray-100">You and Alex are now friends</Text>
-              <Text className="text-gray-100 text-xs mt-1">3 days ago at 11:32 AM</Text>
+              <Text className="text-white font-pmedium">
+                Friend Request Accepted
+              </Text>
+              <Text className="text-gray-100">
+                You and Alex are now friends
+              </Text>
+              <Text className="text-gray-100 text-xs mt-1">
+                3 days ago at 11:32 AM
+              </Text>
             </View>
           </View>
         </View>
@@ -230,6 +305,7 @@ interface ActionButtonProps {
   icon: any; // Using any for simplicity
   iconType?: "material" | "fontawesome";
   onPress: () => void;
+  iconColor?: string;
 }
 
 const ActionButton: React.FC<ActionButtonProps> = ({
@@ -237,6 +313,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({
   icon,
   iconType = "fontawesome",
   onPress,
+  iconColor,
 }) => {
   return (
     <View className="w-1/2 p-2">
@@ -246,11 +323,13 @@ const ActionButton: React.FC<ActionButtonProps> = ({
         activeOpacity={0.7}
       >
         {iconType === "material" ? (
-          <MaterialCommunityIcons name={icon} size={28} color="#A742FF" />
+          <MaterialCommunityIcons name={icon} size={28} color={iconColor} />
         ) : (
-          <FontAwesome5 name={icon} size={24} color="#A742FF" />
+          <FontAwesome5 name={icon} size={24} color={iconColor} />
         )}
-        <Text className="text-white font-pmedium text-center mt-3">{title}</Text>
+        <Text className="text-white font-pmedium text-center mt-3">
+          {title}
+        </Text>
       </TouchableOpacity>
     </View>
   );

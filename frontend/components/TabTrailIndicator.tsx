@@ -18,6 +18,7 @@ interface TabTrailIndicatorProps {
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 // Background color to which we fade the trail
+//change to tertiary background color with context
 const BACKGROUND_COLOR = '#0F0E1A';
 
 const TabTrailIndicator: React.FC<TabTrailIndicatorProps> = ({
