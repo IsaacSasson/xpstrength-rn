@@ -12,14 +12,13 @@ const WorkoutLayout = () => {
             headerShown: false 
           }}
         />
-        {/* You can add more workout related screens here later */}
-        {/* For example:
         <Stack.Screen 
           name="edit-workout" 
           options={{ 
             headerShown: false 
           }}
         />
+        {/* For example:
         <Stack.Screen 
           name="workout-details" 
           options={{ 
