@@ -9,6 +9,7 @@ interface FormFieldProps extends TextInputProps {
   placeHolder: string;
   handleChangeText: (text: string) => void;
   otherStyles?: string;
+  color?: string;
 }
 
 const SearchInput: React.FC<FormFieldProps> = ({
@@ -17,6 +18,7 @@ const SearchInput: React.FC<FormFieldProps> = ({
   placeHolder,
   handleChangeText,
   otherStyles,
+  color = '#7b7b8b', // Default color
   ...props
 }) => {
   const [showPassword, setShowPassword] = useState(false);
@@ -47,7 +49,7 @@ const SearchInput: React.FC<FormFieldProps> = ({
         />
 
         <TouchableOpacity>
-        <FontAwesome5 name="search" size={22} color="#A742FF" />
+        <FontAwesome5 name="search" size={22} color={color} />
         </TouchableOpacity>
       </View>
   

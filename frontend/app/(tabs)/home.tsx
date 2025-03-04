@@ -1,16 +1,21 @@
-import { 
-  View, 
+// Home.tsx
+import React from "react";
+import {
+  View,
   Text,
   StatusBar,
   ScrollView,
-  TouchableOpacity
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
-import React from 'react';
-import TopBar from '@/components/TopBar';
-import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+  TouchableOpacity,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { router } from "expo-router";
+import TopBar from "@/components/TopBar";
+import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+
+// Import the custom theme hook and themed text component
+import { useThemeColors } from "@/context/ThemeContext"; // Adjust the path as needed
+import ThemedText from "@/components/ThemedText"; // Adjust the path as needed
 
 // Mock data for today's workout
 const todaysWorkout = {
@@ -20,49 +25,46 @@ const todaysWorkout = {
     { name: "Bench Press", sets: 4, reps: "8-10" },
     { name: "Incline Dumbbell Press", sets: 3, reps: "10-12" },
     { name: "Shoulder Press", sets: 3, reps: "10-12" },
-    { name: "Tricep Pushdown", sets: 3, reps: "12-15" }
+    { name: "Tricep Pushdown", sets: 3, reps: "12-15" },
   ],
   time: "1h 15m",
-  scheduledTime: "6:30 PM"
+  scheduledTime: "6:30 PM",
 };
 
 const Home = () => {
-  // Function to navigate to create/edit workout
+  // Access the theme state and function from our custom hook
+  const { primaryColor, cycleTheme } = useThemeColors();
+
+  // Navigation functions
   const goToEditWorkout = () => {
-    router.push('/edit-workout');
+    router.push("/edit-workout");
   };
 
-  // Function to navigate to planned workouts
   const goToPlannedWorkouts = () => {
-    router.push('/weekly-plan');
+    router.push("/weekly-plan");
   };
 
-  // Get today's date in a readable format
+  // Format today's date
   const today = new Date();
-  const options = { weekday: 'long', month: 'long', day: 'numeric' } as const;
-  const formattedDate = today.toLocaleDateString('en-US', options);
+  const options = { weekday: "long", month: "long", day: "numeric" } as const;
+  const formattedDate = today.toLocaleDateString("en-US", options);
 
   return (
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
       <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
-      
+
+      {/* Top Header Section */}
       <SafeAreaView edges={["top"]} className="bg-primary">
         <View className="px-4 pt-6">
           <TopBar subtext="Welcome Back" title="Wiiwho" titleTop={false} />
         </View>
       </SafeAreaView>
 
-      <ScrollView 
-        showsVerticalScrollIndicator={false} 
-        className="px-4 pb-6"
-      >
+      <ScrollView showsVerticalScrollIndicator={false} className="px-4 pb-6">
         {/* Today's Date */}
         <View className="flex-row items-center justify-between mb-4">
           <Text className="text-white font-pmedium text-lg">{formattedDate}</Text>
-          <TouchableOpacity 
-            onPress={goToPlannedWorkouts}
-            className="flex-row items-center"
-          >
+          <TouchableOpacity onPress={goToPlannedWorkouts} className="flex-row items-center">
             <Text className="text-secondary mr-2 font-pmedium">Weekly Plan</Text>
             <FontAwesome5 name="calendar-alt" size={16} color="#A742FF" />
           </TouchableOpacity>
@@ -74,33 +76,39 @@ const Home = () => {
             <Text className="text-white text-xl font-psemibold">Today's Workout</Text>
             {todaysWorkout.exists && (
               <View className="bg-secondary px-3 py-1 rounded-lg">
-                <Text className="text-white font-pmedium text-sm">{todaysWorkout.scheduledTime}</Text>
+                <Text className="text-white font-pmedium text-sm">
+                  {todaysWorkout.scheduledTime}
+                </Text>
               </View>
             )}
           </View>
 
           {todaysWorkout.exists ? (
             <View>
-              <Text className="text-secondary-100 text-lg font-pmedium mb-4">{todaysWorkout.name}</Text>
-              
+              <Text className="text-secondary-100 text-lg font-pmedium mb-4">
+                {todaysWorkout.name}
+              </Text>
+
               {/* Exercise List */}
               <View className="mb-4">
                 {todaysWorkout.exercises.map((exercise, index) => (
                   <View key={index} className="flex-row items-center mb-3 last:mb-0">
                     <MaterialCommunityIcons name="dumbbell" size={18} color="#A742FF" />
                     <Text className="text-white font-pmedium ml-3">{exercise.name}</Text>
-                    <Text className="text-gray-100 ml-auto">{exercise.sets} sets × {exercise.reps}</Text>
+                    <Text className="text-gray-100 ml-auto">
+                      {exercise.sets} sets × {exercise.reps}
+                    </Text>
                   </View>
                 ))}
               </View>
-              
+
               <View className="flex-row items-center justify-between mt-2">
                 <View className="flex-row items-center">
                   <FontAwesome5 name="clock" size={14} color="#CDCDE0" />
                   <Text className="text-gray-100 ml-2">{todaysWorkout.time}</Text>
                 </View>
-                
-                <TouchableOpacity 
+
+                <TouchableOpacity
                   onPress={goToEditWorkout}
                   className="bg-secondary flex-row items-center px-4 py-2 rounded-lg"
                   activeOpacity={0.7}
@@ -113,10 +121,14 @@ const Home = () => {
           ) : (
             <View className="items-center py-8">
               <FontAwesome5 name="calendar-times" size={50} color="#A742FF" />
-              <Text className="text-white font-pmedium text-center mt-4 text-lg">No Workout Scheduled</Text>
-              <Text className="text-gray-100 text-center mt-2 mb-4">You don't have a workout planned for today.</Text>
-              
-              <TouchableOpacity 
+              <Text className="text-white font-pmedium text-center mt-4 text-lg">
+                No Workout Scheduled
+              </Text>
+              <Text className="text-gray-100 text-center mt-2 mb-4">
+                You don't have a workout planned for today.
+              </Text>
+
+              <TouchableOpacity
                 onPress={goToEditWorkout}
                 className="bg-secondary flex-row items-center px-6 py-3 rounded-lg"
                 activeOpacity={0.7}
@@ -131,26 +143,26 @@ const Home = () => {
         {/* Quick Actions */}
         <Text className="text-white text-xl font-psemibold mb-4">Quick Actions</Text>
         <View className="flex-row flex-wrap mb-8">
-          <ActionButton 
-            title="Create New Workout" 
-            icon="dumbbell" 
-            iconType="material" 
-            onPress={goToEditWorkout} 
+          <ActionButton
+            title="Create New Workout"
+            icon="dumbbell"
+            iconType="material"
+            onPress={goToEditWorkout}
           />
-          <ActionButton 
-            title="View Workout Plan" 
-            icon="calendar-week" 
-            onPress={goToPlannedWorkouts} 
+          <ActionButton
+            title="View Workout Plan"
+            icon="calendar-week"
+            onPress={goToPlannedWorkouts}
           />
-          <ActionButton 
-            title="Invite Friends" 
-            icon="user-plus" 
-            onPress={() => console.log("Navigate to invite friends")} 
+          <ActionButton
+            title="Invite Friends"
+            icon="user-plus"
+            onPress={() => console.log("Navigate to invite friends")}
           />
-          <ActionButton 
-            title="View Progress" 
-            icon="chart-line" 
-            onPress={() => router.push('/stats')} 
+          <ActionButton
+            title="View Progress"
+            icon="chart-line"
+            onPress={() => router.push("/stats")}
           />
         </View>
 
@@ -190,6 +202,23 @@ const Home = () => {
             </View>
           </View>
         </View>
+
+        {/* THEME TEST BUTTON */}
+        <View className="items-center justify-center mt-6">
+          <TouchableOpacity
+            onPress={cycleTheme}
+            style={{
+              backgroundColor: primaryColor,
+              paddingHorizontal: 24,
+              paddingVertical: 12,
+              borderRadius: 8,
+            }}
+          >
+            <ThemedText style={{ fontWeight: "bold" }}>
+              Cycle Theme Color
+            </ThemedText>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </View>
   );
@@ -198,28 +227,28 @@ const Home = () => {
 // Action Button Component
 interface ActionButtonProps {
   title: string;
-  icon: any; // Using any to bypass TypeScript icon name checking
-  iconType?: 'material' | 'fontawesome';
+  icon: any; // Using any for simplicity
+  iconType?: "material" | "fontawesome";
   onPress: () => void;
 }
 
-const ActionButton: React.FC<ActionButtonProps> = ({ 
-  title, 
-  icon, 
-  iconType = 'fontawesome',
-  onPress 
+const ActionButton: React.FC<ActionButtonProps> = ({
+  title,
+  icon,
+  iconType = "fontawesome",
+  onPress,
 }) => {
   return (
     <View className="w-1/2 p-2">
-      <TouchableOpacity 
+      <TouchableOpacity
         onPress={onPress}
         className="bg-black-100 rounded-xl h-[90px] justify-center items-center p-4"
         activeOpacity={0.7}
       >
-        {iconType === 'material' ? (
-          <MaterialCommunityIcons name={icon as any} size={28} color="#A742FF" />
+        {iconType === "material" ? (
+          <MaterialCommunityIcons name={icon} size={28} color="#A742FF" />
         ) : (
-          <FontAwesome5 name={icon as any} size={24} color="#A742FF" />
+          <FontAwesome5 name={icon} size={24} color="#A742FF" />
         )}
         <Text className="text-white font-pmedium text-center mt-3">{title}</Text>
       </TouchableOpacity>
