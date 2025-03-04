@@ -33,6 +33,8 @@ interface DayCardProps {
   onToggleExpand: () => void;
   onEdit: () => void;
   onStart: () => void;
+  colorprime: string; // new prop for primary color replacements
+  colorsecond: string; // new prop for secondary color replacements (for "#BD7AFF" if needed)
 }
 
 /**
@@ -87,8 +89,8 @@ const ExpandableSection: React.FC<{
 };
 
 /**
- * DayCard uses the exact Tailwind classes from your original code
- * so that it matches the colors and style from your tailwind.config.js.
+ * DayCard uses your tailwind classes, but now we override the hard-coded
+ * color values with the props colorprime and colorsecond.
  */
 const DayCard: React.FC<DayCardProps> = ({
   dayData,
@@ -97,53 +99,50 @@ const DayCard: React.FC<DayCardProps> = ({
   onToggleExpand,
   onEdit,
   onStart,
+  colorprime,
+  colorsecond,
 }) => {
   const isRestDay = dayData.workout.name === "Rest Day";
 
   return (
     <View
-      // Matches "bg-black-100 rounded-xl mb-4 overflow-hidden"
-      // plus border-secondary if isToday
-      className={`bg-black-100 rounded-xl mb-4 overflow-hidden ${
-        isToday ? "border border-secondary" : ""
-      }`}
+      className="bg-black-100 rounded-xl mb-4 overflow-hidden"
+      style={isToday ? { borderWidth: 1, borderColor: colorprime } : {}}
     >
       {/* Day Header */}
       <Pressable
         onPress={onToggleExpand}
         android_ripple={{ color: "#232533" }}
-        // Matches "p-4 flex-row justify-between items-center"
         className="p-4 flex-row justify-between items-center"
       >
         <View className="flex-row items-center">
           <View
-            // Matches "h-10 w-10 rounded-full items-center justify-center mr-3"
-            // plus "bg-secondary" if isToday, otherwise "bg-black-200"
-            className={`h-10 w-10 rounded-full items-center justify-center mr-3 ${
-              isToday ? "bg-secondary" : "bg-black-200"
-            }`}
+            style={isToday ? { backgroundColor: colorprime } : { backgroundColor: "#232533" }}
+            className="h-10 w-10 rounded-full items-center justify-center mr-3"
           >
             <Text className="text-white font-pbold">
               {dayData.day.substring(0, 2)}
             </Text>
           </View>
+
           <View>
             <View className="flex-row items-center">
               <Text className="text-white font-psemibold text-lg">
                 {dayData.day}
               </Text>
               {isToday && (
-                <View className="bg-secondary rounded-full px-2 py-0.5 ml-2">
+                // Replace bg-secondary with inline style for backgroundColor using colorprime.
+                <View
+                  style={{ backgroundColor: colorprime }}
+                  className="rounded-full px-2 py-0.5 ml-2"
+                >
                   <Text className="text-white text-xs font-pbold">TODAY</Text>
                 </View>
               )}
             </View>
             <Text
-              // Matches "font-pmedium" plus "text-gray-100" if rest day
-              // or "text-secondary-100" otherwise
-              className={`font-pmedium ${
-                isRestDay ? "text-gray-100" : "text-secondary-100"
-              }`}
+              style={!isRestDay ? { color: colorsecond } : undefined}
+              className="font-pmedium text-gray-100"
             >
               {dayData.workout.name}
             </Text>
@@ -154,9 +153,7 @@ const DayCard: React.FC<DayCardProps> = ({
           {!isRestDay && (
             <View className="flex-row items-center mr-3">
               <FontAwesome5 name="clock" size={14} color="#CDCDE0" />
-              <Text className="text-gray-100 ml-1">
-                {dayData.workout.time}
-              </Text>
+              <Text className="text-gray-100 ml-1">{dayData.workout.time}</Text>
             </View>
           )}
           <FontAwesome5
@@ -169,11 +166,15 @@ const DayCard: React.FC<DayCardProps> = ({
 
       {/* Expanded Content */}
       <ExpandableSection isExpanded={isExpanded}>
-        {/* Matches "border-t border-black-200 p-4" */}
         <View className="border-t border-black-200 p-4">
           {isRestDay ? (
             <View className="items-center py-4">
-              <MaterialCommunityIcons name="sleep" size={40} color="#A742FF" />
+              {/* Replace "#A742FF" with colorprime */}
+              <MaterialCommunityIcons
+                name="sleep"
+                size={40}
+                color={colorprime}
+              />
               <Text className="text-white font-pmedium text-center mt-3">
                 Rest and recovery day. No workout scheduled.
               </Text>
@@ -184,13 +185,13 @@ const DayCard: React.FC<DayCardProps> = ({
                 {dayData.workout.exercises.map((exercise, idx) => (
                   <View
                     key={idx}
-                    // Matches "flex-row items-center mb-3 last:mb-0"
                     className="flex-row items-center mb-3 last:mb-0"
                   >
+                    {/* Replace "#A742FF" with colorprime */}
                     <MaterialCommunityIcons
                       name="dumbbell"
                       size={18}
-                      color="#A742FF"
+                      color={colorprime}
                     />
                     <Text className="text-white font-pmedium ml-3">
                       {exercise.name}
@@ -205,7 +206,9 @@ const DayCard: React.FC<DayCardProps> = ({
               <View className="flex-row justify-end mt-2">
                 <TouchableOpacity
                   onPress={onEdit}
-                  className="bg-secondary flex-row items-center px-4 py-2 rounded-lg mr-3"
+                  // Replace bg-secondary with inline style using colorprime.
+                  style={{ backgroundColor: colorprime }}
+                  className="flex-row items-center px-4 py-2 rounded-lg mr-3"
                   activeOpacity={0.7}
                 >
                   <FontAwesome5 name="edit" size={14} color="#FFF" />
@@ -217,7 +220,8 @@ const DayCard: React.FC<DayCardProps> = ({
                   className="bg-black-200 flex-row items-center px-4 py-2 rounded-lg"
                   activeOpacity={0.7}
                 >
-                  <FontAwesome5 name="play" size={14} color="#A742FF" />
+                  {/* Replace "#A742FF" with colorprime */}
+                  <FontAwesome5 name="play" size={14} color={colorprime} />
                   <Text className="text-white font-pmedium ml-2">Start</Text>
                 </TouchableOpacity>
               </View>

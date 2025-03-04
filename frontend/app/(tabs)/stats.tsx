@@ -11,7 +11,7 @@ import { useThemeColors } from "@/context/ThemeContext"; // Adjust the path as n
 
 
 const Stats = () => {
-
+  const { primaryColor, secondaryColor, cycleTheme } = useThemeColors();
   type MuscleGroup =
     | "chest"
     | "back"
@@ -141,11 +141,12 @@ const Stats = () => {
           activeTab={activeMetric}
           onTabChange={handleMetricChange}
           isAnimating={isAnimating}
+          backgroundColor={primaryColor}
         />
 
-        <RadarChart activeMetric={activeMetric} displayData={displayData} />
+        <RadarChart activeMetric={activeMetric} displayData={displayData} color={primaryColor} />
 
-        <StatButtons/>
+        <StatButtons color={primaryColor}/>
       </ScrollView>
     </View>
   );

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, Dimensions } from 'react-native';
 import Svg, { Polygon, Line, Circle, Text as SvgText, LinearGradient, Stop } from 'react-native-svg';
+import { useThemeColors } from '@/context/ThemeContext';
 
 type MuscleGroup = 'chest' | 'back' | 'shoulders' | 'biceps' | 'triceps' | 'legs' | 'core';
 
@@ -11,9 +12,11 @@ type MuscleData = {
 interface RadarChartProps {
   activeMetric: string;
   displayData: MuscleData;
+  color?: string;
 }
 
-const RadarChart: React.FC<RadarChartProps> = ({ activeMetric, displayData }) => {
+const RadarChart: React.FC<RadarChartProps> = ({ activeMetric, displayData, color }) => {
+  const { primaryColor, secondaryColor, cycleTheme } = useThemeColors();
   // Get screen width for responsive sizing
   const screenWidth = Dimensions.get('window').width;
   const chartSize = screenWidth * 0.85;
@@ -109,8 +112,8 @@ const RadarChart: React.FC<RadarChartProps> = ({ activeMetric, displayData }) =>
             x2="0"
             y2={chartSize.toString()}
           >
-            <Stop offset="0" stopColor="#A742FF" stopOpacity="0.8" />
-            <Stop offset="1" stopColor="#A742FF" stopOpacity="0.2" />
+            <Stop offset="0" stopColor={color} stopOpacity="0.8" />
+            <Stop offset="1" stopColor={color} stopOpacity="0.2" />
           </LinearGradient>
           
           {/* Data polygon with gradient fill */}
@@ -118,7 +121,7 @@ const RadarChart: React.FC<RadarChartProps> = ({ activeMetric, displayData }) =>
             points={polygonPoints}
             fill="url(#grad)"
             fillOpacity="0.6"
-            stroke="#A742FF"
+            stroke={color}
             strokeWidth="2"
           />
           
@@ -129,7 +132,7 @@ const RadarChart: React.FC<RadarChartProps> = ({ activeMetric, displayData }) =>
               cx={point.x}
               cy={point.y}
               r={5}
-              fill="#A742FF"
+              fill={color}
               stroke="#fff"
               strokeWidth="1"
             />

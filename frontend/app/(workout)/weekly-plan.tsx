@@ -12,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import DayCard from "@/components/DayCard";
+import { useThemeColors } from "@/context/ThemeContext";
 
 // Weekly workout data defined directly in this file
 const weeklyWorkoutData = [
@@ -99,6 +100,7 @@ const weeklyWorkoutData = [
 ];
 
 const WeeklyPlan = () => {
+  const { primaryColor, secondaryColor, cycleTheme } = useThemeColors();
   // Get current day (0 = Sunday, 1 = Monday, etc.)
   const today = new Date().getDay();
   // Adjust so that Monday becomes index 0 (Sunday becomes index 6)
@@ -164,14 +166,17 @@ const WeeklyPlan = () => {
       <ScrollView className="px-4 pt-2 pb-6">
         {weeklyWorkoutData.map((dayData, index) => (
           <DayCard
-            key={dayData.day}
-            dayData={dayData}
-            isToday={index === todayIndex}
-            isExpanded={expandedDays[index]}
-            onToggleExpand={() => toggleExpand(index)}
-            onEdit={() => editWorkout(index)}
-            onStart={() => startWorkout(index)}
-          />
+          key={dayData.day}
+          dayData={dayData}
+          isToday={index === todayIndex}
+          isExpanded={expandedDays[index]}
+          onToggleExpand={() => toggleExpand(index)}
+          onEdit={() => editWorkout(index)}
+          onStart={() => startWorkout(index)}
+          colorprime={primaryColor}       // Pass your primary color here
+          colorsecond={secondaryColor}     // Pass your secondary color here
+        />
+        
         ))}
       </ScrollView>
     </View>
