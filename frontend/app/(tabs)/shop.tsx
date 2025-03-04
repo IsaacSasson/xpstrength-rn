@@ -1,4 +1,4 @@
-// frontend/app/(tabs)/shop.tsx
+// Path: /app/(tabs)/shop.tsx
 import React, { useState } from "react";
 import {
   View,
@@ -6,28 +6,24 @@ import {
   StatusBar,
   ScrollView,
   TouchableOpacity,
-  Image,
   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
-import { useThemeColors } from "@/context/ThemeContext";
 
-// Each theme will have a primary, secondary, and tertiary color
-interface ThemeItem {
-  id: string;
-  name: string;
-  primaryColor: string;
-  secondaryColor: string;
-  tertiaryColor: string;
-  price: number;
-  isOwned: boolean;
-  description: string;
-}
+// Import our context hooks
+import { useThemeContext } from "@/context/ThemeContext";
+import { useUserProgress } from "@/context/UserProgressContext";
+import { useShopContext } from "@/context/ShopContext";
+import { SHOP_THEMES, ShopItem } from "@/context/constants/themeConstants";
+
+// Import our ThemeCard component
+import ThemeCard from "@/components/shop/ThemeCard";
 
 // Custom TopBar component with currency display
 const ShopTopBar = () => {
-  const { primaryColor, userCurrency, userLevel } = useThemeColors();
+  const { primaryColor } = useThemeContext();
+  const { currency, level } = useUserProgress();
 
   return (
     <View className="justify-between items-start flex-row mb-6">
@@ -38,11 +34,11 @@ const ShopTopBar = () => {
       <View className="flex-row items-center">
         <View className="mr-3 flex-row items-center">
           <FontAwesome5 name="bolt" size={16} color={primaryColor} />
-          <Text className="text-white font-pmedium ml-1">Lvl {userLevel}</Text>
+          <Text className="text-white font-pmedium ml-1">Lvl {level}</Text>
         </View>
         <View className="flex-row items-center">
           <FontAwesome5 name="coins" size={16} color={primaryColor} />
-          <Text className="text-white font-pmedium ml-1">{userCurrency}</Text>
+          <Text className="text-white font-pmedium ml-1">{currency}</Text>
         </View>
       </View>
     </View>
@@ -50,192 +46,57 @@ const ShopTopBar = () => {
 };
 
 const Shop = () => {
-  // Access the theme context to change colors and check owned themes
-  const { 
-    primaryColor, 
-    secondaryColor, 
-    setPrimaryColor, 
-    setSecondaryColor, 
-    setTertiaryColor,
-    purchaseTheme,
-    ownedThemes,
-    userCurrency,
-    addCurrency
-  } = useThemeColors();
-
+  // Use our separate contexts
+  const { primaryColor, setActiveThemeId, activeThemeId } = useThemeContext();
+  const { currency, addCurrency } = useUserProgress();
+  const { ownedThemes, purchaseTheme, getAllShopItems } = useShopContext();
+  
   // State to track the selected theme for preview
-  const [selectedTheme, setSelectedTheme] = useState<ThemeItem | null>(null);
+  const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
 
-  // List of available themes in the shop
-  const availableThemes: ThemeItem[] = [
-    {
-      id: "purple_default",
-      name: "Classic Purple",
-      primaryColor: "#A742FF",
-      secondaryColor: "#BD7AFF",
-      tertiaryColor: "#D1B3FF",
-      price: 0, // Free default theme
-      isOwned: true,
-      description: "The default purple theme. Bold and energetic."
-    },
-    {
-      id: "red_inferno",
-      name: "Inferno Red",
-      primaryColor: "#FF0000",
-      secondaryColor: "#FF4D4D",
-      tertiaryColor: "#FF9999",
-      price: 500,
-      isOwned: ownedThemes.includes("red_inferno"),
-      description: "Fiery and intense. Perfect for high-intensity workouts."
-    },
-    {
-      id: "orange_sunrise",
-      name: "Sunrise Orange",
-      primaryColor: "#FF7F00",
-      secondaryColor: "#FF9933",
-      tertiaryColor: "#FFCC99",
-      price: 500,
-      isOwned: ownedThemes.includes("orange_sunrise"),
-      description: "Warm and motivating. Start your day with energy."
-    },
-    {
-      id: "green_forest",
-      name: "Forest Green",
-      primaryColor: "#00AA00",
-      secondaryColor: "#66CC66",
-      tertiaryColor: "#CCFFCC",
-      price: 750,
-      isOwned: ownedThemes.includes("green_forest"),
-      description: "Natural and calming. Find your zen while working out."
-    },
-    {
-      id: "blue_ocean",
-      name: "Ocean Blue",
-      primaryColor: "#0066FF",
-      secondaryColor: "#4D94FF",
-      tertiaryColor: "#99C2FF",
-      price: 750,
-      isOwned: ownedThemes.includes("blue_ocean"),
-      description: "Deep and focused. Dive into your training routine."
-    },
-    {
-      id: "gold_premium",
-      name: "Premium Gold",
-      primaryColor: "#FFD700",
-      secondaryColor: "#FFDF4D",
-      tertiaryColor: "#FFEC99",
-      price: 1500,
-      isOwned: ownedThemes.includes("gold_premium"),
-      description: "Luxurious and prestigious. Show off your achievements."
-    },
-    {
-      id: "neon_future",
-      name: "Neon Future",
-      primaryColor: "#00FFFF",
-      secondaryColor: "#4DFFFF",
-      tertiaryColor: "#99FFFF",
-      price: 2000,
-      isOwned: ownedThemes.includes("neon_future"),
-      description: "Futuristic and bright. Train like you're from the future."
+  // Get all available themes from the shop
+  const availableThemes = getAllShopItems();
+
+  // Handle theme purchase or activation
+  const handleThemeAction = (themeId: string) => {
+    const isOwned = ownedThemes.includes(themeId);
+    const isActive = activeThemeId === themeId;
+    
+    if (isActive) {
+      // Already applied, do nothing
+      return;
     }
-  ];
-
-  // Handle theme purchase
-  const handlePurchase = (theme: ThemeItem) => {
-    if (theme.isOwned) {
+    
+    // Set as selected when activated
+    setSelectedTheme(themeId);
+    
+    if (isOwned) {
       // Apply the theme if already owned
-      setPrimaryColor(theme.primaryColor);
-      setSecondaryColor(theme.secondaryColor);
-      setTertiaryColor(theme.tertiaryColor);
-      Alert.alert("Theme Applied", `${theme.name} theme has been applied!`);
+      setActiveThemeId(themeId);
+      Alert.alert("Theme Applied", `${SHOP_THEMES[themeId].name} theme has been applied!`);
     } else {
       // Try to purchase the theme
-      if (userCurrency >= theme.price) {
-        purchaseTheme(theme.id, theme.price);
+      const success = purchaseTheme(themeId);
+      
+      if (success) {
+        setActiveThemeId(themeId); // Auto-apply on purchase
         Alert.alert(
           "Purchase Successful", 
-          `You've purchased ${theme.name} theme for ${theme.price} StrengthCoins!`
+          `You've purchased ${SHOP_THEMES[themeId].name} theme for ${SHOP_THEMES[themeId].price} StrengthCoins! The theme has been applied.`
         );
       } else {
         Alert.alert(
           "Insufficient StrengthCoins", 
-          `You need ${theme.price - userCurrency} more StrengthCoins to purchase this theme.`
+          `You need ${SHOP_THEMES[themeId].price - currency} more StrengthCoins to purchase this theme.`
         );
       }
     }
-  };
-
-  // Preview the theme without purchasing
-  const previewTheme = (theme: ThemeItem) => {
-    setSelectedTheme(theme);
   };
 
   // For demo purposes - add StrengthCoins
   const handleAddCoins = () => {
     addCurrency(500);
     Alert.alert("Coins Added", "You've earned 500 StrengthCoins for completing a workout!");
-  };
-
-  // Render each theme item in the shop
-  const renderThemeItem = (theme: ThemeItem) => {
-    const isSelected = selectedTheme?.id === theme.id;
-    
-    return (
-      <TouchableOpacity
-        key={theme.id}
-        className="bg-black-100 rounded-xl p-4 mb-4"
-        onPress={() => previewTheme(theme)}
-        style={{
-          borderWidth: isSelected ? 2 : 0,
-          borderColor: isSelected ? primaryColor : "transparent",
-        }}
-      >
-        <View className="flex-row justify-between items-center">
-          <View className="flex-1">
-            <Text className="text-white font-psemibold text-lg">{theme.name}</Text>
-            <Text className="text-gray-100 font-pregular text-sm mt-1">{theme.description}</Text>
-            
-            <View className="flex-row mt-3 space-x-2">
-              <View 
-                style={{ backgroundColor: theme.primaryColor }} 
-                className="w-8 h-8 rounded-full"
-              />
-              <View 
-                style={{ backgroundColor: theme.secondaryColor }} 
-                className="w-8 h-8 rounded-full"
-              />
-              <View 
-                style={{ backgroundColor: theme.tertiaryColor }} 
-                className="w-8 h-8 rounded-full"
-              />
-            </View>
-          </View>
-          
-          <View>
-            {theme.isOwned ? (
-              <TouchableOpacity
-                style={{ backgroundColor: primaryColor }}
-                className="py-2 px-4 rounded-lg"
-                onPress={() => handlePurchase(theme)}
-              >
-                <Text className="text-white font-pmedium">Apply</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                style={{ backgroundColor: primaryColor }}
-                className="py-2 px-4 rounded-lg"
-                onPress={() => handlePurchase(theme)}
-              >
-                <View className="flex-row items-center space-x-1">
-                  <FontAwesome5 name="coins" size={14} color="#FFF" />
-                  <Text className="text-white font-pmedium ml-1">{theme.price}</Text>
-                </View>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-      </TouchableOpacity>
-    );
   };
 
   return (
@@ -252,7 +113,7 @@ const Shop = () => {
         <View className="flex-row items-center">
           <FontAwesome5 name="coins" size={20} color={primaryColor} />
           <Text className="text-white font-psemibold text-lg ml-2">
-            {userCurrency} <Text className="text-gray-100">StrengthCoins</Text>
+            {currency} <Text className="text-gray-100">StrengthCoins</Text>
           </Text>
         </View>
 
@@ -269,7 +130,43 @@ const Shop = () => {
       <ScrollView className="px-4 py-4">
         <Text className="text-white font-psemibold text-xl mb-4">Available Themes</Text>
         
-        {availableThemes.map(renderThemeItem)}
+        {/* Owned Themes Section */}
+        {ownedThemes.length > 1 && (
+          <View className="mb-6">
+            <Text className="text-gray-100 font-pmedium mb-3">Your Themes</Text>
+            {availableThemes
+              .filter(theme => ownedThemes.includes(theme.id))
+              .map(theme => (
+                <ThemeCard
+                  key={theme.id}
+                  theme={theme}
+                  isActive={activeThemeId === theme.id}
+                  isOwned={true}
+                  onAction={handleThemeAction}
+                  isSelected={selectedTheme === theme.id}
+                  primaryColor={primaryColor}
+                />
+              ))}
+          </View>
+        )}
+        
+        {/* Available for Purchase Section */}
+        <View>
+          <Text className="text-gray-100 font-pmedium mb-3">Available for Purchase</Text>
+          {availableThemes
+            .filter(theme => !ownedThemes.includes(theme.id))
+            .map(theme => (
+              <ThemeCard
+                key={theme.id}
+                theme={theme}
+                isActive={false}
+                isOwned={false}
+                onAction={handleThemeAction}
+                isSelected={selectedTheme === theme.id}
+                primaryColor={primaryColor}
+              />
+            ))}
+        </View>
 
         <View className="h-20" />
       </ScrollView>

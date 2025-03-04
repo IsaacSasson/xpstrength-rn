@@ -1,10 +1,10 @@
-// ThemedText.tsx
+// Path: /components/ThemedText.tsx
 import React from "react";
 import { Text, TextProps } from "react-native";
-import { useThemeColors } from "@/context//ThemeContext"; // Adjust the path as needed
+import { useThemeContext } from "@/context/ThemeContext";
 
 const ThemedText: React.FC<TextProps> = ({ style, ...props }) => {
-  const { primaryColor } = useThemeColors();
+  const { primaryColor } = useThemeContext();
   return <Text {...props} style={[{ color: primaryColor }, style]} />;
 };
 

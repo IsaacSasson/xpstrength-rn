@@ -11,12 +11,6 @@ import {
 import UserFriend from "./UserFriend";
 import pfptest from "@/assets/images/favicon.png";
 
-/**
- * NativeWind allows you to use Tailwind CSS-like classes via the `className` prop.
- * Ensure you have nativewind configured in your babel.config.js (or similar) and
- * you have tailwind.config.js set up for React Native.
- */
-
 const FriendsBar: React.FC = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [containerWidth, setContainerWidth] = useState(0);

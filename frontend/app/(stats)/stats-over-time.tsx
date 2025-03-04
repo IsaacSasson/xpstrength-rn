@@ -1,18 +1,17 @@
+// Path: /app/(stats)/stats-over-time.tsx
 import React, { useState, useEffect } from 'react';
 import { View, StatusBar, ScrollView, TouchableOpacity, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import Tabs from '@/components/TabList';
-
-// Import our custom components
 import ProgressLineChart, { MetricType, DataPoint } from '@/components/stats/stats-over-time/ProgressLineChart';
 import StatKeyMetrics from '@/components/stats/stats-over-time/StatKeyMetrics';
 import WorkoutSuggestions from '@/components/stats/stats-over-time/WorkoutSuggestions';
 import MuscleGroupSelector from '@/components/stats/stats-over-time/MuscleGroupSelector';
 import DataPointSelector from '@/components/stats/stats-over-time/DataPointSelector';
 import { generateMockData, WorkoutData } from '@/components/stats/stats-over-time/StatsDataService';
-import { useThemeColors } from '@/context/ThemeContext';
+import { useThemeContext } from '@/context/ThemeContext';
 
 // Mock data for muscle groups
 const muscleGroups = [
@@ -32,7 +31,8 @@ const StatsOverTime: React.FC = () => {
   const [workoutData, setWorkoutData] = useState<WorkoutData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [chartData, setChartData] = useState<DataPoint[]>([]);
-  const { primaryColor, secondaryColor, cycleTheme } = useThemeColors();
+  const { primaryColor, secondaryColor } = useThemeContext();
+  
   // Generate mock data on component mount
   useEffect(() => {
     setLoading(true);

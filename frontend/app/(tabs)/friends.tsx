@@ -1,4 +1,4 @@
-// Friends.tsx
+// Path: /app/(tabs)/friends.tsx
 import React, { useState } from "react";
 import {
   View,
@@ -15,8 +15,9 @@ import Tabs from "@/components/TabList";
 import FriendCard from "@/components/friends/FriendCard";
 import pfptest from "@/assets/images/favicon.png";
 
-// Import the dynamic theme hook
-import { useThemeColors } from "@/context/ThemeContext"; // Adjust path as needed
+// Import the new theme context
+import { useThemeContext } from "@/context/ThemeContext";
+import { useUserProgress } from "@/context/UserProgressContext";
 
 interface User {
   id: string;
@@ -145,8 +146,9 @@ const fuzzyMatch = (text: string, query: string): boolean => {
 };
 
 const Friends = () => {
-  // Theme hook for dynamic colors.
-  const { primaryColor, cycleTheme } = useThemeColors();
+  // Use our new theme context
+  const { primaryColor } = useThemeContext();
+  const { level } = useUserProgress();
 
   // State to track the active tab and search query.
   const [activeTab, setActiveTab] = useState<string>("Friends");

@@ -1,4 +1,4 @@
-// Home.tsx
+// Path: /app/(tabs)/home.tsx
 import React from "react";
 import {
   View,
@@ -13,9 +13,8 @@ import TopBar from "@/components/TopBar";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 
-// Import the custom theme hook and themed text component
-import { useThemeColors } from "@/context/ThemeContext"; // Adjust the path as needed
-import ThemedText from "@/components/ThemedText"; // Adjust the path as needed
+// Import just the theme context
+import { useThemeContext } from "@/context/ThemeContext";
 
 // Mock data for today's workout
 const todaysWorkout = {
@@ -32,8 +31,8 @@ const todaysWorkout = {
 };
 
 const Home = () => {
-  // Access the theme state and function from our custom hook
-  const { primaryColor, secondaryColor, cycleTheme } = useThemeColors();
+  // Only need theme context here
+  const { primaryColor, secondaryColor, cycleTheme } = useThemeContext();
 
   // Navigation functions
   const goToEditWorkout = () => {
@@ -277,24 +276,6 @@ const Home = () => {
             </View>
           </View>
         </View>
-
-        {/* THEME TEST BUTTON */}
-        {/* <View className="items-center justify-center mt-6">
-          <TouchableOpacity
-            onPress={cycleTheme}
-            style={{
-              backgroundColor: primaryColor,
-              paddingHorizontal: 24,
-              paddingVertical: 12,
-              borderRadius: 8,
-            }}
-          >
-            <ThemedText style={{ fontWeight: "bold" }}>
-              Cycle Theme Color
-            </ThemedText>
-          </TouchableOpacity>
-        </View> */}
-
       </ScrollView>
     </View>
   );

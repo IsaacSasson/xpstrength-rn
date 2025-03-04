@@ -1,7 +1,8 @@
+// Path: /components/stats/RadarChart.tsx
 import React from 'react';
 import { View, Text, Dimensions } from 'react-native';
 import Svg, { Polygon, Line, Circle, Text as SvgText, LinearGradient, Stop } from 'react-native-svg';
-import { useThemeColors } from '@/context/ThemeContext';
+import { useThemeContext } from '@/context/ThemeContext';
 
 type MuscleGroup = 'chest' | 'back' | 'shoulders' | 'biceps' | 'triceps' | 'legs' | 'core';
 
@@ -16,7 +17,12 @@ interface RadarChartProps {
 }
 
 const RadarChart: React.FC<RadarChartProps> = ({ activeMetric, displayData, color }) => {
-  const { primaryColor, secondaryColor, cycleTheme } = useThemeColors();
+  // Use our new theme context
+  const { primaryColor, secondaryColor } = useThemeContext();
+  
+  // Use passed color or fall back to primary color from theme
+  const chartColor = color || primaryColor;
+  
   // Get screen width for responsive sizing
   const screenWidth = Dimensions.get('window').width;
   const chartSize = screenWidth * 0.85;
@@ -112,8 +118,8 @@ const RadarChart: React.FC<RadarChartProps> = ({ activeMetric, displayData, colo
             x2="0"
             y2={chartSize.toString()}
           >
-            <Stop offset="0" stopColor={color} stopOpacity="0.8" />
-            <Stop offset="1" stopColor={color} stopOpacity="0.2" />
+            <Stop offset="0" stopColor={chartColor} stopOpacity="0.8" />
+            <Stop offset="1" stopColor={chartColor} stopOpacity="0.2" />
           </LinearGradient>
           
           {/* Data polygon with gradient fill */}
@@ -121,7 +127,7 @@ const RadarChart: React.FC<RadarChartProps> = ({ activeMetric, displayData, colo
             points={polygonPoints}
             fill="url(#grad)"
             fillOpacity="0.6"
-            stroke={color}
+            stroke={chartColor}
             strokeWidth="2"
           />
           
@@ -132,7 +138,7 @@ const RadarChart: React.FC<RadarChartProps> = ({ activeMetric, displayData, colo
               cx={point.x}
               cy={point.y}
               r={5}
-              fill={color}
+              fill={chartColor}
               stroke="#fff"
               strokeWidth="1"
             />

@@ -1,9 +1,9 @@
+// Path: /app/_layout.tsx
 import { SplashScreen, Stack } from 'expo-router';
 import { useFonts } from 'expo-font';
 import { useEffect } from 'react';
 import "../global.css"
-import { ThemeProvider } from "@/context/ThemeContext";
-//import GlobalProvider from "../context/GlobalProvider";
+import AppProvider from "@/context/AppProvider";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -33,15 +33,15 @@ const RootLayout = () => {
   }
   
   return (
-    <ThemeProvider>
-    <Stack>
-      <Stack.Screen name="index" options={{ headerShown: false }}/>
-      <Stack.Screen name="(auth)" options={{ headerShown: false }}/>
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }}/>
-      <Stack.Screen name="(workout)" options={{ headerShown: false }}/>
-      <Stack.Screen name="(stats)" options={{ headerShown: false }}/>
-    </Stack>
-   </ThemeProvider>
+    <AppProvider>
+      <Stack>
+        <Stack.Screen name="index" options={{ headerShown: false }}/>
+        <Stack.Screen name="(auth)" options={{ headerShown: false }}/>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }}/>
+        <Stack.Screen name="(workout)" options={{ headerShown: false }}/>
+        <Stack.Screen name="(stats)" options={{ headerShown: false }}/>
+      </Stack>
+    </AppProvider>
   )
 }
 

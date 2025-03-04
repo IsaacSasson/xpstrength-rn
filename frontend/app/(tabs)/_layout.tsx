@@ -1,15 +1,15 @@
+// Path: /app/(tabs)/_layout.tsx
 import { View } from 'react-native';
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { usePathname } from 'expo-router';
 import TabTrailIndicator from '@/components/TabTrailIndicator';
 import TabIcon from '@/components/TabIcon';
-import { useThemeColors } from '@/context/ThemeContext'; // Adjust the path as needed
-
-
+import { useThemeContext } from '@/context/ThemeContext';
 
 const TabsLayout = () => {
-  const { primaryColor, secondaryColor, cycleTheme } = useThemeColors();
+  // Only need theme context
+  const { primaryColor } = useThemeContext();
   const activeColor = primaryColor;
   const tabBarHeight = 100;
 

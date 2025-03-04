@@ -1,17 +1,19 @@
-import { View, StatusBar, ScrollView, Platform } from "react-native";
+// Path: /app/(tabs)/stats.tsx
+import { View, StatusBar, ScrollView } from "react-native";
 import React, { useState } from "react";
-import {
-  SafeAreaView,
-} from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import TopBar from "@/components/TopBar";
 import Tabs from "@/components/TabList";
 import RadarChart from "@/components/stats/RadarChart";
 import StatButtons from "@/components/stats/StatButtons";
-import { useThemeColors } from "@/context/ThemeContext"; // Adjust the path as needed
-
+import { useThemeContext } from "@/context/ThemeContext";
+import { useUserProgress } from "@/context/UserProgressContext";
 
 const Stats = () => {
-  const { primaryColor, secondaryColor, cycleTheme } = useThemeColors();
+  // Only need theme and user level from contexts
+  const { primaryColor, secondaryColor } = useThemeContext();
+  const { level } = useUserProgress();
+  
   type MuscleGroup =
     | "chest"
     | "back"
@@ -125,7 +127,7 @@ const Stats = () => {
 
       <SafeAreaView edges={["top"]} className="bg-primary">
         <View className="px-4 pt-6">
-          <TopBar subtext="Level 100" title="Your Stats" titleTop={true} />
+          <TopBar subtext={`Level ${level}`} title="Your Stats" titleTop={true} />
         </View>
       </SafeAreaView>
 
