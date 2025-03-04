@@ -22,6 +22,8 @@ const TabsLayout = () => {
     activeTabIndex = 1;
   } else if (pathname.includes('/stats')) {
     activeTabIndex = 2;
+  } else if (pathname.includes('/shop')) {
+    activeTabIndex = 3;
   }
 
   return (
@@ -86,12 +88,26 @@ const TabsLayout = () => {
             ),
           }}
         />
+        <Tabs.Screen
+          name="shop"
+          options={{
+            title: "Shop",
+            headerShown: false,
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon 
+                icon="shopping-cart"
+                color={color}
+                focused={focused}
+              />
+            ),
+          }}
+        />
       </Tabs>
 
       {/* Heart rate trail indicator */}
       <TabTrailIndicator
         activeIndex={activeTabIndex}
-        numTabs={3}
+        numTabs={4}
         color={activeColor}
         dotSize={8}
         tabBarHeight={tabBarHeight}
