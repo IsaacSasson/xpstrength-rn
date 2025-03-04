@@ -7,6 +7,7 @@ import TopBar from "@/components/TopBar";
 import Tabs from "@/components/TabList";
 import RadarChart from "@/components/stats/RadarChart";
 import StatButtons from "@/components/stats/StatButtons";
+import { router } from "expo-router";
 
 const Stats = () => {
 
@@ -131,7 +132,7 @@ const Stats = () => {
     {
       title: "Stats Over Time",
       icon: "chart-line",
-      onPress: () => console.log("Navigate to Stats Over Time"),
+      onPress: () => router.push('/stats-over-time'),
     },
     {
       title: "Goals & Achievements",
