@@ -2,6 +2,7 @@ import { SplashScreen, Stack } from 'expo-router';
 import { useFonts } from 'expo-font';
 import { useEffect } from 'react';
 import "../global.css"
+import { ThemeProvider } from "@/context/ThemeContext";
 //import GlobalProvider from "../context/GlobalProvider";
 
 SplashScreen.preventAutoHideAsync();
@@ -32,7 +33,7 @@ const RootLayout = () => {
   }
   
   return (
-    //<GlobalProvider>
+    <ThemeProvider>
     <Stack>
       <Stack.Screen name="index" options={{ headerShown: false }}/>
       <Stack.Screen name="(auth)" options={{ headerShown: false }}/>
@@ -40,7 +41,7 @@ const RootLayout = () => {
       <Stack.Screen name="(workout)" options={{ headerShown: false }}/>
       <Stack.Screen name="(stats)" options={{ headerShown: false }}/>
     </Stack>
-   //</GlobalProvider>
+   </ThemeProvider>
   )
 }
 

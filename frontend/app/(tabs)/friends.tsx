@@ -1,3 +1,4 @@
+// Friends.tsx
 import React, { useState } from "react";
 import {
   View,
@@ -14,6 +15,9 @@ import Tabs from "@/components/TabList";
 import FriendCard from "@/components/friends/FriendCard";
 import pfptest from "@/assets/images/favicon.png";
 
+// Import the dynamic theme hook
+import { useThemeColors } from "@/context/ThemeContext"; // Adjust path as needed
+
 interface User {
   id: string;
   name: string;
@@ -25,46 +29,103 @@ interface User {
 
 // Mock data for friends
 const mockFriends: User[] = [
-  { id: "1", name: "Wiiwho", level: 25, status: "Online", lastActive: "Now", workouts: 42 },
-  { id: "2", name: "Alex", level: 31, status: "Online", lastActive: "Now", workouts: 67 },
-  { id: "3", name: "Jordan", level: 19, status: "Offline", lastActive: "2h ago", workouts: 23 },
-  { id: "4", name: "Taylor", level: 45, status: "In Workout", lastActive: "Now", workouts: 128 },
-  { id: "5", name: "Casey", level: 37, status: "Offline", lastActive: "1d ago", workouts: 85 },
-  { id: "6", name: "Morgan", level: 22, status: "Online", lastActive: "Now", workouts: 31 },
+  {
+    id: "1",
+    name: "Wiiwho",
+    level: 25,
+    status: "Online",
+    lastActive: "Now",
+    workouts: 42,
+  },
+  {
+    id: "2",
+    name: "Alex",
+    level: 31,
+    status: "Online",
+    lastActive: "Now",
+    workouts: 67,
+  },
+  {
+    id: "3",
+    name: "Jordan",
+    level: 19,
+    status: "Offline",
+    lastActive: "2h ago",
+    workouts: 23,
+  },
+  {
+    id: "4",
+    name: "Taylor",
+    level: 45,
+    status: "In Workout",
+    lastActive: "Now",
+    workouts: 128,
+  },
+  {
+    id: "5",
+    name: "Casey",
+    level: 37,
+    status: "Offline",
+    lastActive: "1d ago",
+    workouts: 85,
+  },
+  {
+    id: "6",
+    name: "Morgan",
+    level: 22,
+    status: "Online",
+    lastActive: "Now",
+    workouts: 31,
+  },
 ];
 
 // Mock data for friend requests
 const mockRequests: User[] = [
-  { id: "7", name: "Riley", level: 15, status: "Pending", lastActive: "3h ago" },
-  { id: "8", name: "Jamie", level: 28, status: "Pending", lastActive: "1d ago" },
+  {
+    id: "7",
+    name: "Riley",
+    level: 15,
+    status: "Pending",
+    lastActive: "3h ago",
+  },
+  {
+    id: "8",
+    name: "Jamie",
+    level: 28,
+    status: "Pending",
+    lastActive: "1d ago",
+  },
 ];
 
 // Mock data for pending requests
 const mockPending: User[] = [
-  { id: "9", name: "Quinn", level: 33, status: "Pending", lastActive: "4h ago" },
+  {
+    id: "9",
+    name: "Quinn",
+    level: 33,
+    status: "Pending",
+    lastActive: "4h ago",
+  },
 ];
 
 // Helper function to compute the Levenshtein distance between two strings.
 function levenshteinDistance(a: string, b: string): number {
   const matrix: number[][] = [];
-  // Increment along the first column of each row.
   for (let i = 0; i <= a.length; i++) {
     matrix[i] = [i];
   }
-  // Increment each column in the first row.
   for (let j = 0; j <= b.length; j++) {
     matrix[0][j] = j;
   }
-  // Fill in the rest of the matrix.
   for (let i = 1; i <= a.length; i++) {
     for (let j = 1; j <= b.length; j++) {
       if (a[i - 1] === b[j - 1]) {
         matrix[i][j] = matrix[i - 1][j - 1];
       } else {
         matrix[i][j] = Math.min(
-          matrix[i - 1][j - 1] + 1, // substitution
-          matrix[i][j - 1] + 1,     // insertion
-          matrix[i - 1][j] + 1      // deletion
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
         );
       }
     }
@@ -78,18 +139,20 @@ const fuzzyMatch = (text: string, query: string): boolean => {
   const lowerQuery = query.toLowerCase();
   if (lowerText.includes(lowerQuery)) return true;
   const distance = levenshteinDistance(lowerText, lowerQuery);
-  const similarity = 1 - distance / Math.max(lowerText.length, lowerQuery.length);
-  return similarity >= 0.5; // Adjust threshold as needed.
+  const similarity =
+    1 - distance / Math.max(lowerText.length, lowerQuery.length);
+  return similarity >= 0.5;
 };
 
 const Friends = () => {
+  // Theme hook for dynamic colors.
+  const { primaryColor, cycleTheme } = useThemeColors();
+
   // State to track the active tab and search query.
   const [activeTab, setActiveTab] = useState<string>("Friends");
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   // Filter users based on search query.
-  // For one letter, check for inclusion.
-  // For multiple letters, use fuzzy matching.
   const filterUsers = (users: User[]): User[] => {
     if (searchQuery.trim() === "") return users;
     const query = searchQuery.toLowerCase();
@@ -125,12 +188,18 @@ const Friends = () => {
                     status={friend.status}
                     lastActive={friend.lastActive}
                     workouts={friend.workouts}
+                    border={primaryColor}
+                    levelTextColor={primaryColor}
                   />
                 ))}
               </View>
             ) : (
               <View className="items-center justify-center py-10">
-                <FontAwesome5 name="user-friends" size={50} color="#A742FF" />
+                <FontAwesome5
+                  name="user-friends"
+                  size={50}
+                  color={primaryColor}
+                />
                 <Text className="text-white font-pmedium text-center mt-4 text-lg">
                   No friends found
                 </Text>
@@ -158,12 +227,18 @@ const Friends = () => {
                     lastActive={request.lastActive}
                     showActions={true}
                     actionType="request"
+                    color={primaryColor}
+                    levelTextColor={primaryColor}
                   />
                 ))}
               </View>
             ) : (
               <View className="items-center justify-center py-10">
-                <FontAwesome5 name="user-check" size={50} color="#A742FF" />
+                <FontAwesome5
+                  name="user-check"
+                  size={50}
+                  color={primaryColor}
+                />
                 <Text className="text-white font-pmedium text-center mt-4 text-lg">
                   No friend requests found
                 </Text>
@@ -191,12 +266,17 @@ const Friends = () => {
                     lastActive={pending.lastActive}
                     showActions={true}
                     actionType="pending"
+                    levelTextColor={primaryColor}
                   />
                 ))}
               </View>
             ) : (
               <View className="items-center justify-center py-10">
-                <FontAwesome5 name="user-clock" size={50} color="#A742FF" />
+                <FontAwesome5
+                  name="user-clock"
+                  size={50}
+                  color={primaryColor}
+                />
                 <Text className="text-white font-pmedium text-center mt-4 text-lg">
                   No pending requests found
                 </Text>
@@ -217,7 +297,8 @@ const Friends = () => {
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
       <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
 
-      <SafeAreaView edges={["top"]} className="bg-primary">
+      {/* Header: Override bg-primary with dynamic color */}
+      <SafeAreaView edges={["top"]} style={{ backgroundColor: "bg-primary" }}>
         <View className="px-4 pt-6">
           <TopBar
             subtext={
@@ -239,6 +320,7 @@ const Friends = () => {
           placeHolder="Search for friends"
           handleChangeText={(text: string) => setSearchQuery(text)}
           value={searchQuery}
+          color={primaryColor}
         />
       </View>
       <View className="px-4">
@@ -246,6 +328,7 @@ const Friends = () => {
           tabs={["Friends", "Requests", "Pending"]}
           activeTab={activeTab}
           onTabChange={handleTabChange}
+          backgroundColor={primaryColor}
         />
       </View>
       <ScrollView showsVerticalScrollIndicator={false} className="px-4">

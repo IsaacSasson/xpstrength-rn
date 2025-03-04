@@ -14,9 +14,10 @@ interface TabsProps<T> {
   activeTab: T;
   onTabChange: (tab: T) => void;
   isAnimating?: boolean;
+  backgroundColor?: string;
 }
 
-function Tabs<T>({ tabs, activeTab, onTabChange, isAnimating = false }: TabsProps<T>) {
+function Tabs<T>({ tabs, activeTab, onTabChange, isAnimating = false, backgroundColor }: TabsProps<T>) {
   // Defensive check: if tabs is undefined or not an array, do not render anything.
   if (!tabs || !Array.isArray(tabs)) {
     console.error('Tabs component requires a valid "tabs" array');
@@ -88,7 +89,7 @@ function Tabs<T>({ tabs, activeTab, onTabChange, isAnimating = false }: TabsProp
             position: 'absolute',
             width: tabWidths[activeIndex] || containerWidth / tabs.length,
             height: Platform.OS === 'ios' || Platform.OS === 'android' ? '100%' : '84%',
-            backgroundColor: '#A742FF',
+            backgroundColor: backgroundColor || '#A742FF',
             borderRadius: 8,
             top: '7%',
             left: 0,

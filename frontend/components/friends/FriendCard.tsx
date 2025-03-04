@@ -11,6 +11,9 @@ interface FriendCardProps {
   workouts?: number;
   showActions?: boolean;
   actionType?: 'request' | 'pending';
+  border?: string;
+  levelTextColor?: string;
+  color?: string;
 }
 
 const FriendCard: React.FC<FriendCardProps> = ({
@@ -22,6 +25,9 @@ const FriendCard: React.FC<FriendCardProps> = ({
   workouts,
   showActions = false,
   actionType = 'request',
+  border = '#000',
+  levelTextColor = '#CDCDE0',
+  color = '#A742FF',
 }) => {
   // Get status color based on status
   const getStatusColor = () => {
@@ -38,7 +44,7 @@ const FriendCard: React.FC<FriendCardProps> = ({
   };
 
   return (
-    <View className="mb-4 last:mb-0">
+    <View className="mb-4 last:mb-0 ">
       <View className="flex-row items-center">
         {/* Profile Picture with Status Indicator */}
         <View className="relative">
@@ -49,7 +55,7 @@ const FriendCard: React.FC<FriendCardProps> = ({
               height: 50,
               borderRadius: 25,
               borderWidth: 2,
-              borderColor: "#A742FF",
+              borderColor: border || '#000',
             }}
           />
           <View className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border border-black-100 ${getStatusColor()}`} />
@@ -61,7 +67,7 @@ const FriendCard: React.FC<FriendCardProps> = ({
             <Text className="text-white font-psemibold text-base">{name}</Text>
             <View className="flex-row items-center">
               <FontAwesome5 name="crown" size={12} color="#FFD700" />
-              <Text className="text-secondary-100 font-pmedium ml-1">Lvl {level}</Text>
+              <Text style={{ color: levelTextColor }} className="font-pmedium ml-1">Lvl {level}</Text>
             </View>
           </View>
           
@@ -88,7 +94,8 @@ const FriendCard: React.FC<FriendCardProps> = ({
           {actionType === 'request' ? (
             <>
               <TouchableOpacity 
-                className="bg-secondary px-4 py-2 rounded-l-lg flex-row items-center"
+              style={{ backgroundColor: color }}
+                className=" px-4 py-2 rounded-l-lg flex-row items-center"
                 activeOpacity={0.7}
               >
                 <FontAwesome5 name="check" size={12} color="#FFF" />
