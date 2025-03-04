@@ -18,14 +18,14 @@ const WorkoutLayout = () => {
             headerShown: false 
           }}
         />
-        {/* For example:
+         For example:
         <Stack.Screen 
           name="workout-details" 
           options={{ 
             headerShown: false 
           }}
         />
-        */}
+        
       </Stack>
 
       <StatusBar 
