@@ -1,24 +1,56 @@
 // Path: /components/DayCard.tsx
-import React from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  Animated,
-  LayoutAnimation,
-  Platform,
-  UIManager,
-} from "react-native";
+import React, { useState, useRef, useEffect } from "react";
+import { View, Text, TouchableOpacity, Animated, Platform } from "react-native";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useThemeContext } from "@/context/ThemeContext";
 
-// Enable layout animations on Android
-if (Platform.OS === "android") {
-  if (UIManager.setLayoutAnimationEnabledExperimental) {
-    UIManager.setLayoutAnimationEnabledExperimental(true);
-  }
+// Define the ExpandableSection component for animated expansion
+interface ExpandableSectionProps {
+  isExpanded: boolean;
+  children: React.ReactNode;
 }
+
+const ExpandableSection: React.FC<ExpandableSectionProps> = ({ isExpanded, children }) => {
+  const [contentHeight, setContentHeight] = useState(0);
+  const animation = useRef(new Animated.Value(0)).current;
+
+  const onMeasure = (event: any) => {
+    const { height } = event.nativeEvent.layout;
+    if (height > 0 && height !== contentHeight) {
+      setContentHeight(height);
+    }
+  };
+
+  useEffect(() => {
+    Animated.timing(animation, {
+      toValue: isExpanded ? contentHeight : 0,
+      duration: 300,
+      useNativeDriver: false, // height animation requires useNativeDriver: false
+    }).start();
+  }, [isExpanded, contentHeight]);
+
+  return (
+    <View>
+      <Animated.View style={{ height: animation, overflow: "hidden" }}>
+        {children}
+      </Animated.View>
+      {/* Hidden container to measure content height */}
+      <View
+        style={{
+          position: "absolute",
+          top: 10000,
+          left: 0,
+          right: 0,
+          opacity: 0,
+        }}
+        onLayout={onMeasure}
+      >
+        {children}
+      </View>
+    </View>
+  );
+};
 
 // Types for our data structure
 interface Exercise {
@@ -53,12 +85,11 @@ const DayCard: React.FC<DayProps> = ({
   onEdit,
   onStart,
 }) => {
-  // Use our theme context
+  // Use our theme context for colors
   const { primaryColor, secondaryColor } = useThemeContext();
 
-  // Configure animation when expanded state changes
+  // Toggle the expanded state (no LayoutAnimation now)
   const toggleExpand = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     onToggleExpand();
   };
 
@@ -67,9 +98,7 @@ const DayCard: React.FC<DayProps> = ({
 
   return (
     <View
-      className={`bg-black-100 rounded-xl overflow-hidden mb-4 ${
-        isToday ? "border-2" : ""
-      }`}
+      className={`bg-black-100 rounded-xl overflow-hidden mb-4 ${isToday ? "border-2" : ""}`}
       style={isToday ? { borderColor: primaryColor } : {}}
     >
       {/* Card Header - Always visible */}
@@ -85,23 +114,18 @@ const DayCard: React.FC<DayProps> = ({
               style={{ backgroundColor: primaryColor }}
             />
           )}
-          <Text className="text-white font-psemibold text-lg">
-            {dayData.day}
-          </Text>
+          <Text className="text-white font-psemibold text-lg">{dayData.day}</Text>
         </View>
 
         <View className="flex-row items-center">
-          {!isRestDay && (
-            <Text
-              className="font-pmedium mr-3"
-              style={{ color: secondaryColor }}
-            >
+          {!isRestDay ? (
+            <Text className="font-pmedium mr-3" style={{ color: secondaryColor }}>
               {dayData.workout.name}
             </Text>
-          )}
-          {isRestDay ? (
-            <Text className="text-gray-100 font-pmedium mr-2">Rest Day</Text>
           ) : (
+            <Text className="text-gray-100 font-pmedium mr-2">Rest Day</Text>
+          )}
+          {!isRestDay && (
             <View className="flex-row items-center mr-2">
               <FontAwesome5 name="clock" size={12} color="#CDCDE0" />
               <Text className="text-gray-100 ml-1">{dayData.workout.time}</Text>
@@ -115,54 +139,60 @@ const DayCard: React.FC<DayProps> = ({
         </View>
       </TouchableOpacity>
 
-      {/* Expanded Content */}
-      {isExpanded && !isRestDay && (
+      {/* Animated Expanded Content */}
+      <ExpandableSection isExpanded={isExpanded}>
         <View className="p-4 border-t border-black-200">
-          {/* Exercise List */}
-          <View className="mb-4">
-            {dayData.workout.exercises.map((exercise, index) => (
-              <View
-                key={index}
-                className="flex-row items-center mb-3 last:mb-0"
-              >
-                <MaterialCommunityIcons
-                  name="dumbbell"
-                  size={18}
-                  color={primaryColor}
-                />
-                <Text className="text-white font-pmedium ml-3">
-                  {exercise.name}
-                </Text>
-                <Text className="text-gray-100 ml-auto">
-                  {exercise.sets} sets × {exercise.reps}
-                </Text>
+          {isRestDay ? (
+            <View className="items-center py-4">
+              <MaterialCommunityIcons name="sleep" size={40} color={primaryColor} />
+              <Text className="text-white font-pmedium text-center mt-3">
+                Rest and recovery day. No workout scheduled.
+              </Text>
+            </View>
+          ) : (
+            <>
+              <View className="mb-4">
+                {dayData.workout.exercises.map((exercise, index) => (
+                  <View key={index} className="flex-row items-center mb-3 last:mb-0">
+                    <MaterialCommunityIcons
+                      name="dumbbell"
+                      size={18}
+                      color={primaryColor}
+                    />
+                    <Text className="text-white font-pmedium ml-3">
+                      {exercise.name}
+                    </Text>
+                    <Text className="text-gray-100 ml-auto">
+                      {exercise.sets} sets × {exercise.reps}
+                    </Text>
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
 
-          {/* Action Buttons */}
-          <View className="flex-row justify-end">
-            <TouchableOpacity
-              onPress={onEdit}
-              className="flex-row items-center mr-3 px-3 py-2 rounded-lg bg-black-200"
-              activeOpacity={0.7}
-            >
-              <FontAwesome5 name="edit" size={14} color={primaryColor} />
-              <Text className="text-white font-pmedium ml-2">Edit</Text>
-            </TouchableOpacity>
+              <View className="flex-row justify-end">
+                <TouchableOpacity
+                  onPress={onEdit}
+                  className="flex-row items-center mr-3 px-3 py-2 rounded-lg bg-black-200"
+                  activeOpacity={0.7}
+                >
+                  <FontAwesome5 name="edit" size={14} color={primaryColor} />
+                  <Text className="text-white font-pmedium ml-2">Edit</Text>
+                </TouchableOpacity>
 
-            <TouchableOpacity
-              onPress={onStart}
-              style={{ backgroundColor: primaryColor }}
-              className="flex-row items-center px-3 py-2 rounded-lg"
-              activeOpacity={0.7}
-            >
-              <FontAwesome5 name="play" size={14} color="#FFF" />
-              <Text className="text-white font-pmedium ml-2">Start</Text>
-            </TouchableOpacity>
-          </View>
+                <TouchableOpacity
+                  onPress={onStart}
+                  style={{ backgroundColor: primaryColor }}
+                  className="flex-row items-center px-3 py-2 rounded-lg"
+                  activeOpacity={0.7}
+                >
+                  <FontAwesome5 name="play" size={14} color="#FFF" />
+                  <Text className="text-white font-pmedium ml-2">Start</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
         </View>
-      )}
+      </ExpandableSection>
     </View>
   );
 };
