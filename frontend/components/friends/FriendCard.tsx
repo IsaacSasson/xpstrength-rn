@@ -14,6 +14,10 @@ interface FriendCardProps {
   border?: string;
   levelTextColor?: string;
   color?: string;
+  onAccept?: () => void;
+  onDecline?: () => void;
+  onCancel?: () => void;
+  onRemove?: () => void;
 }
 
 const FriendCard: React.FC<FriendCardProps> = ({
@@ -28,6 +32,10 @@ const FriendCard: React.FC<FriendCardProps> = ({
   border = '#000',
   levelTextColor = '#CDCDE0',
   color = '#A742FF',
+  onAccept,
+  onDecline,
+  onCancel,
+  onRemove,
 }) => {
   // Get status color based on status
   const getStatusColor = () => {
@@ -94,9 +102,10 @@ const FriendCard: React.FC<FriendCardProps> = ({
           {actionType === 'request' ? (
             <>
               <TouchableOpacity 
-              style={{ backgroundColor: color }}
-                className=" px-4 py-2 rounded-l-lg flex-row items-center"
+                style={{ backgroundColor: color }}
+                className="px-4 py-2 rounded-l-lg flex-row items-center"
                 activeOpacity={0.7}
+                onPress={onAccept}
               >
                 <FontAwesome5 name="check" size={12} color="#FFF" />
                 <Text className="text-white font-pmedium text-sm ml-2">Accept</Text>
@@ -104,6 +113,7 @@ const FriendCard: React.FC<FriendCardProps> = ({
               <TouchableOpacity 
                 className="bg-black-200 px-4 py-2 rounded-r-lg"
                 activeOpacity={0.7}
+                onPress={onDecline}
               >
                 <Text className="text-white font-pmedium text-sm">Decline</Text>
               </TouchableOpacity>
@@ -112,6 +122,7 @@ const FriendCard: React.FC<FriendCardProps> = ({
             <TouchableOpacity 
               className="bg-black-200 px-4 py-2 rounded-lg"
               activeOpacity={0.7}
+              onPress={onCancel}
             >
               <Text className="text-white font-pmedium text-sm">Cancel</Text>
             </TouchableOpacity>

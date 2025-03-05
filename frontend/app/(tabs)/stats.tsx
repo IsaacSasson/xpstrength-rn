@@ -1,6 +1,6 @@
 // Path: /app/(tabs)/stats.tsx
-import { View, StatusBar, ScrollView } from "react-native";
-import React, { useState } from "react";
+import { View, StatusBar, ScrollView, Text } from "react-native";
+import React, { useState, useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import TopBar from "@/components/TopBar";
 import Tabs from "@/components/TabList";
@@ -8,84 +8,40 @@ import RadarChart from "@/components/stats/RadarChart";
 import StatButtons from "@/components/stats/StatButtons";
 import { useThemeContext } from "@/context/ThemeContext";
 import { useUserProgress } from "@/context/UserProgressContext";
+import { useStats, MetricType, MuscleGroup } from "@/hooks/useStats"; // Import our custom hook
 
 const Stats = () => {
-  // Only need theme and user level from contexts
+  // Get theme and user level from contexts
   const { primaryColor, secondaryColor } = useThemeContext();
   const { level } = useUserProgress();
   
-  type MuscleGroup =
-    | "chest"
-    | "back"
-    | "shoulders"
-    | "biceps"
-    | "triceps"
-    | "legs"
-    | "core";
-
-  type MuscleData = {
-    [key in MuscleGroup]: number;
-  };
-
-  type MetricData = {
-    volume: MuscleData;
-    reps: MuscleData;
-    sets: MuscleData;
-    weight: MuscleData;
-  };
-
-  type MetricType = "volume" | "reps" | "sets" | "weight";
+  // Use our custom hook for stats data
+  const { 
+    getRadarData,
+    loading, 
+    error
+  } = useStats();
 
   const [activeMetric, setActiveMetric] = useState<MetricType>("volume");
-
-  const [radarData] = useState<MetricData>({
-    volume: {
-      chest: 85,
-      back: 70,
-      shoulders: 60,
-      biceps: 75,
-      triceps: 65,
-      legs: 90,
-      core: 55,
-    },
-    reps: {
-      chest: 65,
-      back: 80,
-      shoulders: 75,
-      biceps: 90,
-      triceps: 60,
-      legs: 55,
-      core: 80,
-    },
-    sets: {
-      chest: 75,
-      back: 65,
-      shoulders: 80,
-      biceps: 60,
-      triceps: 85,
-      legs: 75,
-      core: 70,
-    },
-    weight: {
-      chest: 90,
-      back: 75,
-      shoulders: 60,
-      biceps: 55,
-      triceps: 70,
-      legs: 95,
-      core: 40,
-    },
-  });
-
-  const [displayData, setDisplayData] = useState<MuscleData>(radarData.volume);
+  const [displayData, setDisplayData] = useState<any>(null);
   const [isAnimating, setIsAnimating] = useState(false);
+
+  // Update display data when active metric changes or when loading completes
+  useEffect(() => {
+    if (!loading) {
+      const radarData = getRadarData(activeMetric);
+      if (radarData) {
+        setDisplayData(radarData);
+      }
+    }
+  }, [activeMetric, loading]);
 
   const handleMetricChange = (newMetric: MetricType) => {
     if (newMetric !== activeMetric && !isAnimating) {
       setIsAnimating(true);
 
       const startData = { ...displayData };
-      const targetData = radarData[newMetric];
+      const targetData = getRadarData(newMetric);
 
       setActiveMetric(newMetric);
 
@@ -100,7 +56,7 @@ const Stats = () => {
         const progress = currentFrame / frames;
         const easedProgress = 1 - Math.pow(1 - progress, 3);
 
-        const interpolatedData: MuscleData = {} as MuscleData;
+        const interpolatedData: any = {};
         (Object.keys(startData) as MuscleGroup[]).forEach((muscle) => {
           interpolatedData[muscle] =
             startData[muscle] +
@@ -120,6 +76,23 @@ const Stats = () => {
       setTimeout(animateValues, 0);
     }
   };
+
+  // If loading or error, show appropriate UI
+  if (loading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: "#0F0E1A", justifyContent: 'center', alignItems: 'center' }}>
+        <Text className="text-white font-pmedium">Loading your stats...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={{ flex: 1, backgroundColor: "#0F0E1A", justifyContent: 'center', alignItems: 'center' }}>
+        <Text className="text-white font-pmedium">{error}</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
@@ -146,9 +119,17 @@ const Stats = () => {
           backgroundColor={primaryColor}
         />
 
-        <RadarChart activeMetric={activeMetric} displayData={displayData} color={primaryColor} />
+        {displayData && (
+          <RadarChart 
+            activeMetric={activeMetric} 
+            displayData={displayData} 
+            color={primaryColor} 
+          />
+        )}
 
-        <StatButtons color={primaryColor}/>
+        <StatButtons 
+          color={primaryColor}
+        />
       </ScrollView>
     </View>
   );

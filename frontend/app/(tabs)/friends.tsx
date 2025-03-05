@@ -15,283 +15,168 @@ import Tabs from "@/components/TabList";
 import FriendCard from "@/components/friends/FriendCard";
 import pfptest from "@/assets/images/favicon.png";
 
-// Import the new theme context
+// Import the hooks
 import { useThemeContext } from "@/context/ThemeContext";
 import { useUserProgress } from "@/context/UserProgressContext";
-
-interface User {
-  id: string;
-  name: string;
-  level: number;
-  status: string;
-  lastActive: string;
-  workouts?: number;
-}
-
-// Mock data for friends
-const mockFriends: User[] = [
-  {
-    id: "1",
-    name: "Wiiwho",
-    level: 25,
-    status: "Online",
-    lastActive: "Now",
-    workouts: 42,
-  },
-  {
-    id: "2",
-    name: "Alex",
-    level: 31,
-    status: "Online",
-    lastActive: "Now",
-    workouts: 67,
-  },
-  {
-    id: "3",
-    name: "Jordan",
-    level: 19,
-    status: "Offline",
-    lastActive: "2h ago",
-    workouts: 23,
-  },
-  {
-    id: "4",
-    name: "Taylor",
-    level: 45,
-    status: "In Workout",
-    lastActive: "Now",
-    workouts: 128,
-  },
-  {
-    id: "5",
-    name: "Casey",
-    level: 37,
-    status: "Offline",
-    lastActive: "1d ago",
-    workouts: 85,
-  },
-  {
-    id: "6",
-    name: "Morgan",
-    level: 22,
-    status: "Online",
-    lastActive: "Now",
-    workouts: 31,
-  },
-];
-
-// Mock data for friend requests
-const mockRequests: User[] = [
-  {
-    id: "7",
-    name: "Riley",
-    level: 15,
-    status: "Pending",
-    lastActive: "3h ago",
-  },
-  {
-    id: "8",
-    name: "Jamie",
-    level: 28,
-    status: "Pending",
-    lastActive: "1d ago",
-  },
-];
-
-// Mock data for pending requests
-const mockPending: User[] = [
-  {
-    id: "9",
-    name: "Quinn",
-    level: 33,
-    status: "Pending",
-    lastActive: "4h ago",
-  },
-];
-
-// Helper function to compute the Levenshtein distance between two strings.
-function levenshteinDistance(a: string, b: string): number {
-  const matrix: number[][] = [];
-  for (let i = 0; i <= a.length; i++) {
-    matrix[i] = [i];
-  }
-  for (let j = 0; j <= b.length; j++) {
-    matrix[0][j] = j;
-  }
-  for (let i = 1; i <= a.length; i++) {
-    for (let j = 1; j <= b.length; j++) {
-      if (a[i - 1] === b[j - 1]) {
-        matrix[i][j] = matrix[i - 1][j - 1];
-      } else {
-        matrix[i][j] = Math.min(
-          matrix[i - 1][j - 1] + 1,
-          matrix[i][j - 1] + 1,
-          matrix[i - 1][j] + 1
-        );
-      }
-    }
-  }
-  return matrix[a.length][b.length];
-}
-
-// Helper function for fuzzy matching using the Levenshtein distance.
-const fuzzyMatch = (text: string, query: string): boolean => {
-  const lowerText = text.toLowerCase();
-  const lowerQuery = query.toLowerCase();
-  if (lowerText.includes(lowerQuery)) return true;
-  const distance = levenshteinDistance(lowerText, lowerQuery);
-  const similarity =
-    1 - distance / Math.max(lowerText.length, lowerQuery.length);
-  return similarity >= 0.5;
-};
+import { useFriends, FriendType } from '@/hooks/useFriends'; // Import our custom hook
 
 const Friends = () => {
-  // Use our new theme context
+  // Use our theme context
   const { primaryColor } = useThemeContext();
   const { level } = useUserProgress();
+  
+  // Use our custom hook for friends data
+  const { 
+    getFriends,
+    getRequests,
+    getPending,
+    getFriendsCount,
+    getRequestsCount,
+    getPendingCount,
+    loading, 
+    error, 
+    searchUsers,
+    acceptFriendRequest,
+    declineFriendRequest,
+    cancelPendingRequest,
+    removeFriend
+  } = useFriends();
 
   // State to track the active tab and search query.
   const [activeTab, setActiveTab] = useState<string>("Friends");
   const [searchQuery, setSearchQuery] = useState<string>("");
-
-  // Filter users based on search query.
-  const filterUsers = (users: User[]): User[] => {
-    if (searchQuery.trim() === "") return users;
-    const query = searchQuery.toLowerCase();
-    if (query.length === 1) {
-      return users.filter((user: User) =>
-        user.name.toLowerCase().includes(query)
-      );
-    } else {
-      return users.filter((user: User) => fuzzyMatch(user.name, query));
-    }
-  };
 
   // Handler to change the active tab.
   const handleTabChange = (tab: string): void => {
     setActiveTab(tab);
   };
 
+  // Handle friend actions
+  const handleAcceptRequest = (userId: string) => {
+    acceptFriendRequest(userId);
+  };
+
+  const handleDeclineRequest = (userId: string) => {
+    declineFriendRequest(userId);
+  };
+
+  const handleCancelRequest = (userId: string) => {
+    cancelPendingRequest(userId);
+  };
+
+  const handleRemoveFriend = (userId: string) => {
+    removeFriend(userId);
+  };
+
   // Render different content based on the active tab.
   const renderTabContent = (): JSX.Element | null => {
+    let users: any[] = [];
+    let type: FriendType = 'friends';
+    
     switch (activeTab) {
-      case "Friends": {
-        const filteredFriends = filterUsers(mockFriends);
-        return (
-          <View className="space-y-4">
-            {filteredFriends.length > 0 ? (
-              <View className="bg-black-100 rounded-xl p-4 mb-4">
-                {filteredFriends.map((friend: User) => (
-                  <FriendCard
-                    key={friend.id}
-                    pfp={pfptest}
-                    name={friend.name}
-                    level={friend.level.toString()}
-                    status={friend.status}
-                    lastActive={friend.lastActive}
-                    workouts={friend.workouts}
-                    border={primaryColor}
-                    levelTextColor={primaryColor}
-                  />
-                ))}
-              </View>
-            ) : (
-              <View className="items-center justify-center py-10">
-                <FontAwesome5
-                  name="user-friends"
-                  size={50}
-                  color={primaryColor}
-                />
-                <Text className="text-white font-pmedium text-center mt-4 text-lg">
-                  No friends found
-                </Text>
-                <Text className="text-gray-100 text-center mt-2">
-                  Try searching with different letters.
-                </Text>
-              </View>
-            )}
-          </View>
-        );
-      }
-      case "Requests": {
-        const filteredRequests = filterUsers(mockRequests);
-        return (
-          <View className="space-y-4">
-            {filteredRequests.length > 0 ? (
-              <View className="bg-black-100 rounded-xl p-4">
-                {filteredRequests.map((request: User) => (
-                  <FriendCard
-                    key={request.id}
-                    pfp={pfptest}
-                    name={request.name}
-                    level={request.level.toString()}
-                    status={request.status}
-                    lastActive={request.lastActive}
-                    showActions={true}
-                    actionType="request"
-                    color={primaryColor}
-                    levelTextColor={primaryColor}
-                  />
-                ))}
-              </View>
-            ) : (
-              <View className="items-center justify-center py-10">
-                <FontAwesome5
-                  name="user-check"
-                  size={50}
-                  color={primaryColor}
-                />
-                <Text className="text-white font-pmedium text-center mt-4 text-lg">
-                  No friend requests found
-                </Text>
-                <Text className="text-gray-100 text-center mt-2">
-                  When someone sends you a friend request, it will appear here.
-                </Text>
-              </View>
-            )}
-          </View>
-        );
-      }
-      case "Pending": {
-        const filteredPending = filterUsers(mockPending);
-        return (
-          <View className="space-y-4">
-            {filteredPending.length > 0 ? (
-              <View className="bg-black-100 rounded-xl p-4">
-                {filteredPending.map((pending: User) => (
-                  <FriendCard
-                    key={pending.id}
-                    pfp={pfptest}
-                    name={pending.name}
-                    level={pending.level.toString()}
-                    status={pending.status}
-                    lastActive={pending.lastActive}
-                    showActions={true}
-                    actionType="pending"
-                    levelTextColor={primaryColor}
-                  />
-                ))}
-              </View>
-            ) : (
-              <View className="items-center justify-center py-10">
-                <FontAwesome5
-                  name="user-clock"
-                  size={50}
-                  color={primaryColor}
-                />
-                <Text className="text-white font-pmedium text-center mt-4 text-lg">
-                  No pending requests found
-                </Text>
-                <Text className="text-gray-100 text-center mt-2">
-                  Requests you've sent will appear here until they're accepted.
-                </Text>
-              </View>
-            )}
-          </View>
-        );
-      }
+      case "Friends":
+        type = 'friends';
+        break;
+      case "Requests":
+        type = 'requests';
+        break;
+      case "Pending":
+        type = 'pending';
+        break;
       default:
         return null;
+    }
+    
+    // Use the searchUsers function from our hook
+    users = searchUsers(searchQuery, type);
+    
+    if (loading) {
+      return (
+        <View className="items-center justify-center py-10">
+          <Text className="text-white font-pmedium">Loading...</Text>
+        </View>
+      );
+    }
+    
+    if (error) {
+      return (
+        <View className="items-center justify-center py-10">
+          <Text className="text-white font-pmedium">{error}</Text>
+        </View>
+      );
+    }
+
+    if (users.length === 0) {
+      let icon = "user-friends";
+      let message = "No friends found";
+      let subMessage = "Try searching with different letters.";
+
+      if (type === 'requests') {
+        icon = "user-check";
+        message = "No friend requests found";
+        subMessage = "When someone sends you a friend request, it will appear here.";
+      } else if (type === 'pending') {
+        icon = "user-clock";
+        message = "No pending requests found";
+        subMessage = "Requests you've sent will appear here until they're accepted.";
+      }
+
+      return (
+        <View className="items-center justify-center py-10">
+          <FontAwesome5
+            name={icon}
+            size={50}
+            color={primaryColor}
+          />
+          <Text className="text-white font-pmedium text-center mt-4 text-lg">
+            {message}
+          </Text>
+          <Text className="text-gray-100 text-center mt-2">
+            {subMessage}
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <View className="space-y-4">
+        <View className="bg-black-100 rounded-xl p-4 mb-4">
+          {users.map((user) => (
+            <FriendCard
+              key={user.id}
+              pfp={pfptest}
+              name={user.name}
+              level={user.level.toString()}
+              status={user.status}
+              lastActive={user.lastActive}
+              workouts={user.workouts}
+              border={primaryColor}
+              levelTextColor={primaryColor}
+              showActions={type !== 'friends'}
+              actionType={type === 'requests' ? 'request' : 'pending'}
+              color={primaryColor}
+              onAccept={type === 'requests' ? () => handleAcceptRequest(user.id) : undefined}
+              onDecline={type === 'requests' ? () => handleDeclineRequest(user.id) : undefined}
+              onCancel={type === 'pending' ? () => handleCancelRequest(user.id) : undefined}
+              onRemove={type === 'friends' ? () => handleRemoveFriend(user.id) : undefined}
+            />
+          ))}
+        </View>
+      </View>
+    );
+  };
+
+  // Calculate counts for the tab header
+  const getSubtext = () => {
+    switch (activeTab) {
+      case "Friends":
+        return `${getFriendsCount()} Friends`;
+      case "Requests":
+        return `${getRequestsCount()} Requests`;
+      case "Pending":
+        return `${getPendingCount()} Pending`;
+      default:
+        return "";
     }
   };
 
@@ -303,13 +188,7 @@ const Friends = () => {
       <SafeAreaView edges={["top"]} style={{ backgroundColor: "bg-primary" }}>
         <View className="px-4 pt-6">
           <TopBar
-            subtext={
-              activeTab === "Friends"
-                ? `${mockFriends.length} Friends`
-                : activeTab === "Requests"
-                ? `${mockRequests.length} Requests`
-                : `${mockPending.length} Pending`
-            }
+            subtext={getSubtext()}
             title="Your Friends"
             titleTop={true}
           />

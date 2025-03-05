@@ -4,14 +4,16 @@ import { View, StatusBar, ScrollView, TouchableOpacity, Text } from 'react-nativ
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
+
 import Tabs from '@/components/TabList';
 import ProgressLineChart, { MetricType, DataPoint } from '@/components/stats/stats-over-time/ProgressLineChart';
 import StatKeyMetrics from '@/components/stats/stats-over-time/StatKeyMetrics';
 import WorkoutSuggestions from '@/components/stats/stats-over-time/WorkoutSuggestions';
 import MuscleGroupSelector from '@/components/stats/stats-over-time/MuscleGroupSelector';
 import DataPointSelector from '@/components/stats/stats-over-time/DataPointSelector';
-import { generateMockData, WorkoutData } from '@/components/stats/stats-over-time/StatsDataService';
+
 import { useThemeContext } from '@/context/ThemeContext';
+import { useStats } from '@/hooks/useStats';
 
 // Mock data for muscle groups
 const muscleGroups = [
@@ -28,34 +30,19 @@ const StatsOverTime: React.FC = () => {
   const [activeMetric, setActiveMetric] = useState<MetricType>('volume');
   const [activeMuscle, setActiveMuscle] = useState<string>('All Muscles');
   const [dataPoints, setDataPoints] = useState<number>(10);
-  const [workoutData, setWorkoutData] = useState<WorkoutData | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
   const [chartData, setChartData] = useState<DataPoint[]>([]);
+  
   const { primaryColor, secondaryColor } = useThemeContext();
+  const { getProgressData, loading } = useStats();
   
-  // Generate mock data on component mount
+  // Update chart data when active metric, data points or loading state changes
   useEffect(() => {
-    setLoading(true);
-    // Simulate API request delay
-    setTimeout(() => {
-      const data = generateMockData();
-      setWorkoutData(data);
-      setLoading(false);
-    }, 500);
-  }, []);
-  
-  // Update chart data when workout data, active metric, or number of data points changes
-  useEffect(() => {
-    if (workoutData) {
-      const metricData = workoutData[activeMetric];
-      
-      // Get the most recent X data points
-      const numPoints = Math.min(dataPoints, metricData.length);
-      const recentData = metricData.slice(-numPoints);
-      
-      setChartData(recentData);
+    if (!loading) {
+      // Get the time series data for the selected metric and number of points
+      const data = getProgressData(activeMetric, dataPoints);
+      setChartData(data);
     }
-  }, [workoutData, activeMetric, dataPoints]);
+  }, [activeMetric, dataPoints, loading]);
   
   // Handle going back
   const goBack = () => {
