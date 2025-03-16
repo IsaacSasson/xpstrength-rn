@@ -303,7 +303,7 @@ const ExpandableExerciseCard: React.FC<ExpandableExerciseCardProps> = ({
 };
 
 const EditWorkout = () => {
-  const { primaryColor, secondaryColor} = useThemeContext();
+  const { primaryColor, secondaryColor, tertiaryColor} = useThemeContext();
 
   const params = useLocalSearchParams();
   const dayParam = params.day as string | undefined;
@@ -475,7 +475,11 @@ const EditWorkout = () => {
         className="px-4 pt-2 pb-20"
       >
         {/* Workout Name Input */}
-        <View className="bg-black-100 rounded-xl p-4 mb-5">
+        <View className=" rounded-xl p-4 mb-5"
+        style={{
+          backgroundColor: tertiaryColor,
+        }}
+        >
           <Text className="text-white font-pmedium mb-2">Workout Name</Text>
           <TextInput
             className="bg-black-200 text-white font-pmedium p-3 rounded-lg"
@@ -487,7 +491,11 @@ const EditWorkout = () => {
         </View>
 
         {/* Day Selection */}
-        <View className="bg-black-100 rounded-xl p-4 mb-5">
+        <View className="rounded-xl p-4 mb-5"
+        style={{
+          backgroundColor: tertiaryColor,
+        }}
+        >
           <Text className="text-white font-pmedium mb-2">Workout Days</Text>
           <TouchableOpacity
             className="bg-black-200 flex-row justify-between items-center p-3 rounded-lg"
@@ -515,7 +523,11 @@ const EditWorkout = () => {
           </View>
 
           {workout.exercises.length === 0 ? (
-            <View className="bg-black-100 rounded-xl p-6 items-center">
+            <View className=" rounded-xl p-6 items-center"
+            style={{
+              backgroundColor: tertiaryColor,
+            }}
+            >
               <MaterialCommunityIcons
                 name="dumbbell"
                 size={50}
@@ -555,8 +567,11 @@ const EditWorkout = () => {
             <View 
             style={{
               borderColor: secondaryColor,
+              backgroundColor: tertiaryColor,
             }}
-            className="bg-black-100 rounded-t-3xl border-t-2">
+            className="bg-black-100 rounded-t-3xl border-t-2"
+            
+            >
               <View className="w-16 h-1 bg-gray-100 rounded-full mx-auto my-4" />
 
               <Text className="text-white text-xl font-psemibold text-center mb-4">

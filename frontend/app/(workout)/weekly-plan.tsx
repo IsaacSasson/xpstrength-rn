@@ -1,185 +1,129 @@
-// Path: /app/(workout)/weekly-plan.tsx
-import React, { useState } from "react";
-import {
-  View,
-  StatusBar,
-  TouchableOpacity,
-  Platform,
-  Text,
-  ScrollView,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
-import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
-import DayCard from "@/components/DayCard";
-import { useThemeContext } from "@/context/ThemeContext";
-
-// Weekly workout data defined directly in this file
-const weeklyWorkoutData = [
-  {
-    day: "Monday",
-    workout: {
-      name: "Push Day",
-      exercises: [
-        { name: "Bench Press", sets: 4, reps: "8-10" },
-        { name: "Shoulder Press", sets: 3, reps: "10-12" },
-        { name: "Incline DB Press", sets: 3, reps: "10-12" },
-        { name: "Tricep Extensions", sets: 3, reps: "12-15" },
-      ],
-      time: "1h 15m",
-    },
-  },
-  {
-    day: "Tuesday",
-    workout: {
-      name: "Pull Day",
-      exercises: [
-        { name: "Deadlifts", sets: 4, reps: "6-8" },
-        { name: "Pull-ups", sets: 3, reps: "8-10" },
-        { name: "Barbell Rows", sets: 3, reps: "8-10" },
-        { name: "Bicep Curls", sets: 3, reps: "12-15" },
-      ],
-      time: "1h 10m",
-    },
-  },
-  {
-    day: "Wednesday",
-    workout: {
-      name: "Rest Day",
-      exercises: [],
-      time: "0m",
-    },
-  },
-  {
-    day: "Thursday",
-    workout: {
-      name: "Legs Day",
-      exercises: [
-        { name: "Squats", sets: 4, reps: "8-10" },
-        { name: "Leg Press", sets: 3, reps: "10-12" },
-        { name: "Lunges", sets: 3, reps: "10 each" },
-        { name: "Calf Raises", sets: 4, reps: "15-20" },
-      ],
-      time: "1h 20m",
-    },
-  },
-  {
-    day: "Friday",
-    workout: {
-      name: "Upper Body",
-      exercises: [
-        { name: "Incline Bench", sets: 4, reps: "8-10" },
-        { name: "Lat Pulldowns", sets: 3, reps: "10-12" },
-        { name: "Lateral Raises", sets: 3, reps: "12-15" },
-        { name: "Face Pulls", sets: 3, reps: "15-20" },
-      ],
-      time: "1h 05m",
-    },
-  },
-  {
-    day: "Saturday",
-    workout: {
-      name: "Lower Body",
-      exercises: [
-        { name: "Romanian Deadlifts", sets: 4, reps: "8-10" },
-        { name: "Hack Squats", sets: 3, reps: "10-12" },
-        { name: "Leg Extensions", sets: 3, reps: "12-15" },
-        { name: "Hamstring Curls", sets: 3, reps: "12-15" },
-      ],
-      time: "1h 15m",
-    },
-  },
-  {
-    day: "Sunday",
-    workout: {
-      name: "Rest Day",
-      exercises: [],
-      time: "0m",
-    },
-  },
-];
-
-const WeeklyPlan = () => {
-  // Use our theme context
-  const { primaryColor } = useThemeContext();
-  
-  // Get current day (0 = Sunday, 1 = Monday, etc.)
-  const today = new Date().getDay();
-  // Adjust so that Monday becomes index 0 (Sunday becomes index 6)
-  const todayIndex = today === 0 ? 6 : today - 1;
-
-  // Create state for tracking expanded state for each day
-  const [expandedDays, setExpandedDays] = useState(() => {
-    const arr = new Array(weeklyWorkoutData.length).fill(false);
-    arr[todayIndex] = true; // Expand current day by default
-    return arr;
-  });
-
-  const toggleExpand = (index: number) => {
-    setExpandedDays((prev) => {
-      const newExpanded = [...prev];
-      newExpanded[index] = !newExpanded[index];
-      return newExpanded;
-    });
-  };
-
-  const goBack = () => {
-    if (Platform.OS === "web") {
-      router.push("/home");
-    } else {
-      router.back();
-    }
-  };
-
-  const editWorkout = (dayIndex: number) => {
-    console.log(`Edit workout for ${weeklyWorkoutData[dayIndex].day}`);
-    // Add navigation to edit screen if needed
-  };
-
-  const startWorkout = (dayIndex: number) => {
-    console.log("Start workout");
-    // Add functionality to start the workout if needed
-  };
-
-  return (
-    <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
-      <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
-
-      {/* Top Header Section */}
-      <SafeAreaView edges={["top"]} className="bg-primary">
-        <View className="px-4 pt-6">
-          <View className="flex-row items-center mb-6">
-            <TouchableOpacity onPress={goBack} className="mr-4">
-              <FontAwesome5 name="arrow-left" size={20} color="white" />
-            </TouchableOpacity>
-            <View>
-              <Text className="text-2xl font-psemibold text-white">
-                Weekly Workout Plan
-              </Text>
-              <Text className="font-pmedium text-sm text-gray-100">
-                Your training schedule
-              </Text>
-            </View>
-          </View>
-        </View>
-      </SafeAreaView>
-
-      {/* Workout Cards */}
-      <ScrollView className="px-4 pt-2 pb-6">
-        {weeklyWorkoutData.map((dayData, index) => (
-          <DayCard
-            key={dayData.day}
-            dayData={dayData}
-            isToday={index === todayIndex}
-            isExpanded={expandedDays[index]}
-            onToggleExpand={() => toggleExpand(index)}
-            onEdit={() => editWorkout(index)}
-            onStart={() => startWorkout(index)}
-          />
-        ))}
-      </ScrollView>
-    </View>
-  );
+// Path: /context/constants/themeConstants.ts
+export type ThemeColors = {
+  primary: string;
+  secondary: string;
+  tertiary: string;
 };
 
-export default WeeklyPlan;
+export type Theme = {
+  id: string;
+  name: string;
+  colors: ThemeColors;
+};
+
+// Updated themes with refined, nearly black tertiary colors
+export const THEMES: Record<string, Theme> = {
+  purple_default: {
+    id: "purple_default",
+    name: "Classic Purple",
+    colors: {
+      primary: "#A742FF",
+      secondary: "#BD7AFF",
+      tertiary: "#1A1726", // remains as our reference dark purple
+    },
+  },
+  red_inferno: {
+    id: "red_inferno",
+    name: "Inferno Red",
+    colors: {
+      primary: "#FF0000",
+      secondary: "#FF4D4D",
+      // Slightly raised red channel compared to a baseline nearly-black
+      tertiary: "#2A1616", // (42,22,22)
+    },
+  },
+  orange_sunrise: {
+    id: "orange_sunrise",
+    name: "Sunrise Orange",
+    colors: {
+      primary: "#FF7F00",
+      secondary: "#FF9933",
+      // A subtle tint with a hint of warmth
+      tertiary: "#2A1816", // (42,24,22)
+    },
+  },
+  green_forest: {
+    id: "green_forest",
+    name: "Forest Green",
+    colors: {
+      primary: "#00AA00",
+      secondary: "#66CC66",
+      // Leaning into green by boosting the green channel slightly
+      tertiary: "#1A2A1A", // (26,42,26)
+    },
+  },
+  blue_ocean: {
+    id: "blue_ocean",
+    name: "Ocean Blue",
+    colors: {
+      primary: "#0066FF",
+      secondary: "#4D94FF",
+      // A refined dark blue with a modest blue channel boost
+      tertiary: "#161A2A", // (22,26,42)
+    },
+  },
+  gold_premium: {
+    id: "gold_premium",
+    name: "Premium Gold",
+    colors: {
+      primary: "#FFD700",
+      secondary: "#FFDF4D",
+      // A dark tone with a gentle nod toward a golden hue
+      tertiary: "#2A1A16", // (42,26,22)
+    },
+  },
+  neon_future: {
+    id: "neon_future",
+    name: "Neon Future",
+    colors: {
+      primary: "#00FFFF",
+      secondary: "#4DFFFF",
+      tertiary: "#171726", // remains as our reference dark cyan
+    },
+  },
+};
+
+// Shop theme metadata
+export interface ShopItem extends Theme {
+  price: number;
+  description: string;
+}
+
+// Define shop items with metadata
+export const SHOP_THEMES: Record<string, ShopItem> = {
+  purple_default: {
+    ...THEMES.purple_default,
+    price: 0, // Free default theme
+    description: "The default purple theme. Bold and energetic.",
+  },
+  red_inferno: {
+    ...THEMES.red_inferno,
+    price: 500,
+    description: "Fiery and intense. Perfect for high-intensity workouts.",
+  },
+  orange_sunrise: {
+    ...THEMES.orange_sunrise,
+    price: 500,
+    description: "Warm and motivating. Start your day with energy.",
+  },
+  green_forest: {
+    ...THEMES.green_forest,
+    price: 750,
+    description: "Natural and calming. Find your zen while working out.",
+  },
+  blue_ocean: {
+    ...THEMES.blue_ocean,
+    price: 750,
+    description: "Deep and focused. Dive into your training routine.",
+  },
+  gold_premium: {
+    ...THEMES.gold_premium,
+    price: 1500,
+    description: "Luxurious and prestigious. Show off your achievements.",
+  },
+  neon_future: {
+    ...THEMES.neon_future,
+    price: 2000,
+    description: "Futuristic and bright. Train like you're from the future.",
+  },
+};

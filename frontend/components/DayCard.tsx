@@ -11,7 +11,10 @@ interface ExpandableSectionProps {
   children: React.ReactNode;
 }
 
-const ExpandableSection: React.FC<ExpandableSectionProps> = ({ isExpanded, children }) => {
+const ExpandableSection: React.FC<ExpandableSectionProps> = ({
+  isExpanded,
+  children,
+}) => {
   const [contentHeight, setContentHeight] = useState(0);
   const animation = useRef(new Animated.Value(0)).current;
 
@@ -86,7 +89,7 @@ const DayCard: React.FC<DayProps> = ({
   onStart,
 }) => {
   // Use our theme context for colors
-  const { primaryColor, secondaryColor } = useThemeContext();
+  const { primaryColor, secondaryColor, tertiaryColor } = useThemeContext();
 
   // Toggle the expanded state (no LayoutAnimation now)
   const toggleExpand = () => {
@@ -98,8 +101,16 @@ const DayCard: React.FC<DayProps> = ({
 
   return (
     <View
-      className={`bg-black-100 rounded-xl overflow-hidden mb-4 ${isToday ? "border-2" : ""}`}
-      style={isToday ? { borderColor: primaryColor } : {}}
+      className={` rounded-xl overflow-hidden mb-4 ${
+        isToday ? "border-2" : ""
+      }`}
+      style={
+        isToday
+          ? { borderColor: primaryColor, backgroundColor: tertiaryColor }
+          : {
+              backgroundColor: tertiaryColor,
+            }
+      }
     >
       {/* Card Header - Always visible */}
       <TouchableOpacity
@@ -114,12 +125,17 @@ const DayCard: React.FC<DayProps> = ({
               style={{ backgroundColor: primaryColor }}
             />
           )}
-          <Text className="text-white font-psemibold text-lg">{dayData.day}</Text>
+          <Text className="text-white font-psemibold text-lg">
+            {dayData.day}
+          </Text>
         </View>
 
         <View className="flex-row items-center">
           {!isRestDay ? (
-            <Text className="font-pmedium mr-3" style={{ color: secondaryColor }}>
+            <Text
+              className="font-pmedium mr-3"
+              style={{ color: secondaryColor }}
+            >
               {dayData.workout.name}
             </Text>
           ) : (
@@ -144,7 +160,11 @@ const DayCard: React.FC<DayProps> = ({
         <View className="p-4 border-t border-black-200">
           {isRestDay ? (
             <View className="items-center py-4">
-              <MaterialCommunityIcons name="sleep" size={40} color={primaryColor} />
+              <MaterialCommunityIcons
+                name="sleep"
+                size={40}
+                color={primaryColor}
+              />
               <Text className="text-white font-pmedium text-center mt-3">
                 Rest and recovery day. No workout scheduled.
               </Text>
@@ -153,7 +173,10 @@ const DayCard: React.FC<DayProps> = ({
             <>
               <View className="mb-4">
                 {dayData.workout.exercises.map((exercise, index) => (
-                  <View key={index} className="flex-row items-center mb-3 last:mb-0">
+                  <View
+                    key={index}
+                    className="flex-row items-center mb-3 last:mb-0"
+                  >
                     <MaterialCommunityIcons
                       name="dumbbell"
                       size={18}
