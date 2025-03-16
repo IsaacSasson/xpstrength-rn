@@ -15,7 +15,7 @@ export type FriendType = 'friends' | 'requests' | 'pending';
 const MOCK_FRIENDS: User[] = [
   {
     id: "1",
-    name: "Wiiwho loves ikey haha",
+    name: "Wiiwho loves ikey",
     level: 25,
     status: "Online",
     lastActive: "Now",

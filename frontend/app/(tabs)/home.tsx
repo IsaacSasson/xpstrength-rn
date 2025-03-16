@@ -32,7 +32,7 @@ const todaysWorkout = {
 
 const Home = () => {
   // Only need theme context here
-  const { primaryColor, secondaryColor, cycleTheme } = useThemeContext();
+  const { primaryColor, secondaryColor, tertiaryColor } = useThemeContext();
 
   // Navigation functions
   const goToEditWorkout = () => {
@@ -82,7 +82,11 @@ const Home = () => {
         </View>
 
         {/* Today's Workout Card */}
-        <View className="bg-black-100 rounded-2xl p-5 mb-6">
+        <View className=" rounded-2xl p-5 mb-6"
+        style={{
+          backgroundColor: tertiaryColor,
+        }}  
+      >
           <View className="flex-row items-center justify-between mb-4">
             <Text className="text-white text-xl font-psemibold">
               Today's Workout
@@ -188,7 +192,7 @@ const Home = () => {
           )}
         </View>
 
-        {/* Quick Actions */}
+        {/* `Quick `Actions */}
         <Text className="text-white text-xl font-psemibold mb-4">
           Quick Actions
         </Text>
@@ -199,24 +203,28 @@ const Home = () => {
             iconType="material"
             onPress={goToEditWorkout}
             iconColor={primaryColor}
+            backgroundColor={tertiaryColor}
           />
           <ActionButton
             title="View Workout Plan"
             icon="calendar-week"
             onPress={goToPlannedWorkouts}
             iconColor={primaryColor}
+            backgroundColor={tertiaryColor}
           />
           <ActionButton
             title="Invite Friends"
             icon="user-plus"
             onPress={() => console.log("Navigate to invite friends")}
             iconColor={primaryColor}
+            backgroundColor={tertiaryColor}
           />
           <ActionButton
             title="View Progress"
             icon="chart-line"
             onPress={() => router.push("/stats")}
             iconColor={primaryColor}
+            backgroundColor={tertiaryColor}
           />
         </View>
 
@@ -224,7 +232,10 @@ const Home = () => {
         <Text className="text-white text-xl font-psemibold mb-4">
           Recent Activity
         </Text>
-        <View className="bg-black-100 rounded-2xl p-5 mb-6">
+        <View className="rounded-2xl p-5 mb-6"
+        style={{
+          backgroundColor: tertiaryColor,}}
+        >
           <View className="flex-row items-start mb-4">
             <View 
             style={{
@@ -288,6 +299,7 @@ interface ActionButtonProps {
   iconType?: "material" | "fontawesome";
   onPress: () => void;
   iconColor?: string;
+  backgroundColor?: string;
 }
 
 const ActionButton: React.FC<ActionButtonProps> = ({
@@ -296,13 +308,17 @@ const ActionButton: React.FC<ActionButtonProps> = ({
   iconType = "fontawesome",
   onPress,
   iconColor,
+  backgroundColor,
 }) => {
   return (
     <View className="w-1/2 p-2">
       <TouchableOpacity
         onPress={onPress}
-        className="bg-black-100 rounded-xl h-[90px] justify-center items-center p-4"
+        className=" rounded-xl h-[90px] justify-center items-center p-4"
         activeOpacity={0.7}
+        style={{
+          backgroundColor: backgroundColor,
+        }}
       >
         {iconType === "material" ? (
           <MaterialCommunityIcons name={icon} size={28} color={iconColor} />

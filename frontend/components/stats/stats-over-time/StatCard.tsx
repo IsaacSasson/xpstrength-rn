@@ -8,6 +8,7 @@ interface StatCardProps {
   icon: string;
   description: string;
   color?: string;
+  colorTwo?: string;
 }
 
 const StatCard: React.FC<StatCardProps> = ({ 
@@ -15,11 +16,16 @@ const StatCard: React.FC<StatCardProps> = ({
   value, 
   icon,
   description,
-  color
+  color,
+  colorTwo,
 }) => {
   return (
     <View className="w-1/2 p-2">
-      <View className="bg-black-100 rounded-xl p-4">
+      <View className=" rounded-xl p-4"
+      style={{
+        backgroundColor: colorTwo,
+      }}
+      >
         <View className="flex-row items-center justify-between mb-2">
           <Text className="text-gray-100 font-pmedium">{title}</Text>
           <FontAwesome5 name={icon} size={16} color={color} />

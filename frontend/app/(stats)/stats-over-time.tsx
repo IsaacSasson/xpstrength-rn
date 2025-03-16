@@ -32,7 +32,7 @@ const StatsOverTime: React.FC = () => {
   const [dataPoints, setDataPoints] = useState<number>(10);
   const [chartData, setChartData] = useState<DataPoint[]>([]);
   
-  const { primaryColor, secondaryColor } = useThemeContext();
+  const { primaryColor, secondaryColor, tertiaryColor } = useThemeContext();
   const { getProgressData, loading } = useStats();
   
   // Update chart data when active metric, data points or loading state changes
@@ -120,16 +120,18 @@ const StatsOverTime: React.FC = () => {
           activeMetric={activeMetric}
           color={primaryColor}
           colorTwo={secondaryColor}
+          colorThree={tertiaryColor}
         />
         
         {/* Key Stats Section */}
-        <StatKeyMetrics chartData={chartData} color={primaryColor}/>
+        <StatKeyMetrics chartData={chartData} color={primaryColor} colorTwo={tertiaryColor}/>
         
         {/* Suggestions Section */}
         <WorkoutSuggestions 
           activeMetric={activeMetric}
           activeMuscle={activeMuscle}
           color={primaryColor}
+          colorTwo={tertiaryColor}
         />
       </ScrollView>
     </View>

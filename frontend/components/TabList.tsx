@@ -15,9 +15,10 @@ interface TabsProps<T> {
   onTabChange: (tab: T) => void;
   isAnimating?: boolean;
   backgroundColor?: string;
+  tertiaryColor?: string;
 }
 
-function Tabs<T>({ tabs, activeTab, onTabChange, isAnimating = false, backgroundColor }: TabsProps<T>) {
+function Tabs<T>({ tabs, activeTab, onTabChange, isAnimating = false, backgroundColor, tertiaryColor }: TabsProps<T>) {
   // Defensive check: if tabs is undefined or not an array, do not render anything.
   if (!tabs || !Array.isArray(tabs)) {
     console.error('Tabs component requires a valid "tabs" array');
@@ -80,7 +81,10 @@ function Tabs<T>({ tabs, activeTab, onTabChange, isAnimating = false, background
   return (
     <View
       onLayout={onContainerLayout}
-      className="flex-row justify-between bg-black-100 rounded-xl p-1 mb-6 relative"
+      className="flex-row justify-between rounded-xl p-1 mb-6 relative"
+      style={{
+      backgroundColor: tertiaryColor,
+      }}
     >
       {/* Animated background */}
       {containerWidth > 0 && tabWidths.length > 0 && activeIndex >= 0 && (

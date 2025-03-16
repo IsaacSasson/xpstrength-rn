@@ -8,11 +8,13 @@ interface StatButtonItem {
   icon: string;
   onPress: () => void;
   color?: string;
+  tertiaryColor?: string;
 }
 
 interface StatButtonsProps {
   buttons?: StatButtonItem[];
   color?: string; // add the color prop here
+  tertiaryColor?: string;
 }
 
 const StatButtons: React.FC<StatButtonsProps> = ({ 
@@ -22,7 +24,8 @@ const StatButtons: React.FC<StatButtonsProps> = ({
     { title: 'Stats Over Time', icon: 'chart-line', onPress: () => router.push('/stats-over-time') },
     { title: 'Goals & Achievements', icon: 'medal', onPress: () => console.log('Navigate to Goals') }
   ],
-  color // destructure the color prop from props
+  color, // destructure the color prop from props
+  tertiaryColor // destructure the tertiaryColor prop from props
 }) => {
   return (
     <View className="mb-8 flex-row flex-wrap">
@@ -30,8 +33,11 @@ const StatButtons: React.FC<StatButtonsProps> = ({
         <View key={item.title} className="w-1/2 p-2">
           <TouchableOpacity 
             onPress={item.onPress}
-            className="bg-black-100 rounded-xl h-[110px] justify-center items-center p-4"
+            className=" rounded-xl h-[110px] justify-center items-center p-4"
             activeOpacity={0.7}
+            style={{
+              backgroundColor: tertiaryColor, // use passed bColor or fallback
+            }}
           >
             <FontAwesome5 
               name={item.icon} 

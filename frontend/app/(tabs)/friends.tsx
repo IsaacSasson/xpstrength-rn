@@ -22,7 +22,7 @@ import { useFriends, FriendType } from '@/hooks/useFriends'; // Import our custo
 
 const Friends = () => {
   // Use our theme context
-  const { primaryColor } = useThemeContext();
+  const { primaryColor, tertiaryColor } = useThemeContext();
   const { level } = useUserProgress();
   
   // Use our custom hook for friends data
@@ -140,7 +140,11 @@ const Friends = () => {
 
     return (
       <View className="space-y-4">
-        <View className="bg-black-100 rounded-xl p-4 mb-4">
+        <View className="rounded-xl p-4 mb-4"
+        style={{
+            backgroundColor: tertiaryColor,
+        }}
+        >
           {users.map((user) => (
             <FriendCard
               key={user.id}
@@ -210,6 +214,7 @@ const Friends = () => {
           activeTab={activeTab}
           onTabChange={handleTabChange}
           backgroundColor={primaryColor}
+          tertiaryColor={tertiaryColor}
         />
       </View>
       <ScrollView showsVerticalScrollIndicator={false} className="px-4">

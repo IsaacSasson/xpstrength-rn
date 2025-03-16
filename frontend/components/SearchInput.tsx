@@ -28,9 +28,9 @@ const SearchInput: React.FC<FormFieldProps> = ({
 
      
       <View
-        className={`border-2  ${
-          isFocused ? 'border-secondary' : 'border-black-200'
-        } w-full h-16 px-4 bg-black-100 rounded-2xl items-center flex-row space-x-4 `}
+        className={`border-2 w-full h-16 px-4 bg-black-100  rounded-2xl items-center flex-row space-x-4 `}
+        style={{
+          borderColor: isFocused ? color : '#22202F',}}
       >
         <TextInput
           className="mt-0.5 text-base text-white flex-1 font-pregular"

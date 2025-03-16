@@ -9,6 +9,7 @@ export type DataPoint = {
   value: number;
   color?: string;
   colorTwo?: string;
+  colorThree?: string;
 };
 
 export type MetricType = 'volume' | 'reps' | 'sets' | 'weight';
@@ -19,6 +20,7 @@ interface ProgressLineChartProps {
   activeMetric: MetricType;
   color?: string;
   colorTwo?: string;
+  colorThree?: string;
 }
 
 // Format date string to display format
@@ -32,7 +34,8 @@ const ProgressLineChart: React.FC<ProgressLineChartProps> = ({
   loading,
   activeMetric,
   color,
-  colorTwo
+  colorTwo,
+  colorThree
 }) => {
   // Get the appropriate unit based on active metric
   const getMetricUnit = () => {
@@ -267,7 +270,11 @@ const ProgressLineChart: React.FC<ProgressLineChartProps> = ({
   };
 
   return (
-    <View className="bg-black-100 rounded-2xl p-4 mb-6">
+    <View className=" rounded-2xl p-4 mb-6"
+    style={{
+        backgroundColor: colorThree,
+    }}
+    >
       <View className="flex-row items-center justify-between mb-4">
         <Text className="text-white text-lg font-psemibold">
           {activeMetric.charAt(0).toUpperCase() + activeMetric.slice(1)} Progress {getMetricUnit()}

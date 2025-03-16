@@ -7,15 +7,20 @@ interface WorkoutSuggestionsProps {
   activeMetric: MetricType;
   activeMuscle: string;
   color?: string;
+  colorTwo?: string;
 }
 
-const WorkoutSuggestions: React.FC<WorkoutSuggestionsProps> = ({ activeMetric, activeMuscle, color }) => {
+const WorkoutSuggestions: React.FC<WorkoutSuggestionsProps> = ({ activeMetric, activeMuscle, color, colorTwo }) => {
   return (
     <>
       <Text className="text-white text-xl font-psemibold mt-6 mb-4">
         Suggestions
       </Text>
-      <View className="bg-black-100 rounded-2xl p-4 mb-6">
+      <View className="rounded-2xl p-4 mb-6"
+      style={{
+        backgroundColor: colorTwo,
+      }}
+      >
         <View className="flex-row items-start mb-4">
           <View 
           style={{

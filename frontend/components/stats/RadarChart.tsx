@@ -18,7 +18,7 @@ interface RadarChartProps {
 
 const RadarChart: React.FC<RadarChartProps> = ({ activeMetric, displayData, color }) => {
   // Use our new theme context
-  const { primaryColor, secondaryColor } = useThemeContext();
+  const { primaryColor, secondaryColor, tertiaryColor } = useThemeContext();
   
   // Use passed color or fall back to primary color from theme
   const chartColor = color || primaryColor;
@@ -48,7 +48,11 @@ const RadarChart: React.FC<RadarChartProps> = ({ activeMetric, displayData, colo
   const polygonPoints = dataPoints.map(point => `${point.x},${point.y}`).join(' ');
 
   return (
-    <View className="items-center justify-center bg-black-100 rounded-2xl p-4 mb-6">
+    <View className="items-center justify-center bg-black-100 rounded-2xl p-4 mb-6"
+    style={{
+        backgroundColor: tertiaryColor,
+    }}
+    >
       <Text className="text-white text-xl font-psemibold mb-4">
         {activeMetric.charAt(0).toUpperCase() + activeMetric.slice(1)} by Muscle Group
       </Text>

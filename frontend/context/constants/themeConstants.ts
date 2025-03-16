@@ -19,7 +19,7 @@ export type ThemeColors = {
       colors: {
         primary: "#A742FF",
         secondary: "#BD7AFF",
-        tertiary: "#D1B3FF",
+        tertiary: "#1A1726",
       },
     },
     red_inferno: {

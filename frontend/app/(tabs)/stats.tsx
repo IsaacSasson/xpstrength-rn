@@ -12,7 +12,7 @@ import { useStats, MetricType, MuscleGroup } from "@/hooks/useStats"; // Import 
 
 const Stats = () => {
   // Get theme and user level from contexts
-  const { primaryColor, secondaryColor } = useThemeContext();
+  const { primaryColor, tertiaryColor } = useThemeContext();
   const { level } = useUserProgress();
   
   // Use our custom hook for stats data
@@ -129,6 +129,7 @@ const Stats = () => {
 
         <StatButtons 
           color={primaryColor}
+          tertiaryColor={tertiaryColor}
         />
       </ScrollView>
     </View>

@@ -12,11 +12,13 @@ const formatDisplayDate = (dateString: string): string => {
 interface StatKeyMetricsProps {
   chartData: DataPoint[];
   color?: string;
+  colorTwo?: string;
 }
 
 const StatKeyMetrics: React.FC<StatKeyMetricsProps> = ({
   chartData,
   color,
+  colorTwo,
 }) => {
   // Calculate key stats
   const calculateStats = () => {
@@ -71,6 +73,7 @@ const StatKeyMetrics: React.FC<StatKeyMetricsProps> = ({
           icon="chart-line"
           description="Overall Growth"
           color={color}
+          colorTwo={colorTwo}
         />
         <StatCard
           title="Best Result"
@@ -78,6 +81,7 @@ const StatKeyMetrics: React.FC<StatKeyMetricsProps> = ({
           icon="trophy"
           description="Peak Performance"
           color={color}
+          colorTwo={colorTwo}
         />
         <StatCard
           title="Consistency"
@@ -85,6 +89,7 @@ const StatKeyMetrics: React.FC<StatKeyMetricsProps> = ({
           icon="calendar-check"
           description="Improvement Rate"
           color={color}
+          colorTwo={colorTwo}
         />
         <StatCard
           title="Current Trend"
@@ -92,6 +97,7 @@ const StatKeyMetrics: React.FC<StatKeyMetricsProps> = ({
           icon={stats.trend === "Upward" ? "arrow-up" : "arrows-alt-h"}
           description="Last 2 workouts"
           color={color}
+          colorTwo={colorTwo}
         />
       </View>
     </>
