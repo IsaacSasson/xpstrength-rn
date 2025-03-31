@@ -9,7 +9,7 @@ type ThemeContextType = {
   primaryColor: string;
   secondaryColor: string;
   tertiaryColor: string;
-  cycleTheme: () => void;
+  cycleTheme: (availableThemeIds: string[]) => void;
 };
 
 const ThemeContext = createContext<ThemeContextType>({
@@ -23,8 +23,7 @@ const ThemeContext = createContext<ThemeContextType>({
 
 export const ThemeProvider: React.FC<{ 
   children: React.ReactNode;
-  ownedThemes?: string[]; // Accept owned themes as prop
-}> = ({ children, ownedThemes = ["purple_default"] }) => {
+}> = ({ children }) => {
   const [activeThemeId, setActiveThemeId] = useState<string>("purple_default");
 
   // Calculate derived state
@@ -38,7 +37,7 @@ export const ThemeProvider: React.FC<{
     const loadSavedTheme = async () => {
       try {
         const savedThemeId = await AsyncStorage.getItem("activeThemeId");
-        if (savedThemeId && THEMES[savedThemeId] && ownedThemes.includes(savedThemeId)) {
+        if (savedThemeId && THEMES[savedThemeId]) {
           setActiveThemeId(savedThemeId);
         }
       } catch (error) {
@@ -47,7 +46,7 @@ export const ThemeProvider: React.FC<{
     };
 
     loadSavedTheme();
-  }, [ownedThemes]);
+  }, []);
 
   // Save theme to AsyncStorage when it changes
   useEffect(() => {
@@ -63,8 +62,8 @@ export const ThemeProvider: React.FC<{
   }, [activeThemeId]);
 
   // Function to cycle through themes (for demo/test button)
-  const cycleTheme = () => {
-    const themeIds = Object.keys(THEMES).filter(id => ownedThemes.includes(id));
+  const cycleTheme = (availableThemeIds: string[]) => {
+    const themeIds = availableThemeIds.filter(id => THEMES[id]);
     const currentIndex = themeIds.indexOf(activeThemeId);
     const nextIndex = (currentIndex + 1) % themeIds.length;
     setActiveThemeId(themeIds[nextIndex]);
