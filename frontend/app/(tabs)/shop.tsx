@@ -14,8 +14,8 @@ import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 // Import our context hooks
 import { useThemeContext } from "@/context/ThemeContext";
 import { useUserProgress } from "@/context/UserProgressContext";
-import { useShopContext } from "@/context/ShopContext";
-import { SHOP_THEMES, ShopItem } from "@/context/constants/themeConstants";
+import { useShop } from "@/hooks/useShop"; // Import our new hook
+import { SHOP_THEMES } from "@/context/constants/themeConstants";
 
 // Import our ThemeCard component
 import ThemeCard from "@/components/shop/ThemeCard";
@@ -46,16 +46,16 @@ const ShopTopBar = () => {
 };
 
 const Shop = () => {
-  // Use our separate contexts
+  // Use our hooks
   const { primaryColor, setActiveThemeId, activeThemeId } = useThemeContext();
   const { currency, addCurrency } = useUserProgress();
-  const { ownedThemes, purchaseTheme, getAllShopItems } = useShopContext();
+  const { ownedThemes, buyTheme } = useShop();
   
   // State to track the selected theme for preview
   const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
 
-  // Get all available themes from the shop
-  const availableThemes = getAllShopItems();
+  // Get all available themes directly from constants
+  const availableThemes = Object.values(SHOP_THEMES);
 
   // Handle theme purchase or activation
   const handleThemeAction = (themeId: string) => {
@@ -76,7 +76,7 @@ const Shop = () => {
       Alert.alert("Theme Applied", `${SHOP_THEMES[themeId].name} theme has been applied!`);
     } else {
       // Try to purchase the theme
-      const success = purchaseTheme(themeId);
+      const success = buyTheme(themeId);
       
       if (success) {
         setActiveThemeId(themeId); // Auto-apply on purchase

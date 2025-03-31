@@ -2,3 +2,4 @@
 export * from './useFriends';
 export * from './useWorkouts';
 export * from './useStats';
+export * from './useShop';
