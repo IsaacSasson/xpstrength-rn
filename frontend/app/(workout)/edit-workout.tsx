@@ -303,7 +303,7 @@ const ExpandableExerciseCard: React.FC<ExpandableExerciseCardProps> = ({
 };
 
 const EditWorkout = () => {
-  const { primaryColor, secondaryColor, tertiaryColor} = useThemeContext();
+  const { primaryColor, secondaryColor, tertiaryColor } = useThemeContext();
 
   const params = useLocalSearchParams();
   const dayParam = params.day as string | undefined;
@@ -475,10 +475,11 @@ const EditWorkout = () => {
         className="px-4 pt-2 pb-20"
       >
         {/* Workout Name Input */}
-        <View className=" rounded-xl p-4 mb-5"
-        style={{
-          backgroundColor: tertiaryColor,
-        }}
+        <View
+          className=" rounded-xl p-4 mb-5"
+          style={{
+            backgroundColor: tertiaryColor,
+          }}
         >
           <Text className="text-white font-pmedium mb-2">Workout Name</Text>
           <TextInput
@@ -491,10 +492,11 @@ const EditWorkout = () => {
         </View>
 
         {/* Day Selection */}
-        <View className="rounded-xl p-4 mb-5"
-        style={{
-          backgroundColor: tertiaryColor,
-        }}
+        <View
+          className="rounded-xl p-4 mb-5"
+          style={{
+            backgroundColor: tertiaryColor,
+          }}
         >
           <Text className="text-white font-pmedium mb-2">Workout Days</Text>
           <TouchableOpacity
@@ -515,7 +517,7 @@ const EditWorkout = () => {
                 backgroundColor: primaryColor,
               }}
               className=" flex-row items-center px-3 py-2 rounded-lg"
-              onPress={() => router.push("/home")}
+              onPress={() => router.push("/(workout)/exercise-list")}
             >
               <FontAwesome5 name="plus" size={14} color="#FFF" />
               <Text className="text-white font-pmedium ml-2">Add Exercise</Text>
@@ -523,10 +525,11 @@ const EditWorkout = () => {
           </View>
 
           {workout.exercises.length === 0 ? (
-            <View className=" rounded-xl p-6 items-center"
-            style={{
-              backgroundColor: tertiaryColor,
-            }}
+            <View
+              className=" rounded-xl p-6 items-center"
+              style={{
+                backgroundColor: tertiaryColor,
+              }}
             >
               <MaterialCommunityIcons
                 name="dumbbell"
@@ -564,13 +567,12 @@ const EditWorkout = () => {
         <View style={{ flex: 1 }}>
           <View style={{ position: "absolute", inset: 0 }} />
           <View style={{ flex: 1, justifyContent: "flex-end" }}>
-            <View 
-            style={{
-              borderColor: secondaryColor,
-              backgroundColor: tertiaryColor,
-            }}
-            className="bg-black-100 rounded-t-3xl border-t-2"
-            
+            <View
+              style={{
+                borderColor: secondaryColor,
+                backgroundColor: tertiaryColor,
+              }}
+              className="bg-black-100 rounded-t-3xl border-t-2"
             >
               <View className="w-16 h-1 bg-gray-100 rounded-full mx-auto my-4" />
 
@@ -590,9 +592,9 @@ const EditWorkout = () => {
                       onPress={() => toggleDay(day)}
                     >
                       <Text
-                      style={{
-                        color: isSelected ? primaryColor : "white"
-                      }}
+                        style={{
+                          color: isSelected ? primaryColor : "white",
+                        }}
                         className="text-lg font-pmedium"
                       >
                         {day}
