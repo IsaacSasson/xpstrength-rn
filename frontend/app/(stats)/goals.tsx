@@ -12,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useThemeContext } from "@/context/ThemeContext";
+import { router } from 'expo-router';
 
 /* ------------------------------------------------------------------
    Types
@@ -86,9 +87,7 @@ const GoalsAndAchievements = () => {
   };
 
   const goBack = () => {
-    // import { router } from "expo-router"; router.back();
-    // @ts-ignore
-    if (global.history?.back) global.history.back();
+   router.back();
   };
 
   return (

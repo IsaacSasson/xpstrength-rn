@@ -12,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useThemeContext } from "@/context/ThemeContext";
+import { router } from 'expo-router';
 
 // ------------------------------------------------------------------
 // reusable ExpandableSection (copied from DayCard logic)
@@ -113,11 +114,7 @@ const WorkoutHistory = () => {
   const toggleExpand = (id: string) => setExpandedId(prev => (prev === id ? null : id));
 
   const goBack = () => {
-    // If using expo-router uncomment below:
-    // import { router } from "expo-router"; router.back();
-    // fallback:
-    // @ts-ignore
-    if (global.history?.back) global.history.back();
+   router.back();
   };
 
   return (

@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useThemeContext } from '@/context/ThemeContext';
+import { router } from 'expo-router';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                             */
@@ -131,9 +132,7 @@ const PersonalBests = () => {
   const liftsByCategory = groupByCategory(bestLifts);
 
   const goBack = () => {
-    // If you’re using expo-router, replace with router.back()
-    // @ts-ignore – for web preview fallback
-    global.history?.back?.();
+    router.back();
   };
 
   return (
