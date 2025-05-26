@@ -53,7 +53,7 @@ const FriendCard: React.FC<FriendCardProps> = ({
 
   return (
     <View className="mb-4 last:mb-0 ">
-      <View className="flex-row items-center">
+      <View className="flex-row items-center mt-2">
         {/* Profile Picture with Status Indicator */}
         <View className="relative">
           <Image
@@ -98,7 +98,7 @@ const FriendCard: React.FC<FriendCardProps> = ({
 
       {/* Action Buttons */}
       {showActions && (
-        <View className="flex-row justify-end mt-3">
+        <View className="flex-row justify-end mt-4">
           {actionType === 'request' ? (
             <>
               <TouchableOpacity 
