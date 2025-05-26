@@ -1,0 +1,9 @@
+| Need to do…                        | Command                                                     |
+| ---------------------------------- | ----------------------------------------------------------- |
+| **Start dev server (live-reload)** | `npm run dev`                                               |
+| **Run tests once**                 | `npm test`                                                  |
+| **Watch tests**                    | `npm run test:watch`                                        |
+| **Show coverage**                  | `npm run coverage` → open `coverage/lcov-report/index.html` |
+| **Launch prod locally**            | `npm start`                                                 |
+| **Launch prod with pm2 cluster**   | `npm run start` (after editing script) Helps Balance Traffic|
+ 
