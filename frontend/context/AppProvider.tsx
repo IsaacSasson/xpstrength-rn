@@ -1,4 +1,3 @@
-// Path: /context/AppProvider.tsx
 import React from 'react';
 import { UserProgressProvider } from './UserProgressContext';
 import { ThemeProvider } from './ThemeContext';
