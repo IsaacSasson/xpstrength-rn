@@ -19,10 +19,10 @@ interface StatButtonsProps {
 
 const StatButtons: React.FC<StatButtonsProps> = ({ 
   buttons = [
-    { title: 'Personal Bests', icon: 'trophy', onPress: () => console.log('Navigate to Personal Bests') },
-    { title: 'Workout History', icon: 'history', onPress: () => console.log('Navigate to Workout History') },
-    { title: 'Stats Over Time', icon: 'chart-line', onPress: () => router.push('/stats-over-time') },
-    { title: 'Goals & Achievements', icon: 'medal', onPress: () => console.log('Navigate to Goals') }
+    { title: 'Personal Bests', icon: 'trophy', onPress: () => router.push('/(stats)/personal-bests') },
+    { title: 'Workout History', icon: 'history', onPress: () => router.push('/(stats)/workout-history') }, 
+    { title: 'Stats Over Time', icon: 'chart-line', onPress: () => router.push('/(stats)/stats-over-time') },
+    { title: 'Goals & Achievements', icon: 'medal', onPress: () => router.push('/(stats)/goals') }
   ],
   color, // destructure the color prop from props
   tertiaryColor // destructure the tertiaryColor prop from props

@@ -215,7 +215,7 @@ const Home = () => {
           <ActionButton
             title="Invite Friends"
             icon="user-plus"
-            onPress={() => console.log("Navigate to invite friends")}
+            onPress={() => router.push("/friends")}
             iconColor={primaryColor}
             backgroundColor={tertiaryColor}
           />

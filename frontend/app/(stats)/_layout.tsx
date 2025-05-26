@@ -12,7 +12,28 @@ const StatsLayout = () => {
             headerShown: false 
           }}
         />
-        {/* Add other stats-related screens here */}
+
+        <Stack.Screen 
+          name="workout-history" 
+          options={{ 
+            headerShown: false 
+          }}
+        />
+
+         <Stack.Screen 
+          name="personal-bests" 
+          options={{ 
+            headerShown: false 
+          }}
+        />
+
+        <Stack.Screen 
+          name="goals" 
+          options={{ 
+            headerShown: false 
+          }}
+        />
+       //add more screens to remove header
       </Stack>
 
       <StatusBar 
