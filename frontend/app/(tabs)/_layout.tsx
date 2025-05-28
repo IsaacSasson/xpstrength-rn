@@ -46,6 +46,22 @@ const TabsLayout = () => {
           },
         }}
       >
+
+        <Tabs.Screen
+          name="profile"
+          options={{
+            title: "Profile",
+            headerShown: false,
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon 
+                icon="user-alt"
+                color={color}
+                focused={focused}
+              />
+            ),
+          }}
+        />
+
         <Tabs.Screen
           name="friends"
           options={{
@@ -107,7 +123,7 @@ const TabsLayout = () => {
       {/* Heart rate trail indicator */}
       <TabTrailIndicator
         activeIndex={activeTabIndex}
-        numTabs={4}
+        numTabs={5}
         color={activeColor}
         dotSize={8}
         tabBarHeight={tabBarHeight}
