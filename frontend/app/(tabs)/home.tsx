@@ -26,22 +26,16 @@ const todaysWorkout = {
     { name: "Shoulder Press", sets: 3, reps: "10-12" },
     { name: "Tricep Pushdown", sets: 3, reps: "12-15" },
   ],
-  time: "1h 15m",
-  scheduledTime: "6:30 PM",
+  calories: 550, // calorie estimate replaces time
 };
 
 const Home = () => {
-  // Only need theme context here
   const { primaryColor, secondaryColor, tertiaryColor } = useThemeContext();
 
   // Navigation functions
-  const goToEditWorkout = () => {
-    router.push("/edit-workout");
-  };
-
-  const goToPlannedWorkouts = () => {
-    router.push("/weekly-plan");
-  };
+  const goToEditWorkout = () => router.push("/edit-workout");
+  const goToPlannedWorkouts = () => router.push("/weekly-plan");
+  const goToActiveWorkout = () => router.push("/active-workout");
 
   // Format today's date
   const today = new Date();
@@ -62,19 +56,12 @@ const Home = () => {
       <ScrollView showsVerticalScrollIndicator={false} className="px-4 pb-6">
         {/* Today's Date */}
         <View className="flex-row items-center justify-between mb-4">
-          <Text className="text-white font-pmedium text-lg">
-            {formattedDate}
-          </Text>
+          <Text className="text-white font-pmedium text-lg">{formattedDate}</Text>
           <TouchableOpacity
             onPress={goToPlannedWorkouts}
             className="flex-row items-center"
           >
-            <Text
-              style={{
-                color: primaryColor,
-              }}
-              className=" mr-2 font-pmedium"
-            >
+            <Text style={{ color: primaryColor }} className="mr-2 font-pmedium">
               Weekly Plan
             </Text>
             <FontAwesome5 name="calendar-alt" size={16} color={primaryColor} />
@@ -82,35 +69,30 @@ const Home = () => {
         </View>
 
         {/* Today's Workout Card */}
-        <View className=" rounded-2xl p-5 mb-6"
-        style={{
-          backgroundColor: tertiaryColor,
-        }}  
-      >
+        <View
+          className="rounded-2xl p-5 mb-6"
+          style={{ backgroundColor: tertiaryColor }}
+        >
           <View className="flex-row items-center justify-between mb-4">
             <Text className="text-white text-xl font-psemibold">
               Today's Workout
             </Text>
+
+            {/* Pencil-only edit button */}
             {todaysWorkout.exists && (
-              <View
-                style={{
-                  backgroundColor: primaryColor,
-                }}
-                className="px-3 py-1 rounded-lg"
+              <TouchableOpacity
+                onPress={goToEditWorkout}
+                className="p-2 rounded-lg"
               >
-                <Text className="text-white font-pmedium text-sm">
-                  {todaysWorkout.scheduledTime}
-                </Text>
-              </View>
+                <FontAwesome5 name="pencil-alt" size={16} color="#FFF" />
+              </TouchableOpacity>
             )}
           </View>
 
           {todaysWorkout.exists ? (
             <View>
               <Text
-                style={{
-                  color: secondaryColor,
-                }}
+                style={{ color: secondaryColor }}
                 className="text-lg font-pmedium mb-4"
               >
                 {todaysWorkout.name}
@@ -139,24 +121,24 @@ const Home = () => {
               </View>
 
               <View className="flex-row items-center justify-between mt-2">
+                {/* Calorie estimate */}
                 <View className="flex-row items-center">
-                  <FontAwesome5 name="clock" size={14} color="#CDCDE0" />
+                  <FontAwesome5 name="fire" size={14} color="#CDCDE0" />
                   <Text className="text-gray-100 ml-2">
-                    {todaysWorkout.time}
+                    ≈ {todaysWorkout.calories} kcal
                   </Text>
                 </View>
 
+                {/* Start Workout button */}
                 <TouchableOpacity
-                  onPress={goToEditWorkout}
-                  style={{
-                    backgroundColor: primaryColor,
-                  }}
-                  className="bg-secondary flex-row items-center px-4 py-2 rounded-lg"
+                  onPress={goToActiveWorkout}
+                  style={{ backgroundColor: primaryColor }}
+                  className="flex-row items-center px-4 py-2 rounded-lg"
                   activeOpacity={0.7}
                 >
-                  <FontAwesome5 name="edit" size={14} color="#FFF" />
+                  <FontAwesome5 name="play" size={14} color="#FFF" />
                   <Text className="text-white font-pmedium ml-2">
-                    Edit Workout
+                    Start Workout
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -177,9 +159,7 @@ const Home = () => {
 
               <TouchableOpacity
                 onPress={goToEditWorkout}
-                style={{
-                  backgroundColor: primaryColor,
-                }}
+                style={{ backgroundColor: primaryColor }}
                 className="flex-row items-center px-6 py-3 rounded-lg"
                 activeOpacity={0.7}
               >
@@ -192,7 +172,7 @@ const Home = () => {
           )}
         </View>
 
-        {/* `Quick `Actions */}
+        {/* Quick Actions */}
         <Text className="text-white text-xl font-psemibold mb-4">
           Quick Actions
         </Text>
@@ -232,16 +212,15 @@ const Home = () => {
         <Text className="text-white text-xl font-psemibold mb-4">
           Recent Activity
         </Text>
-        <View className="rounded-2xl p-5 mb-6"
-        style={{
-          backgroundColor: tertiaryColor,}}
+        <View
+          className="rounded-2xl p-5 mb-6"
+          style={{ backgroundColor: tertiaryColor }}
         >
           <View className="flex-row items-start mb-4">
-            <View 
-            style={{
-              backgroundColor: primaryColor,
-            }}
-            className="h-10 w-10 rounded-full items-center justify-center mr-3">
+            <View
+              style={{ backgroundColor: primaryColor }}
+              className="h-10 w-10 rounded-full items-center justify-center mr-3"
+            >
               <FontAwesome5 name="trophy" size={18} color="#FFF" />
             </View>
             <View className="flex-1">
@@ -292,10 +271,10 @@ const Home = () => {
   );
 };
 
-// Action Button Component
+/* ── Action Button Component ─────────────────────────────────────── */
 interface ActionButtonProps {
   title: string;
-  icon: any; // Using any for simplicity
+  icon: any;
   iconType?: "material" | "fontawesome";
   onPress: () => void;
   iconColor?: string;
@@ -309,28 +288,22 @@ const ActionButton: React.FC<ActionButtonProps> = ({
   onPress,
   iconColor,
   backgroundColor,
-}) => {
-  return (
-    <View className="w-1/2 p-2">
-      <TouchableOpacity
-        onPress={onPress}
-        className=" rounded-xl h-[90px] justify-center items-center p-4"
-        activeOpacity={0.7}
-        style={{
-          backgroundColor: backgroundColor,
-        }}
-      >
-        {iconType === "material" ? (
-          <MaterialCommunityIcons name={icon} size={28} color={iconColor} />
-        ) : (
-          <FontAwesome5 name={icon} size={24} color={iconColor} />
-        )}
-        <Text className="text-white font-pmedium text-center mt-3">
-          {title}
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
-};
+}) => (
+  <View className="w-1/2 p-2">
+    <TouchableOpacity
+      onPress={onPress}
+      className="rounded-xl h-[90px] justify-center items-center p-4"
+      activeOpacity={0.7}
+      style={{ backgroundColor }}
+    >
+      {iconType === "material" ? (
+        <MaterialCommunityIcons name={icon} size={28} color={iconColor} />
+      ) : (
+        <FontAwesome5 name={icon} size={24} color={iconColor} />
+      )}
+      <Text className="text-white font-pmedium text-center mt-3">{title}</Text>
+    </TouchableOpacity>
+  </View>
+);
 
 export default Home;

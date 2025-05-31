@@ -20,6 +20,12 @@ const WorkoutLayout = () => {
           }}
         />
         <Stack.Screen
+          name="active-workout"
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
           name="exercise-list"
           options={{
             headerShown: false,
