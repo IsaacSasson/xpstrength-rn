@@ -8,6 +8,7 @@
     "scheme": "XPStrength",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+
     "ios": {
       "package": "com.elicky.XPStrength",
       "supportsTablet": true
@@ -24,6 +25,9 @@
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
+
+    "assetBundlePatterns": ["assets/**"],
+
     "plugins": [
       "expo-router",
       [
