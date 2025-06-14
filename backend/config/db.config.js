@@ -14,6 +14,7 @@ export async function assertDatabaseConnected() {
         console.log("DB connection established.")
 
         console.log('DB schema: ', await sequelize.getDatabaseName());
+
     } catch (err) {
         console.error("Unable to connect to the database: ", err);
         process.exit(1);
