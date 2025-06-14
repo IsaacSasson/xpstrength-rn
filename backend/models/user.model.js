@@ -1,7 +1,7 @@
 import { Sequelize, DataTypes } from "sequelize";
-import { sequelize } from "../config/db.config";
-import sharp from sharp
-import forbiddenWords from "../validations/forbiddenWords";
+import { sequelize } from "../config/db.config.js";
+import sharp from "sharp";
+import forbiddenWords from "../validations/forbiddenWords.js";
 import bcrypt from "bcrypt"
 import dotenv from 'dotenv'
 dotenv.config()
@@ -52,7 +52,7 @@ const User = sequelize.define(
         authority: {
             type: DataTypes.STRING, allowNull: false, defaultValue: "basic", validate: {
                 checkType(value) {
-                    auth = ["basic", "pro", "admin"];
+                    const auth = ["basic", "pro", "admin"];
                     if (value && !(auth.some(word => value === word))) {
                         throw new Error("Authority type unknown");
                     }
@@ -116,7 +116,7 @@ const User = sequelize.define(
             comment: "Total coins user owns"
         },
         shopUnlocks: {
-            type: DataTypes.ARRAY(DataTypes.INTEGER), allowNull: false, defaultValue: [], validate: {
+            type: DataTypes.JSON, allowNull: false, defaultValue: [], validate: {
                 isNumber(value) {
                     if (!Array.isArray(value)) {
                         throw new Error("Shop unlocks must be an array");
@@ -166,4 +166,4 @@ User.beforeSave("Validate Images", async (user, options) => {
     }
 })
 
-await User.sync();
+export default User;

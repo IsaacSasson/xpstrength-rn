@@ -8,6 +8,9 @@ import rateLimiter from './middleware/rateLimit.middleware.js'
 import { assertDatabaseConnected } from './config/db.config.js';
 import logger from './middleware/log.middleware.js';
 
+// ---------------- Models
+import User from "./models/user.model.js"
+
 
 // ----------------- Config
 dotenv.config();
