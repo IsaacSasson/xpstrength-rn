@@ -38,7 +38,7 @@ const User = sequelize.define(
             comment: "Password must be hashed before entry, and must be validated before stored/updated."
         },
         email: {
-            type: DataTypes.STRING, allowNull: false, unique: true, validate: {
+            type: DataTypes.STRING(50), allowNull: false, unique: true, validate: {
                 isEmail: true,
                 max: 50,
                 min: 3,
