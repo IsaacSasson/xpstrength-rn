@@ -34,6 +34,7 @@ const Home = () => {
 
   // Navigation functions
   const goToEditWorkout = () => router.push("/edit-workout");
+  const goToCreateWorkout = () => router.push("/create-workout");
   const goToPlannedWorkouts = () => router.push("/weekly-plan");
   const goToActiveWorkout = () => router.push("/active-workout");
 
@@ -123,8 +124,8 @@ const Home = () => {
               <View className="flex-row items-center justify-between mt-2">
                 {/* Calorie estimate */}
                 <View className="flex-row items-center">
-                  <FontAwesome5 name="fire" size={14} color="#CDCDE0" />
-                  <Text className="text-gray-100 ml-2">
+                  <FontAwesome5 name="fire" size={14} color="#f97316" />
+                  <Text className="text-orange-500 ml-2">
                     ≈ {todaysWorkout.calories} kcal
                   </Text>
                 </View>
@@ -158,7 +159,7 @@ const Home = () => {
               </Text>
 
               <TouchableOpacity
-                onPress={goToEditWorkout}
+                onPress={goToCreateWorkout}
                 style={{ backgroundColor: primaryColor }}
                 className="flex-row items-center px-6 py-3 rounded-lg"
                 activeOpacity={0.7}
@@ -181,7 +182,7 @@ const Home = () => {
             title="Create New Workout"
             icon="dumbbell"
             iconType="material"
-            onPress={goToEditWorkout}
+            onPress={goToCreateWorkout}
             iconColor={primaryColor}
             backgroundColor={tertiaryColor}
           />
