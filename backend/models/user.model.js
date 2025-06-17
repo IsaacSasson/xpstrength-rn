@@ -4,6 +4,7 @@ import sharp from "sharp";
 import forbiddenWords from "../validations/forbiddenWords.js";
 import bcrypt from "bcrypt"
 import dotenv from 'dotenv'
+import Friend from "./friend.model.js";
 dotenv.config()
 
 const User = sequelize.define(
@@ -117,7 +118,7 @@ const User = sequelize.define(
         },
         shopUnlocks: {
             type: DataTypes.JSON, allowNull: false, defaultValue: [], validate: {
-                isNumber(value) {
+                isNumberArray(value) {
                     if (!Array.isArray(value)) {
                         throw new Error("Shop unlocks must be an array");
                     }
@@ -140,7 +141,7 @@ const User = sequelize.define(
 
 User.beforeSave("Hash Password", async (user, options) => {
     if (user.changed('password')) {
-        user.password = await bcrypt.hash(user.password, process.env.SALT_ROUNDS);
+        user.password = await bcrypt.hash(user.password, parseInt(process.env.SALT_ROUNDS, 10));
     }
 })
 
@@ -165,5 +166,19 @@ User.beforeSave("Validate Images", async (user, options) => {
         }
     }
 })
+
+User.afterCreate("default Friends Data", async (user, options) => {
+    await Friend.create({
+        userId: user.id,
+        incomingRequests: [],
+        outgoingRequests: [],
+        friends: [],
+    }, { transaction: options.transaction });
+})
+
+// User Model Relationships
+User.hasOne(Friend, { foreignKey: 'userId' });
+Friend.belongsTo(User, { foreignKey: 'userId' });
+
 
 export default User;

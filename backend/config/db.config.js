@@ -12,7 +12,7 @@ export async function assertDatabaseConnected() {
 
         await sequelize.authenticate();
         console.log("DB connection established.")
-        await sequelize.sync();
+        await sequelize.sync({ force: true });
         console.log("DB synced. ")
         console.log('DB name: ', await sequelize.getDatabaseName());
 
