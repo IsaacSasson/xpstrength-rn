@@ -127,19 +127,28 @@ const ExerciseList = () => {
     currentPage * itemsPerPage
   );
 
+  // Fixed getUniqueValues function with proper capitalization
   const getUniqueValues = (field: keyof Exercise) => {
     const values = new Set<string>();
     exercises.forEach((ex) => {
       const value = ex[field];
       if (value && typeof value === "string" && value !== "unknown") {
         if (field === "primaryMuscles" || field === "secondaryMuscles") {
-          value.split(",").forEach((v) => values.add(v.trim().toLowerCase()));
+          value.split(",").forEach((v) => {
+            const trimmed = v.trim();
+            if (trimmed) values.add(trimmed);
+          });
         } else {
-          values.add(value.toLowerCase());
+          values.add(value);
         }
       }
     });
     return Array.from(values).sort();
+  };
+
+  // Helper function to capitalize first letter of each word
+  const capitalizeWords = (str: string) => {
+    return str.replace(/\b\w/g, l => l.toUpperCase());
   };
 
   const goBack = () => {
@@ -151,8 +160,17 @@ const ExerciseList = () => {
       Alert.alert("No exercises selected!", "Please select at least one exercise.");
       return;
     }
+    
     const selectedExerciseObjects = exercises.filter((ex) => selectedExercises.includes(ex.id));
-    console.log("Selected exercises:", selectedExerciseObjects);
+    
+    if (isReplaceMode && replaceIndex !== null) {
+      // TODO: Replace exercise at specific index in workout
+      console.log("Replacing exercise at index:", replaceIndex, "with:", selectedExerciseObjects[0]);
+    } else {
+      // TODO: Add exercises to workout
+      console.log("Adding exercises to workout:", selectedExerciseObjects);
+    }
+    
     router.back();
   };
 
@@ -181,6 +199,11 @@ const ExerciseList = () => {
     }
   };
 
+  const handleFilterChange = (field: keyof typeof selectedFilters, value: string) => {
+    setSelectedFilters(prev => ({ ...prev, [field]: value }));
+    setCurrentPage(1); // Reset to first page when filter changes
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
       <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
@@ -199,24 +222,26 @@ const ExerciseList = () => {
           </View>
           <TouchableOpacity
             onPress={goBack}
-            className="w-6 h-6 rounded-full ring-purple-400/80 ring-2 bg-purple-500/70 flex items-center justify-center"
+            className="w-6 h-6 rounded-full items-center justify-center"
+            style={{ backgroundColor: primaryColor }}
           >
             <FontAwesome5 name="times" size={12} color="white" />
           </TouchableOpacity>
         </View>
+        
         <View className="flex-row items-center justify-between mb-2">
           <TextInput
-            className="flex-1 bg-slate-950 border border-purple-300 text-white rounded-lg px-3 py-2 mr-2"
-            placeholder="Search"
+            className="flex-1 bg-black-100 border border-black-200 text-white rounded-lg px-3 py-2 mr-2"
+            placeholder="Search exercises..."
             placeholderTextColor="#7b7b8b"
             value={searchTerm}
             onChangeText={handleSearch}
           />
           <TouchableOpacity
             onPress={() => setShowAdditionalFilters(!showAdditionalFilters)}
-            className="p-2 bg-slate-950 border border-purple-300 rounded-lg mr-2"
+            className="p-2 bg-black-100 border border-black-200 rounded-lg mr-2"
           >
-            <MaterialCommunityIcons name="filter" size={20} color="#A742FF" />
+            <MaterialCommunityIcons name="filter" size={20} color={primaryColor} />
           </TouchableOpacity>
           <TouchableOpacity
             style={{ backgroundColor: primaryColor }}
@@ -228,103 +253,99 @@ const ExerciseList = () => {
             </Text>
           </TouchableOpacity>
         </View>
-        <View className="grid grid-cols-3 gap-2">
-          <View className="bg-slate-950 border border-purple-300 rounded-lg">
+
+        {/* Fixed filter row with proper theme colors */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
+          <View className="flex-1 bg-black-100 border border-black-200 rounded-lg overflow-hidden">
             <Picker
               selectedValue={selectedFilters.primaryMuscles}
-              onValueChange={(value) =>
-                setSelectedFilters({ ...selectedFilters, primaryMuscles: value })
-              }
+              onValueChange={(value) => handleFilterChange('primaryMuscles', value)}
               style={{ color: "white", height: 40 }}
-              dropdownIconColor="#A742FF"
+              dropdownIconColor={primaryColor}
             >
               <Picker.Item label="Any Muscles" value="" />
               {getUniqueValues("primaryMuscles").map((muscle) => (
-                <Picker.Item key={muscle} label={muscle} value={muscle} />
+                <Picker.Item key={muscle} label={capitalizeWords(muscle)} value={muscle} />
               ))}
             </Picker>
           </View>
-          <View className="bg-slate-950 border border-purple-300 rounded-lg">
+          
+          <View className="flex-1 bg-black-100 border border-black-200 rounded-lg overflow-hidden">
             <Picker
               selectedValue={selectedFilters.equipment}
-              onValueChange={(value) =>
-                setSelectedFilters({ ...selectedFilters, equipment: value })
-              }
+              onValueChange={(value) => handleFilterChange('equipment', value)}
               style={{ color: "white", height: 40 }}
-              dropdownIconColor="#A742FF"
+              dropdownIconColor={primaryColor}
             >
               <Picker.Item label="Any Equipment" value="" />
               {getUniqueValues("equipment").map((eq) => (
-                <Picker.Item key={eq} label={eq} value={eq} />
+                <Picker.Item key={eq} label={capitalizeWords(eq)} value={eq} />
               ))}
             </Picker>
           </View>
-          <View className="bg-slate-950 border border-purple-300 rounded-lg">
+          
+          <View className="flex-1 bg-black-100 border border-black-200 rounded-lg overflow-hidden">
             <Picker
               selectedValue={selectedFilters.level}
-              onValueChange={(value) =>
-                setSelectedFilters({ ...selectedFilters, level: value })
-              }
+              onValueChange={(value) => handleFilterChange('level', value)}
               style={{ color: "white", height: 40 }}
-              dropdownIconColor="#A742FF"
+              dropdownIconColor={primaryColor}
             >
               <Picker.Item label="Any Difficulty" value="" />
               {getUniqueValues("level").map((lvl) => (
-                <Picker.Item key={lvl} label={lvl} value={lvl} />
+                <Picker.Item key={lvl} label={capitalizeWords(lvl)} value={lvl} />
               ))}
             </Picker>
           </View>
         </View>
+
         {showAdditionalFilters && (
-          <View className="grid grid-cols-3 gap-2 mt-2">
-            <View className="bg-slate-950 border border-purple-300 rounded-lg">
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8, marginTop: 8 }}>
+            <View className="flex-1 bg-black-100 border border-black-200 rounded-lg overflow-hidden">
               <Picker
                 selectedValue={selectedFilters.force_measure}
-                onValueChange={(value) =>
-                  setSelectedFilters({ ...selectedFilters, force_measure: value })
-                }
+                onValueChange={(value) => handleFilterChange('force_measure', value)}
                 style={{ color: "white", height: 40 }}
-                dropdownIconColor="#A742FF"
+                dropdownIconColor={primaryColor}
               >
                 <Picker.Item label="Any Force" value="" />
                 {getUniqueValues("force_measure").map((force) => (
-                  <Picker.Item key={force} label={force} value={force} />
+                  <Picker.Item key={force} label={capitalizeWords(force)} value={force} />
                 ))}
               </Picker>
             </View>
-            <View className="bg-slate-950 border border-purple-300 rounded-lg">
+            
+            <View className="flex-1 bg-black-100 border border-black-200 rounded-lg overflow-hidden">
               <Picker
                 selectedValue={selectedFilters.mechanic}
-                onValueChange={(value) =>
-                  setSelectedFilters({ ...selectedFilters, mechanic: value })
-                }
+                onValueChange={(value) => handleFilterChange('mechanic', value)}
                 style={{ color: "white", height: 40 }}
-                dropdownIconColor="#A742FF"
+                dropdownIconColor={primaryColor}
               >
                 <Picker.Item label="Any Mechanic" value="" />
                 {getUniqueValues("mechanic").map((m) => (
-                  <Picker.Item key={m} label={m} value={m} />
+                  <Picker.Item key={m} label={capitalizeWords(m)} value={m} />
                 ))}
               </Picker>
             </View>
-            <View className="bg-slate-950 border border-purple-300 rounded-lg">
+            
+            <View className="flex-1 bg-black-100 border border-black-200 rounded-lg overflow-hidden">
               <Picker
                 selectedValue={selectedFilters.category}
-                onValueChange={(value) =>
-                  setSelectedFilters({ ...selectedFilters, category: value })
-                }
+                onValueChange={(value) => handleFilterChange('category', value)}
                 style={{ color: "white", height: 40 }}
-                dropdownIconColor="#A742FF"
+                dropdownIconColor={primaryColor}
               >
                 <Picker.Item label="Any Category" value="" />
                 {getUniqueValues("category").map((c) => (
-                  <Picker.Item key={c} label={c} value={c} />
+                  <Picker.Item key={c} label={capitalizeWords(c)} value={c} />
                 ))}
               </Picker>
             </View>
           </View>
         )}
       </View>
+
       <ScrollView className="flex-1 px-4">
         {loading ? (
           <View className="flex-1 items-center justify-center py-20">
@@ -335,7 +356,7 @@ const ExerciseList = () => {
           <View className="items-center justify-center py-20">
             <MaterialCommunityIcons name="dumbbell" size={50} color={primaryColor} />
             <Text className="text-white font-pmedium text-lg mt-4">No exercises found</Text>
-            <Text className="text-purple-300 text-center mt-2">Try adjusting your filters or search terms</Text>
+            <Text className="text-gray-100 text-center mt-2">Try adjusting your filters or search terms</Text>
             <Text className="text-gray-100 text-sm mt-4">{exercises.length} total exercises available</Text>
           </View>
         ) : (
@@ -346,46 +367,55 @@ const ExerciseList = () => {
               return (
                 <TouchableOpacity
                   key={exercise.id}
-                  className={`flex-row p-3 rounded-lg mb-3 ${isSelected ? "bg-purple-900/30" : ""}`}
+                  className={`flex-row p-3 rounded-lg mb-3`}
+                  style={{ 
+                    backgroundColor: isSelected ? `${primaryColor}20` : tertiaryColor,
+                    borderWidth: isSelected ? 1 : 0,
+                    borderColor: isSelected ? primaryColor : 'transparent'
+                  }}
                   onPress={() => handleExerciseClick(exercise.id)}
                   activeOpacity={0.7}
                 >
-                  <View className="w-24 h-24 mr-4 relative overflow-hidden">
+                  <View style={styles.imageContainer}>
                     {images.length > 0 ? (
                       <>
                         <Image
                           source={images[0]}
-                          style={[StyleSheet.absoluteFillObject, { opacity: imageIndex === 0 ? 1 : 0 }]}
+                          style={[styles.exerciseImage, { opacity: imageIndex === 0 ? 1 : 0 }]}
+                          resizeMode="cover"
                         />
                         {images.length > 1 && (
                           <Image
                             source={images[1]}
-                            style={[StyleSheet.absoluteFillObject, { opacity: imageIndex === 1 ? 1 : 0 }]}
+                            style={[styles.exerciseImage, { opacity: imageIndex === 1 ? 1 : 0 }]}
+                            resizeMode="cover"
                           />
                         )}
                       </>
                     ) : (
-                      <View className="w-full h-full rounded-lg bg-slate-800 items-center justify-center">
+                      <View className="w-full h-full rounded-lg bg-black-200 items-center justify-center">
                         <MaterialCommunityIcons name="dumbbell" size={30} color="#7b7b8b" />
                       </View>
                     )}
                   </View>
                   <View className="flex-1">
                     <Text className="text-white font-semibold text-lg">{exercise.name}</Text>
-                    <Text className="text-purple-300 text-sm mt-1">
-                      <Text className="font-semibold">Target Muscle:</Text> {exercise.primaryMuscles}
+                    <Text style={{ color: primaryColor }} className="text-sm mt-1">
+                      <Text className="font-semibold">Target Muscle:</Text> <Text className="text-gray-100">{exercise.primaryMuscles}</Text>
                     </Text>
                     {exercise.secondaryMuscles && (
-                      <Text className="text-purple-300 text-sm">
-                        <Text className="font-semibold">Secondary:</Text> {exercise.secondaryMuscles}
+                      <Text style={{ color: primaryColor }} className="text-sm">
+                        <Text className="font-semibold">Secondary:</Text> <Text className="text-gray-100">{exercise.secondaryMuscles}</Text>
                       </Text>
                     )}
                   </View>
                   <View className="justify-center">
                     <View
-                      className={`w-5 h-5 rounded-full border-2 items-center justify-center ${
-                        isSelected ? "border-purple-500 bg-purple-500" : "border-purple-400"
-                      }`}
+                      className={`w-5 h-5 rounded-full border-2 items-center justify-center`}
+                      style={{
+                        borderColor: primaryColor,
+                        backgroundColor: isSelected ? primaryColor : 'transparent'
+                      }}
                     >
                       {isSelected && <FontAwesome5 name="check" size={10} color="white" />}
                     </View>
@@ -396,8 +426,9 @@ const ExerciseList = () => {
           </View>
         )}
       </ScrollView>
+
       {filteredExercises.length > 0 && (
-        <View className="flex-row justify-between items-center bg-slate-950 p-4">
+        <View className="flex-row justify-between items-center bg-black-100 p-4">
           <TouchableOpacity onPress={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="p-2">
             <FontAwesome5 name="chevron-left" size={16} color={currentPage === 1 ? "#7b7b8b" : "white"} />
           </TouchableOpacity>
@@ -409,7 +440,10 @@ const ExerciseList = () => {
                   <TouchableOpacity
                     key={pageNumber}
                     onPress={() => handlePageChange(pageNumber)}
-                    className={`px-3 py-1 mx-1 rounded-lg ${pageNumber === currentPage ? "bg-purple-500" : "bg-slate-700"}`}
+                    className={`px-3 py-1 mx-1 rounded-lg`}
+                    style={{
+                      backgroundColor: pageNumber === currentPage ? primaryColor : "#232533"
+                    }}
                   >
                     <Text className="text-white">{pageNumber}</Text>
                   </TouchableOpacity>
@@ -426,5 +460,27 @@ const ExerciseList = () => {
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  imageContainer: {
+    width: 96, // w-24 equivalent (24 * 4 = 96px)
+    height: 96, // h-24 equivalent
+    marginRight: 16,
+    position: 'relative',
+    overflow: 'hidden',
+    borderRadius: 8,
+    backgroundColor: '#232533', // fallback background
+  },
+  exerciseImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
+  },
+});
 
 export default ExerciseList;
