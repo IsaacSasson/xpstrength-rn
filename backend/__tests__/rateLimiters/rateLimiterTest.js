@@ -1,5 +1,5 @@
 import request from "supertest";
-import app from "../../../server";
+import app from "../../server";
 
 describe.skip("testing rate limiter", () => {
     it("responds with 'Too many requests, try again later.'", async () => {
