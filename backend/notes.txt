@@ -7,8 +7,3 @@
 | **Launch prod locally**            | `npm start`                                                 |
 | **Launch prod with pm2 cluster**   | `npm run start` (after editing script) Helps Balance Traffic|
  
-Default Validation
-
-notContains(value) {
-    const forbidden = ['fuck', 'ass']
-}

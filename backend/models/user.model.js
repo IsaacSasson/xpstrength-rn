@@ -4,7 +4,14 @@ import sharp from "sharp";
 import forbiddenWords from "../validations/forbiddenWords.js";
 import bcrypt from "bcrypt"
 import dotenv from 'dotenv'
+
+//Models and Config
 import Friend from "./friend.model.js";
+import Milestone from "./milestone.model.js";
+import idMap from "../config/global-reference.json" with { type: "json"};
+
+const shopUnlocks = idMap.shopUnlocks;
+
 dotenv.config()
 
 const User = sequelize.define(
@@ -122,9 +129,23 @@ const User = sequelize.define(
                     if (!Array.isArray(value)) {
                         throw new Error("Shop unlocks must be an array");
                     }
+
+                    const duplicates = new Set()
+
                     value.forEach((id) => {
+                        //DataType is a number
                         if (typeof (id) != "number" || !Number.isInteger(id)) {
                             throw new Error("Shop item ID is not a number");
+                        }
+                        //Must be a Valid ID
+                        if (!(String(id) in shopUnlocks)) {
+                            throw new Error("Shop item ID not found in global reference")
+                        }
+                        //No Duplicate Data
+                        if (duplicates.has(id)) {
+                            throw new Error("Shop ID is duplicated in array");
+                        } else {
+                            duplicates.add(id);
                         }
                     })
                 }
@@ -145,7 +166,6 @@ User.beforeSave("Hash Password", async (user, options) => {
     }
 })
 
-//Todo Test Validate Images to see if it works or not
 User.beforeSave("Validate Images", async (user, options) => {
     if (user.changed('profilePic') && user.profilePic) {
         try {
@@ -163,7 +183,7 @@ User.beforeSave("Validate Images", async (user, options) => {
 
             user.profilePic = safeBuffer;
         } catch (err) {
-            throw new Error('Invalid image uploaded: ' + err.message);
+            throw new Error('Invalid image uploaded');
         }
     }
 })
@@ -177,9 +197,19 @@ User.afterCreate("Create Associating Friends Row", async (user, options) => {
     }, { transaction: options.transaction });
 })
 
-// User Model Relationships
+User.afterCreate("Create Associating Milestones Row", async (user, options) => {
+    await Milestone.create({
+        userId: user.id,
+        milestones: []
+    }, { transaction: options.transaction });
+})
+
+// User-Friend Relationships
 User.hasOne(Friend, { foreignKey: 'userId' });
 Friend.belongsTo(User, { foreignKey: 'userId' });
 
+// User-Milestone Relationships
+User.hasOne(Milestone, { foreignKey: 'userId' });
+Milestone.belongsTo(User, { foreignKey: 'userId' });
 
 export default User;
