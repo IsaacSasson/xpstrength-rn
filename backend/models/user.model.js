@@ -145,6 +145,7 @@ User.beforeSave("Hash Password", async (user, options) => {
     }
 })
 
+//Todo Test Validate Images to see if it works or not
 User.beforeSave("Validate Images", async (user, options) => {
     if (user.changed('profilePic') && user.profilePic) {
         try {
@@ -167,7 +168,7 @@ User.beforeSave("Validate Images", async (user, options) => {
     }
 })
 
-User.afterCreate("default Friends Data", async (user, options) => {
+User.afterCreate("Create Associating Friends Row", async (user, options) => {
     await Friend.create({
         userId: user.id,
         incomingRequests: [],
