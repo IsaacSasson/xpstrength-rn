@@ -1,5 +1,5 @@
 import request from "supertest";
-import app from "../../server.js";
+import app from "../../../server.js";
 
 describe.skip("GET Page Not Found", () => {
     it("responds 404 Error", async () => {

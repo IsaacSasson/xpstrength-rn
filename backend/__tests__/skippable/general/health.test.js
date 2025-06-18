@@ -1,5 +1,5 @@
 import request from 'supertest';
-import app from '../server.js';
+import app from '../../../server.js';
 
 describe('GET /health', () => {
     it('responds 200 with JSON', async () => {
