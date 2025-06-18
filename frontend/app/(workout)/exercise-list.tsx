@@ -11,6 +11,7 @@ import {
   Image,
   StyleSheet,
 } from "react-native";
+import { Picker } from "@react-native-picker/picker";
 import { router, useLocalSearchParams } from "expo-router";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
@@ -228,98 +229,98 @@ const ExerciseList = () => {
           </TouchableOpacity>
         </View>
         <View className="grid grid-cols-3 gap-2">
-          <View>
-            <TouchableOpacity
-              onPress={() => {
-                const muscles = ["", ...getUniqueValues("primaryMuscles")];
-                const currentIndex = muscles.indexOf(selectedFilters.primaryMuscles);
-                const nextIndex = (currentIndex + 1) % muscles.length;
-                setSelectedFilters({ ...selectedFilters, primaryMuscles: muscles[nextIndex] });
-              }}
-              className="bg-slate-950 border border-purple-300 rounded-lg p-2"
+          <View className="bg-slate-950 border border-purple-300 rounded-lg">
+            <Picker
+              selectedValue={selectedFilters.primaryMuscles}
+              onValueChange={(value) =>
+                setSelectedFilters({ ...selectedFilters, primaryMuscles: value })
+              }
+              style={{ color: "white", height: 40 }}
+              dropdownIconColor="#A742FF"
             >
-              <Text className="text-white text-xs text-center">
-                {selectedFilters.primaryMuscles || "Any Muscles"}
-              </Text>
-            </TouchableOpacity>
+              <Picker.Item label="Any Muscles" value="" />
+              {getUniqueValues("primaryMuscles").map((muscle) => (
+                <Picker.Item key={muscle} label={muscle} value={muscle} />
+              ))}
+            </Picker>
           </View>
-          <View>
-            <TouchableOpacity
-              onPress={() => {
-                const equipment = ["", ...getUniqueValues("equipment")];
-                const currentIndex = equipment.indexOf(selectedFilters.equipment);
-                const nextIndex = (currentIndex + 1) % equipment.length;
-                setSelectedFilters({ ...selectedFilters, equipment: equipment[nextIndex] });
-              }}
-              className="bg-slate-950 border border-purple-300 rounded-lg p-2"
+          <View className="bg-slate-950 border border-purple-300 rounded-lg">
+            <Picker
+              selectedValue={selectedFilters.equipment}
+              onValueChange={(value) =>
+                setSelectedFilters({ ...selectedFilters, equipment: value })
+              }
+              style={{ color: "white", height: 40 }}
+              dropdownIconColor="#A742FF"
             >
-              <Text className="text-white text-xs text-center">
-                {selectedFilters.equipment || "Any Equipment"}
-              </Text>
-            </TouchableOpacity>
+              <Picker.Item label="Any Equipment" value="" />
+              {getUniqueValues("equipment").map((eq) => (
+                <Picker.Item key={eq} label={eq} value={eq} />
+              ))}
+            </Picker>
           </View>
-          <View>
-            <TouchableOpacity
-              onPress={() => {
-                const levels = ["", ...getUniqueValues("level")];
-                const currentIndex = levels.indexOf(selectedFilters.level);
-                const nextIndex = (currentIndex + 1) % levels.length;
-                setSelectedFilters({ ...selectedFilters, level: levels[nextIndex] });
-              }}
-              className="bg-slate-950 border border-purple-300 rounded-lg p-2"
+          <View className="bg-slate-950 border border-purple-300 rounded-lg">
+            <Picker
+              selectedValue={selectedFilters.level}
+              onValueChange={(value) =>
+                setSelectedFilters({ ...selectedFilters, level: value })
+              }
+              style={{ color: "white", height: 40 }}
+              dropdownIconColor="#A742FF"
             >
-              <Text className="text-white text-xs text-center">
-                {selectedFilters.level || "Any Difficulty"}
-              </Text>
-            </TouchableOpacity>
+              <Picker.Item label="Any Difficulty" value="" />
+              {getUniqueValues("level").map((lvl) => (
+                <Picker.Item key={lvl} label={lvl} value={lvl} />
+              ))}
+            </Picker>
           </View>
         </View>
         {showAdditionalFilters && (
           <View className="grid grid-cols-3 gap-2 mt-2">
-            <View>
-              <TouchableOpacity
-                onPress={() => {
-                  const forces = ["", ...getUniqueValues("force_measure")];
-                  const currentIndex = forces.indexOf(selectedFilters.force_measure);
-                  const nextIndex = (currentIndex + 1) % forces.length;
-                  setSelectedFilters({ ...selectedFilters, force_measure: forces[nextIndex] });
-                }}
-                className="bg-slate-950 border border-purple-300 rounded-lg p-2"
+            <View className="bg-slate-950 border border-purple-300 rounded-lg">
+              <Picker
+                selectedValue={selectedFilters.force_measure}
+                onValueChange={(value) =>
+                  setSelectedFilters({ ...selectedFilters, force_measure: value })
+                }
+                style={{ color: "white", height: 40 }}
+                dropdownIconColor="#A742FF"
               >
-                <Text className="text-white text-xs text-center">
-                  {selectedFilters.force_measure || "Any Force"}
-                </Text>
-              </TouchableOpacity>
+                <Picker.Item label="Any Force" value="" />
+                {getUniqueValues("force_measure").map((force) => (
+                  <Picker.Item key={force} label={force} value={force} />
+                ))}
+              </Picker>
             </View>
-            <View>
-              <TouchableOpacity
-                onPress={() => {
-                  const mechanics = ["", ...getUniqueValues("mechanic")];
-                  const currentIndex = mechanics.indexOf(selectedFilters.mechanic);
-                  const nextIndex = (currentIndex + 1) % mechanics.length;
-                  setSelectedFilters({ ...selectedFilters, mechanic: mechanics[nextIndex] });
-                }}
-                className="bg-slate-950 border border-purple-300 rounded-lg p-2"
+            <View className="bg-slate-950 border border-purple-300 rounded-lg">
+              <Picker
+                selectedValue={selectedFilters.mechanic}
+                onValueChange={(value) =>
+                  setSelectedFilters({ ...selectedFilters, mechanic: value })
+                }
+                style={{ color: "white", height: 40 }}
+                dropdownIconColor="#A742FF"
               >
-                <Text className="text-white text-xs text-center">
-                  {selectedFilters.mechanic || "Any Mechanic"}
-                </Text>
-              </TouchableOpacity>
+                <Picker.Item label="Any Mechanic" value="" />
+                {getUniqueValues("mechanic").map((m) => (
+                  <Picker.Item key={m} label={m} value={m} />
+                ))}
+              </Picker>
             </View>
-            <View>
-              <TouchableOpacity
-                onPress={() => {
-                  const categories = ["", ...getUniqueValues("category")];
-                  const currentIndex = categories.indexOf(selectedFilters.category);
-                  const nextIndex = (currentIndex + 1) % categories.length;
-                  setSelectedFilters({ ...selectedFilters, category: categories[nextIndex] });
-                }}
-                className="bg-slate-950 border border-purple-300 rounded-lg p-2"
+            <View className="bg-slate-950 border border-purple-300 rounded-lg">
+              <Picker
+                selectedValue={selectedFilters.category}
+                onValueChange={(value) =>
+                  setSelectedFilters({ ...selectedFilters, category: value })
+                }
+                style={{ color: "white", height: 40 }}
+                dropdownIconColor="#A742FF"
               >
-                <Text className="text-white text-xs text-center">
-                  {selectedFilters.category || "Any Category"}
-                </Text>
-              </TouchableOpacity>
+                <Picker.Item label="Any Category" value="" />
+                {getUniqueValues("category").map((c) => (
+                  <Picker.Item key={c} label={c} value={c} />
+                ))}
+              </Picker>
             </View>
           </View>
         )}
