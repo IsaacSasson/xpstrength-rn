@@ -46,5 +46,19 @@
             "productType": "paint",
             "color": "Neon Future"
         }
+    },
+    "exercises": {},
+    "authority": {
+        "roles": [
+            "basic",
+            "premium",
+            "admin"
+        ]
+    },
+    "goals": {
+        "types": [
+            "checkbox",
+            "counter"
+        ]
     }
 }

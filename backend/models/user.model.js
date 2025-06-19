@@ -8,6 +8,7 @@ import dotenv from 'dotenv'
 //Models and Config
 import Friend from "./friend.model.js";
 import Milestone from "./milestone.model.js";
+import Goal from "./goal.model.js";
 import idMap from "../config/global-reference.json" with { type: "json"};
 
 const shopUnlocks = idMap.shopUnlocks;
@@ -211,5 +212,9 @@ Friend.belongsTo(User, { foreignKey: 'userId' });
 // User-Milestone Relationships
 User.hasOne(Milestone, { foreignKey: 'userId' });
 Milestone.belongsTo(User, { foreignKey: 'userId' });
+
+//User-Goal Relationships
+User.hasMany(Goal, { foreignKey: 'userId' });
+Goal.belongsTo(User, { foreignKey: 'userId' });
 
 export default User;
