@@ -10,6 +10,7 @@ import Friend from "./friend.model.js";
 import Milestone from "./milestone.model.js";
 import Goal from "./goal.model.js";
 import customWorkout from "./customWorkout.model.js";
+import workoutLog from "./workoutLog.model.js";
 import idMap from "../config/global-reference.json" with { type: "json"};
 
 const shopUnlocks = idMap.shopUnlocks;
@@ -221,5 +222,9 @@ Goal.belongsTo(User, { foreignKey: 'userId' });
 //User-CustomWorkout Relationships
 User.hasMany(customWorkout, { foreignKey: 'userId' });
 customWorkout.belongsTo(User, { foreignKey: 'userId' });
+
+//User-workoutLog Relationships
+User.hasMany(workoutLog, { foreignKey: "userId" });
+workoutLog.belongsTo(User, { foreignKey: 'userId' });
 
 export default User;
