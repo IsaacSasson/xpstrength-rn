@@ -16,7 +16,7 @@ describe.skip("validation check for friends", () => {
         friendData.friends = [1, "2", 3]
         expect(friendData.save()).rejects.toThrow(/friends ID must be a valid Integer./);
 
-        user.destroy();
+        await user.destroy();
     });
 
     it("friends doesnt accept duplicates", async () => {
@@ -32,7 +32,7 @@ describe.skip("validation check for friends", () => {
         friendData.friends = [1, 1, 3]
         expect(friendData.save()).rejects.toThrow(/friends ID is duplicated in array/);
 
-        user.destroy();
+        await user.destroy();
     });
 
     it("friends save must be an array", async () => {
@@ -48,7 +48,7 @@ describe.skip("validation check for friends", () => {
         friendData.friends = { 1: [1, 2, 3] };
         expect(friendData.save()).rejects.toThrow(/friends must be an array Obj./);
 
-        user.destroy();
+        await user.destroy();
     });
 
     it("friends save not empty", async () => {
@@ -64,7 +64,7 @@ describe.skip("validation check for friends", () => {
         friendData.friends = null;
         expect(friendData.save()).rejects.toThrow("notNull Violation: Friend.friends cannot be null");
 
-        user.destroy();
+        await user.destroy();
     })
 
     it("Outgoing only accepts Integer Ids", async () => {
@@ -80,7 +80,7 @@ describe.skip("validation check for friends", () => {
         friendData.outgoingRequests = [1, "2", 3]
         expect(friendData.save()).rejects.toThrow(/outgoingRequests ID must be a valid Integer./);
 
-        user.destroy();
+        await user.destroy();
     });
 
     it("outgoing doesnt accept duplicates", async () => {
@@ -96,7 +96,7 @@ describe.skip("validation check for friends", () => {
         friendData.outgoingRequests = [1, 1, 3]
         expect(friendData.save()).rejects.toThrow(/outgoing ID is duplicated in array/);
 
-        user.destroy();
+        await user.destroy();
     });
 
     it("outgoing save must be an array", async () => {
@@ -112,7 +112,7 @@ describe.skip("validation check for friends", () => {
         friendData.outgoingRequests = { 1: [1, 2, 3] };
         expect(friendData.save()).rejects.toThrow(/outgoingRequests must be an array Obj./);
 
-        user.destroy();
+        await user.destroy();
     });
 
     it("outgoing save not empty", async () => {
@@ -128,7 +128,7 @@ describe.skip("validation check for friends", () => {
         friendData.outgoingRequests = null;
         expect(friendData.save()).rejects.toThrow("notNull Violation: Friend.outgoingRequests cannot be null");
 
-        user.destroy();
+        await user.destroy();
     })
 
     it("incoming only accepts Integer Ids", async () => {
@@ -144,7 +144,7 @@ describe.skip("validation check for friends", () => {
         friendData.incomingRequests = [1, "2", 3]
         expect(friendData.save()).rejects.toThrow(/incomingRequests ID must be a valid Integer./);
 
-        user.destroy();
+        await user.destroy();
     });
 
     it("incoming doesnt accept duplicates", async () => {
@@ -160,7 +160,7 @@ describe.skip("validation check for friends", () => {
         friendData.incomingRequests = [1, 1, 3]
         expect(friendData.save()).rejects.toThrow(/incomingRequests ID is duplicated in array/);
 
-        user.destroy();
+        await user.destroy();
     });
 
     it("incoming save must be an array", async () => {
@@ -176,7 +176,7 @@ describe.skip("validation check for friends", () => {
         friendData.incomingRequests = { 1: [1, 2, 3] };
         expect(friendData.save()).rejects.toThrow(/incomingRequests must be an array Obj./);
 
-        user.destroy();
+        await user.destroy();
     });
 
     it("incoming save not empty", async () => {
@@ -192,6 +192,6 @@ describe.skip("validation check for friends", () => {
         friendData.incomingRequests = null;
         expect(friendData.save()).rejects.toThrow("notNull Violation: Friend.incomingRequests cannot be null");
 
-        user.destroy();
+        await user.destroy();
     })
 })

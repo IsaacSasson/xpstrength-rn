@@ -1,0 +1,37 @@
+[
+    {
+        "id": "0",
+        "productType": "paint",
+        "color": "Classic Purple"
+    },
+    {
+        "id": "1",
+        "productType": "paint",
+        "color": "Inferno Red"
+    },
+    {
+        "id": "2",
+        "productType": "paint",
+        "color": "Sunrise Orange"
+    },
+    {
+        "id": "3",
+        "productType": "paint",
+        "color": "Premium Gold"
+    },
+    {
+        "id": "4",
+        "productType": "paint",
+        "color": "Forest Green"
+    },
+    {
+        "id": "5",
+        "productType": "paint",
+        "color": "Ocean Blue"
+    },
+    {
+        "id": "6",
+        "productType": "paint",
+        "color": "Neon Future"
+    }
+]

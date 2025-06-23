@@ -1,9 +1,7 @@
 import User from "../../models/user.model.js";
 import Goal from "../../models/goal.model.js";
 import forbiddenWords from "../../validations/forbiddenWords.js";
-import mapId from "../../config/global-reference.json" with { type: "json" };
-
-const goalTypes = mapId.goals.types;
+import goalTypes from "../../../shared/goal_types.json" with { type: "json" };
 
 describe.skip("Goal Validation Checks", () => {
     it("Rejects forbidden words in the name field", async () => {
@@ -19,7 +17,7 @@ describe.skip("Goal Validation Checks", () => {
             Goal.create({
                 userId: user.id,
                 name: badName,
-                type: goalTypes[0],
+                type: goalTypes[0].type,
                 total: 5,
                 current: 0,
             })
@@ -59,7 +57,7 @@ describe.skip("Goal Validation Checks", () => {
             Goal.create({
                 userId: user.id,
                 name: "ValidName",
-                type: goalTypes[0],
+                type: goalTypes[0].type,
                 total: 3,
                 current: 4,
             })
@@ -78,7 +76,7 @@ describe.skip("Goal Validation Checks", () => {
         const goal = await Goal.create({
             userId: user.id,
             name: "ValidName",
-            type: goalTypes[0],
+            type: goalTypes[0].type,
             total: 5,
             current: 2,
         });
@@ -100,7 +98,7 @@ describe.skip("Goal Validation Checks", () => {
         const goal = await Goal.create({
             userId: user.id,
             name: "Run 5 KM",
-            type: goalTypes[0],
+            type: goalTypes[0].type,
             total: 5,
             current: 0,
         });

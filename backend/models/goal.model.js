@@ -1,9 +1,7 @@
 import { Sequelize, DataTypes } from "sequelize";
 import forbiddenWords from "../validations/forbiddenWords.js";
 import { sequelize } from "../config/db.config.js";
-import mapId from '../config/global-reference.json' with { type: "json" };
-
-const goalTypes = mapId.goals.types;
+import goalTypes from '../../shared/goal_types.json' with { type: "json"}
 
 const Goal = sequelize.define(
     "Goals",
@@ -32,7 +30,7 @@ const Goal = sequelize.define(
         type: {
             type: DataTypes.STRING, allowNull: false, defaultValue: "checkbox", validate: {
                 isType(value) {
-                    if (value && !goalTypes.some(word => value === word)) {
+                    if (value && !goalTypes.some(obj => value === obj.type)) {
                         throw new Error("Unknown goal type");
                     }
                 }

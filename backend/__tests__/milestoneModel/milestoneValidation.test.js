@@ -14,7 +14,7 @@ describe.skip("Milestone Validation Checks", () => {
         milestoneData.milestones = [1, 2, 1];
         expect(milestoneData.save()).rejects.toThrow();
 
-        user.destroy();
+        await user.destroy();
     });
 
     it("Forces Ids to be a number", async () => {
@@ -29,7 +29,7 @@ describe.skip("Milestone Validation Checks", () => {
         milestoneData.milestones = [1, "2"];
         expect(milestoneData.save()).rejects.toThrow();
 
-        user.destroy();
+        await user.destroy();
     });
 
     it("Milestone must exist in global referecne", async () => {
@@ -44,7 +44,7 @@ describe.skip("Milestone Validation Checks", () => {
         milestoneData.milestones = [1, 10, -1];
         expect(milestoneData.save()).rejects.toThrow();
 
-        user.destroy();
+        await user.destroy();
     });
 
     it("Milestone succesfully updates", async () => {
@@ -61,6 +61,6 @@ describe.skip("Milestone Validation Checks", () => {
             .resolves
             .toHaveProperty("milestones", [1, 2, 3]);
 
-        user.destroy();
+        await user.destroy();
     });
 })

@@ -1,0 +1,22 @@
+[
+    {
+        "id": "0",
+        "name": "First 100 Push-Ups",
+        "description": "Completed 100 cumulative push-ups"
+    },
+    {
+        "id": "1",
+        "name": "7-Day Streak",
+        "description": "Worked out 7 days in a row"
+    },
+    {
+        "id": "2",
+        "name": "Marathon Mindset",
+        "description": "Ran a total of 26 miles."
+    },
+    {
+        "id": "3",
+        "name": "Consistency Master",
+        "description": "30-day workout streak"
+    }
+]

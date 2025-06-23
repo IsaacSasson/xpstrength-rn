@@ -32,7 +32,7 @@ describe.skip("Profile picture saved", () => {
 
         expect(user.profilePic).toBeDefined();
 
-        user.destroy();
+        await user.destroy();
 
     });
 });

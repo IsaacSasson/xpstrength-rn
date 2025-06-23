@@ -11,9 +11,8 @@ import Milestone from "./milestone.model.js";
 import Goal from "./goal.model.js";
 import customWorkout from "./customWorkout.model.js";
 import workoutLog from "./workoutLog.model.js";
-import idMap from "../config/global-reference.json" with { type: "json"};
-
-const shopUnlocks = idMap.shopUnlocks;
+import shopUnlocks from "../../shared/shop_products.json" with { type: "json"};
+import authorityTypes from "../../shared/role_types.json" with { type: "json" };
 
 dotenv.config()
 
@@ -63,8 +62,7 @@ const User = sequelize.define(
         authority: {
             type: DataTypes.STRING, allowNull: false, defaultValue: "basic", validate: {
                 checkType(value) {
-                    const auth = ["basic", "pro", "admin"];
-                    if (value && !(auth.some(word => value === word))) {
+                    if (value && !(authorityTypes.some(role => value === role.access))) {
                         throw new Error("Authority type unknown");
                     }
                 }
@@ -141,7 +139,7 @@ const User = sequelize.define(
                             throw new Error("Shop item ID is not a number");
                         }
                         //Must be a Valid ID
-                        if (!(String(id) in shopUnlocks)) {
+                        if (id < 0 || id > shopUnlocks.length) {
                             throw new Error("Shop item ID not found in global reference")
                         }
                         //No Duplicate Data

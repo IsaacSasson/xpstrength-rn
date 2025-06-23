@@ -1,0 +1,14 @@
+[
+    {
+        "id": "0",
+        "access": "basic"
+    },
+    {
+        "id": "1",
+        "access": "premium"
+    },
+    {
+        "id": "2",
+        "access": "admin"
+    }
+]

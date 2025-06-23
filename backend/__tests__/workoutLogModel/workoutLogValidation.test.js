@@ -3,8 +3,8 @@ import workoutLog from "../../models/workoutLog.model.js";
 
 describe.skip("workoutLog validation checks", () => {
 
-    const makeUser = () =>
-        User.create({
+    const makeUser = async () =>
+        await User.create({
             username: "logUser",
             password: "StrongPass12!",
             email: "logUser@example.com",

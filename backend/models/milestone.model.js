@@ -1,8 +1,6 @@
-import idMap from "../config/global-reference.json" with { type: "json"};
+import milestones from "../../shared/milestones.json" with { type: "json"};
 import { Sequelize, DataTypes } from "sequelize";
 import { sequelize } from "../config/db.config.js";
-
-const milestones = idMap.milestones;
 
 const Milestone = sequelize.define(
     "Milestones",
@@ -32,7 +30,7 @@ const Milestone = sequelize.define(
                             throw new Error("ID attempted to be stored is not a number")
                         }
 
-                        if (!(String(val) in milestones)) {
+                        if (val < 0 || val > milestones.length) {
                             throw new Error("Milestone ID not found");
                         }
 

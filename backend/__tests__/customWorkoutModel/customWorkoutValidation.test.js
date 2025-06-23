@@ -4,8 +4,8 @@ import forbiddenWords from "../../validations/forbiddenWords.js";
 
 describe.skip("CustomWorkout validation checks", () => {
 
-    const makeUser = () =>
-        User.create({
+    const makeUser = async () =>
+        await User.create({
             username: "workoutUser",
             password: "StrongPass12!",
             email: "workoutUser@example.com",
