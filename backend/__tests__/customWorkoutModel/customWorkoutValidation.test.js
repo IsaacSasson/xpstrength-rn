@@ -1,6 +1,6 @@
 import User from "../../models/user.model.js";
 import CustomWorkout from "../../models/customWorkout.model.js";
-import forbiddenWords from "../../validations/forbiddenWords.js";
+import forbiddenWords from "../../validators/general/forbiddenWords.js";
 import exercises from "../../../shared/exercises.json" with { type: "json" };
 
 describe.skip("CustomWorkout validation checks", () => {

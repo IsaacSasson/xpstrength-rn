@@ -1,7 +1,6 @@
 import { Sequelize, DataTypes } from "sequelize";
 import { sequelize } from "../config/db.config.js";
 import sharp from "sharp";
-import forbiddenWords from "../validations/forbiddenWords.js";
 import bcrypt from "bcrypt"
 import dotenv from 'dotenv'
 
@@ -11,8 +10,10 @@ import Milestone from "./milestone.model.js";
 import Goal from "./goal.model.js";
 import CustomWorkout from "./customWorkout.model.js";
 import WorkoutLog from "./workoutLog.model.js";
-import shopUnlocks from "../../shared/shop_products.json" with { type: "json"};
-import authorityTypes from "../../shared/role_types.json" with { type: "json" };
+import PersonalBest from "./personalBests.model.js";
+import { checkShopProductFormat } from "../validators/user/checkShopProductFormat.js";
+import { isTextClean } from "../validators/general/isTextClean.js";
+import { checkAuthType } from "../validators/user/checkAuthType.js";
 
 dotenv.config()
 
@@ -26,12 +27,7 @@ const User = sequelize.define(
                 notEmpty: true,
                 len: [3, 16],
                 is: ["^[A-Za-z0-9_]+$", 'i'],
-                isClean(value) {
-                    if (value && forbiddenWords.some(word => value.toLowerCase().includes(word))) {
-                        throw new Error("Username contains inappropriate language");
-                    }
-
-                }
+                isTextClean
             },
             comment: "Username must be between 3 and 16 characters, alphanumeric, and cannot contain bad words."
         },
@@ -61,11 +57,7 @@ const User = sequelize.define(
         },
         authority: {
             type: DataTypes.STRING, allowNull: false, defaultValue: "basic", validate: {
-                checkType(value) {
-                    if (value && !(authorityTypes.some(role => value === role.access))) {
-                        throw new Error("Authority type unknown");
-                    }
-                }
+                checkAuthType
             },
             comment: "Users scope access must be one of three types"
         },
@@ -126,30 +118,7 @@ const User = sequelize.define(
         },
         shopUnlocks: {
             type: DataTypes.JSON, allowNull: false, defaultValue: [], validate: {
-                isNumberArray(value) {
-                    if (!Array.isArray(value)) {
-                        throw new Error("Shop unlocks must be an array");
-                    }
-
-                    const duplicates = new Set()
-
-                    value.forEach((id) => {
-                        //DataType is a number
-                        if (typeof (id) != "number" || !Number.isInteger(id)) {
-                            throw new Error("Shop item ID is not a number");
-                        }
-                        //Must be a Valid ID
-                        if (id < 0 || id > shopUnlocks.length) {
-                            throw new Error("Shop item ID not found in global reference")
-                        }
-                        //No Duplicate Data
-                        if (duplicates.has(id)) {
-                            throw new Error("Shop ID is duplicated in array");
-                        } else {
-                            duplicates.add(id);
-                        }
-                    })
-                }
+                checkShopProductFormat
             },
             comment: "Array of shop unlock by product ID"
         }
@@ -224,5 +193,9 @@ CustomWorkout.belongsTo(User, { foreignKey: 'userId' });
 //User-workoutLog Relationships
 User.hasMany(WorkoutLog, { foreignKey: "userId" });
 WorkoutLog.belongsTo(User, { foreignKey: 'userId' });
+
+//User-personalBests Relationships
+User.hasOne(PersonalBest, { foreignKey: "userId" });
+PersonalBest.belongsTo(User, { foreignKey: "userId" })
 
 export default User;

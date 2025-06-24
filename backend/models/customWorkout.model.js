@@ -1,7 +1,7 @@
 import { Sequelize, DataTypes } from "sequelize";
-import forbiddenWords from "../validations/forbiddenWords.js";
+import { isTextClean } from "../validators/general/isTextClean.js";
+import { checkCustomWorkoutFormat } from "../validators/customWorkout/checkCustomWorkoutFormat.js";
 import { sequelize } from "../config/db.config.js";
-import exercises from "../../shared/exercises.json" with { type: "json" };
 
 const CustomWorkout = sequelize.define(
     "customWorkouts",
@@ -18,40 +18,16 @@ const CustomWorkout = sequelize.define(
             type: DataTypes.STRING, allowNull: false, unique: false, validate: {
                 min: 3,
                 max: 80,
-                isClean(value) {
-                    if (value && forbiddenWords.some(word => value.toLowerCase().includes(word))) {
-                        throw new Error("Username contains inappropriate language");
-                    }
-                }
-            }
+                isTextClean,
+            },
+            comment: "The name of the created custom workout."
         },
         exercises: {
             type: DataTypes.JSON, allowNull: false, defaultValue: [], validate: {
-                checkFormat(value) {
-                    if (!Array.isArray(value)) {
-                        throw new Error("Value stored is not an array");
-                    }
-                    const REQUIRED = {
-                        exercise: 'number',
-                        reps: 'number',
-                        sets: 'number',
-                        cooldown: 'number'
-                    };
-
-                    value.forEach((obj, idx) => {
-                        for (const [key, type] of Object.entries(REQUIRED)) {
-                            if (!(key in obj))
-                                throw new Error(`Item ${idx}: missing “${key}” key`);
-                            if (typeof obj[key] !== type || !Number.isFinite(obj[key]))
-                                throw new Error(`Item ${idx}: “${key}” must be a finite ${type}`);
-                        }
-                        if (obj.exercise < 0 || obj.exercise > exercises.length) {
-                            throw new Error('Unknown Exercise ID');
-                        }
-                    })
-                }
-            }
-        }
+                checkCustomWorkoutFormat
+            },
+            comment: "Array of inOrder exercise objects to perform for workout."
+        },
     },
     {
         tableName: "customWorkouts",
