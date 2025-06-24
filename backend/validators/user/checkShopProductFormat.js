@@ -13,7 +13,7 @@ export async function checkShopProductFormat(value) {
             throw new Error("Shop item ID is not a number");
         }
         //Must be a Valid ID
-        if (id < 0 || id > shopUnlocks.length) {
+        if (id < 0 || id > shopUnlocks.length - 1) {
             throw new Error("Shop item ID not found in global reference")
         }
         //No Duplicate Data
