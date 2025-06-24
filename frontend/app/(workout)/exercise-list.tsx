@@ -11,13 +11,13 @@ import {
   Image,
   StyleSheet,
 } from "react-native";
-import { Picker } from "@react-native-picker/picker";
 import { router, useLocalSearchParams } from "expo-router";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useThemeContext } from "@/context/ThemeContext";
 import { exerciseImageMap } from "@/app/utils/exerciseImageMap";
 import exercisesData from "@/assets/exercises.json";
+import CustomDropdown, { DropdownOption } from "@/components/CustomDropdown";
 
 interface Exercise {
   id: string;
@@ -127,8 +127,7 @@ const ExerciseList = () => {
     currentPage * itemsPerPage
   );
 
-  // Fixed getUniqueValues function with proper capitalization
-  const getUniqueValues = (field: keyof Exercise) => {
+  const getUniqueValues = (field: keyof Exercise): DropdownOption[] => {
     const values = new Set<string>();
     exercises.forEach((ex) => {
       const value = ex[field];
@@ -143,10 +142,14 @@ const ExerciseList = () => {
         }
       }
     });
-    return Array.from(values).sort();
+    
+    const sortedValues = Array.from(values).sort();
+    return sortedValues.map(value => ({
+      label: capitalizeWords(value),
+      value: value
+    }));
   };
 
-  // Helper function to capitalize first letter of each word
   const capitalizeWords = (str: string) => {
     return str.replace(/\b\w/g, l => l.toUpperCase());
   };
@@ -164,10 +167,8 @@ const ExerciseList = () => {
     const selectedExerciseObjects = exercises.filter((ex) => selectedExercises.includes(ex.id));
     
     if (isReplaceMode && replaceIndex !== null) {
-      // TODO: Replace exercise at specific index in workout
       console.log("Replacing exercise at index:", replaceIndex, "with:", selectedExerciseObjects[0]);
     } else {
-      // TODO: Add exercises to workout
       console.log("Adding exercises to workout:", selectedExerciseObjects);
     }
     
@@ -201,7 +202,15 @@ const ExerciseList = () => {
 
   const handleFilterChange = (field: keyof typeof selectedFilters, value: string) => {
     setSelectedFilters(prev => ({ ...prev, [field]: value }));
-    setCurrentPage(1); // Reset to first page when filter changes
+    setCurrentPage(1);
+  };
+
+  // Create dropdown options with "Any" option as first item
+  const createDropdownOptions = (field: keyof Exercise, placeholder: string): DropdownOption[] => {
+    return [
+      { label: placeholder, value: "" },
+      ...getUniqueValues(field)
+    ];
   };
 
   return (
@@ -220,13 +229,6 @@ const ExerciseList = () => {
               </Text>
             </View>
           </View>
-          <TouchableOpacity
-            onPress={goBack}
-            className="w-6 h-6 rounded-full items-center justify-center"
-            style={{ backgroundColor: primaryColor }}
-          >
-            <FontAwesome5 name="times" size={12} color="white" />
-          </TouchableOpacity>
         </View>
         
         <View className="flex-row items-center justify-between mb-2">
@@ -254,93 +256,68 @@ const ExerciseList = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Fixed filter row with proper theme colors */}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
-          <View className="flex-1 bg-black-100 border border-black-200 rounded-lg overflow-hidden">
-            <Picker
-              selectedValue={selectedFilters.primaryMuscles}
-              onValueChange={(value) => handleFilterChange('primaryMuscles', value)}
-              style={{ color: "white", height: 40 }}
-              dropdownIconColor={primaryColor}
-            >
-              <Picker.Item label="Any Muscles" value="" />
-              {getUniqueValues("primaryMuscles").map((muscle) => (
-                <Picker.Item key={muscle} label={capitalizeWords(muscle)} value={muscle} />
-              ))}
-            </Picker>
+          <View className="flex-1">
+            <CustomDropdown
+              placeholder="Any Muscles"
+              value={selectedFilters.primaryMuscles}
+              options={createDropdownOptions("primaryMuscles", "Any Muscles")}
+              onSelect={(value) => handleFilterChange('primaryMuscles', value)}
+              primaryColor={primaryColor}
+            />
           </View>
           
-          <View className="flex-1 bg-black-100 border border-black-200 rounded-lg overflow-hidden">
-            <Picker
-              selectedValue={selectedFilters.equipment}
-              onValueChange={(value) => handleFilterChange('equipment', value)}
-              style={{ color: "white", height: 40 }}
-              dropdownIconColor={primaryColor}
-            >
-              <Picker.Item label="Any Equipment" value="" />
-              {getUniqueValues("equipment").map((eq) => (
-                <Picker.Item key={eq} label={capitalizeWords(eq)} value={eq} />
-              ))}
-            </Picker>
+          <View className="flex-1">
+            <CustomDropdown
+              placeholder="Any Equipment"
+              value={selectedFilters.equipment}
+              options={createDropdownOptions("equipment", "Any Equipment")}
+              onSelect={(value) => handleFilterChange('equipment', value)}
+              primaryColor={primaryColor}
+            />
           </View>
           
-          <View className="flex-1 bg-black-100 border border-black-200 rounded-lg overflow-hidden">
-            <Picker
-              selectedValue={selectedFilters.level}
-              onValueChange={(value) => handleFilterChange('level', value)}
-              style={{ color: "white", height: 40 }}
-              dropdownIconColor={primaryColor}
-            >
-              <Picker.Item label="Any Difficulty" value="" />
-              {getUniqueValues("level").map((lvl) => (
-                <Picker.Item key={lvl} label={capitalizeWords(lvl)} value={lvl} />
-              ))}
-            </Picker>
+          <View className="flex-1">
+            <CustomDropdown
+              placeholder="Any Difficulty"
+              value={selectedFilters.level}
+              options={createDropdownOptions("level", "Any Difficulty")}
+              onSelect={(value) => handleFilterChange('level', value)}
+              primaryColor={primaryColor}
+            />
           </View>
         </View>
 
         {showAdditionalFilters && (
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8, marginTop: 8 }}>
-            <View className="flex-1 bg-black-100 border border-black-200 rounded-lg overflow-hidden">
-              <Picker
-                selectedValue={selectedFilters.force_measure}
-                onValueChange={(value) => handleFilterChange('force_measure', value)}
-                style={{ color: "white", height: 40 }}
-                dropdownIconColor={primaryColor}
-              >
-                <Picker.Item label="Any Force" value="" />
-                {getUniqueValues("force_measure").map((force) => (
-                  <Picker.Item key={force} label={capitalizeWords(force)} value={force} />
-                ))}
-              </Picker>
+            <View className="flex-1">
+              <CustomDropdown
+                placeholder="Any Force"
+                value={selectedFilters.force_measure}
+                options={createDropdownOptions("force_measure", "Any Force")}
+                onSelect={(value) => handleFilterChange('force_measure', value)}
+                primaryColor={primaryColor}
+              />
             </View>
             
-            <View className="flex-1 bg-black-100 border border-black-200 rounded-lg overflow-hidden">
-              <Picker
-                selectedValue={selectedFilters.mechanic}
-                onValueChange={(value) => handleFilterChange('mechanic', value)}
-                style={{ color: "white", height: 40 }}
-                dropdownIconColor={primaryColor}
-              >
-                <Picker.Item label="Any Mechanic" value="" />
-                {getUniqueValues("mechanic").map((m) => (
-                  <Picker.Item key={m} label={capitalizeWords(m)} value={m} />
-                ))}
-              </Picker>
+            <View className="flex-1">
+              <CustomDropdown
+                placeholder="Any Mechanic"
+                value={selectedFilters.mechanic}
+                options={createDropdownOptions("mechanic", "Any Mechanic")}
+                onSelect={(value) => handleFilterChange('mechanic', value)}
+                primaryColor={primaryColor}
+              />
             </View>
             
-            <View className="flex-1 bg-black-100 border border-black-200 rounded-lg overflow-hidden">
-              <Picker
-                selectedValue={selectedFilters.category}
-                onValueChange={(value) => handleFilterChange('category', value)}
-                style={{ color: "white", height: 40 }}
-                dropdownIconColor={primaryColor}
-              >
-                <Picker.Item label="Any Category" value="" />
-                {getUniqueValues("category").map((c) => (
-                  <Picker.Item key={c} label={capitalizeWords(c)} value={c} />
-                ))}
-              </Picker>
+            <View className="flex-1">
+              <CustomDropdown
+                placeholder="Any Category"
+                value={selectedFilters.category}
+                options={createDropdownOptions("category", "Any Category")}
+                onSelect={(value) => handleFilterChange('category', value)}
+                primaryColor={primaryColor}
+              />
             </View>
           </View>
         )}
@@ -453,7 +430,7 @@ const ExerciseList = () => {
             })}
           </View>
           <TouchableOpacity onPress={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} className="p-2">
-            <FontAwesome5 name="chevron-right" size={16} color={currentPage === totalPages ? "#7b7b8b" : "white"} />
+            <FontAwesome5 name="chevron-right" size={16} color={currentPage === totalPages ? "#7b7b8b" : "white" } />
           </TouchableOpacity>
         </View>
       )}
@@ -463,13 +440,13 @@ const ExerciseList = () => {
 
 const styles = StyleSheet.create({
   imageContainer: {
-    width: 96, // w-24 equivalent (24 * 4 = 96px)
-    height: 96, // h-24 equivalent
+    width: 96,
+    height: 96,
     marginRight: 16,
     position: 'relative',
     overflow: 'hidden',
     borderRadius: 8,
-    backgroundColor: '#232533', // fallback background
+    backgroundColor: '#232533',
   },
   exerciseImage: {
     position: 'absolute',
