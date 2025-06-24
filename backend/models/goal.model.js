@@ -1,7 +1,7 @@
 import { Sequelize, DataTypes } from "sequelize";
-import forbiddenWords from "../validations/forbiddenWords.js";
 import { sequelize } from "../config/db.config.js";
-import goalTypes from '../../shared/goal_types.json' with { type: "json"}
+import { isTextClean } from '../validators/general/isTextClean.js'
+import { typeGoalCheck } from "../validators/goal/typeGoalCheck.js";
 
 const Goal = sequelize.define(
     "Goals",
@@ -20,38 +20,34 @@ const Goal = sequelize.define(
             type: DataTypes.STRING, allowNull: false, unique: false, validate: {
                 min: 3,
                 max: 80,
-                isClean(value) {
-                    if (value && forbiddenWords.some(word => value.toLowerCase().includes(word))) {
-                        throw new Error("Username contains inappropriate language");
-                    }
-                }
-            }
+                isTextClean
+            },
+            comment: "Name of goal the user made."
         },
         type: {
             type: DataTypes.STRING, allowNull: false, defaultValue: "checkbox", validate: {
-                isType(value) {
-                    if (value && !goalTypes.some(obj => value === obj.type)) {
-                        throw new Error("Unknown goal type");
-                    }
-                }
-            }
+                typeGoalCheck
+            },
+            comment: "the type of goal the user sets"
         },
         details: {
             type: DataTypes.STRING, allowNull: false, defaultValue: "", validate: {
                 max: 400,
-            }
+            },
+            comment: "description of foal that the user set"
         },
         total: {
             type: DataTypes.INTEGER, allowNull: false, defaultValue: 1, validate: {
                 min: 1,
                 max: 1_000_000,
-            }
+            },
+            comment: "maximum amount of accumulation for the goal"
         },
         current: {
             type: DataTypes.INTEGER, allowNull: false, defaultValue: 0, validate: {
                 min: 0,
-
-            }
+            },
+            comment: "current accumalted value of goal"
         }
     },
     {

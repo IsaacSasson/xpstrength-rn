@@ -1,6 +1,6 @@
 import { Sequelize, DataTypes } from "sequelize";
 import { sequelize } from "../config/db.config.js";
-import exercises from "../../shared/exercises.json" with { type: "json"};
+import { checkLogWorkoutFormat } from "../validators/logWorkout/checkLogWorkoutFormat.js";
 
 const WorkoutLog = sequelize.define(
     "workoutLog",
@@ -16,36 +16,15 @@ const WorkoutLog = sequelize.define(
         length: {
             type: DataTypes.INTEGER, allowNull: false, defaultValue: 0, validate: {
                 isNumeric: true
-            }
+            },
+            comment: "Length in seconds of the total workout"
         },
         exercises: {
             type: DataTypes.JSON, allowNull: false, defaultValue: [], validate: {
-                checkFormat(value) {
-                    if (!Array.isArray(value)) {
-                        throw new Error("Value stored is not an array");
-                    }
-                    const REQUIRED = {
-                        exercise: 'number',
-                        reps: 'number',
-                        sets: 'number',
-                        cooldown: 'number'
-                    };
-
-                    value.forEach((obj, idx) => {
-                        for (const [key, type] of Object.entries(REQUIRED)) {
-                            if (!(key in obj))
-                                throw new Error(`Item ${idx}: missing “${key}” key`);
-
-                            if (typeof obj[key] !== type || !Number.isFinite(obj[key]))
-                                throw new Error(`Item ${idx}: “${key}” must be a finite ${type}`);
-                        }
-                        if (obj.exercise < 0 || obj.exercise > exercises.length) {
-                            throw new Error('Unknown Exercise ID');
-                        }
-                    })
-                }
-            }
-        }
+                checkLogWorkoutFormat
+            },
+            comment: "List of exercises completed in the workout"
+        },
     },
     {
         tableName: "workoutLog",

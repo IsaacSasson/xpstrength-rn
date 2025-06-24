@@ -6,7 +6,7 @@ describe.skip("User model validation", () => {
             username: "fuck",
             password: "Good123!",
             email: "badword@example.com"
-        })).rejects.toThrow(/Username contains inappropriate language/);
+        })).rejects.toThrow(/contains inappropriate language/);
     });
 
     it("should fail on weak password", async () => {

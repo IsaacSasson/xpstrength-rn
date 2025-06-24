@@ -1,6 +1,6 @@
 import User from "../../models/user.model.js";
 import Goal from "../../models/goal.model.js";
-import forbiddenWords from "../../validations/forbiddenWords.js";
+import forbiddenWords from "../../validators/general/forbiddenWords.js";
 import goalTypes from "../../../shared/goal_types.json" with { type: "json" };
 
 describe.skip("Goal Validation Checks", () => {
