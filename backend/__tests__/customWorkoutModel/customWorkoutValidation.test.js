@@ -1,6 +1,7 @@
 import User from "../../models/user.model.js";
 import CustomWorkout from "../../models/customWorkout.model.js";
 import forbiddenWords from "../../validations/forbiddenWords.js";
+import exercises from "../../../shared/exercises.json" with { type: "json" };
 
 describe.skip("CustomWorkout validation checks", () => {
 
@@ -15,6 +16,27 @@ describe.skip("CustomWorkout validation checks", () => {
         { exercise: 1, reps: 12, sets: 3, cooldown: 60 },
         { exercise: 2, reps: 10, sets: 4, cooldown: 90 },
     ];
+
+    it("rejects a customWorkout that references an unknown exercise ID", async () => {
+        const user = await User.create({
+            username: `_${Date.now()}`,
+            password: "StrongPass12!",
+            email: `cw_${Date.now()}@mail.com`
+        });
+
+        const badId = -1;
+        await expect(
+            CustomWorkout.create({
+                userId: user.id,
+                name: "Bad Workout",
+                exercises: [
+                    { exercise: badId, reps: 8, sets: 4, cooldown: 45 }
+                ]
+            })
+        ).rejects.toThrow("Unknown Exercise ID");
+
+        await user.destroy();
+    });
 
     it("rejects forbidden words in the name field", async () => {
         const user = await makeUser();

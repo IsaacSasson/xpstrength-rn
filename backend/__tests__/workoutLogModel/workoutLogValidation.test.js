@@ -1,7 +1,8 @@
 import User from "../../models/user.model.js";
-import workoutLog from "../../models/workoutLog.model.js";
+import WorkoutLog from "../../models/workoutLog.model.js";
+import exercises from "../../../shared/exercises.json" with { type: "json" };
 
-describe.skip("workoutLog validation checks", () => {
+describe.skip("WorkoutLog validation checks", () => {
 
     const makeUser = async () =>
         await User.create({
@@ -15,11 +16,32 @@ describe.skip("workoutLog validation checks", () => {
         { exercise: 2, reps: 10, sets: 4, cooldown: 90 },
     ];
 
+    it("rejects a WorkoutLog when an exercise ID is outside the allowed range", async () => {
+        const user = await User.create({
+            username: `_${Date.now()}`,
+            password: "StrongPass12!",
+            email: `log_${Date.now()}@mail.com`
+        });
+
+        const badId = exercises.length + 1;
+        await expect(
+            WorkoutLog.create({
+                userId: user.id,
+                length: 25,
+                exercises: [
+                    { exercise: badId, reps: 10, sets: 3, cooldown: 60 }
+                ]
+            })
+        ).rejects.toThrow("Unknown Exercise ID");
+
+        await user.destroy();
+    });
+
     it("rejects when length is not numeric", async () => {
         const user = await makeUser();
 
         await expect(
-            workoutLog.create({
+            WorkoutLog.create({
                 userId: user.id,
                 length: "not-a-number",
                 exercises: validExercises,
@@ -34,7 +56,7 @@ describe.skip("workoutLog validation checks", () => {
         const user = await makeUser();
 
         await expect(
-            workoutLog.create({
+            WorkoutLog.create({
                 userId: user.id,
                 length: 45,
                 exercises: { exercise: 1, reps: 10, sets: 3, cooldown: 60 },
@@ -50,7 +72,7 @@ describe.skip("workoutLog validation checks", () => {
         const missingKey = [{ exercise: 1, reps: 10, cooldown: 60 }]; // no “sets”
 
         await expect(
-            workoutLog.create({
+            WorkoutLog.create({
                 userId: user.id,
                 length: 30,
                 exercises: missingKey,
@@ -65,7 +87,7 @@ describe.skip("workoutLog validation checks", () => {
         const wrongType = [{ exercise: "benchPress", reps: 10, sets: 3, cooldown: 60 }];
 
         await expect(
-            workoutLog.create({
+            WorkoutLog.create({
                 userId: user.id,
                 length: 60,
                 exercises: wrongType,
@@ -78,7 +100,7 @@ describe.skip("workoutLog validation checks", () => {
     it("successfully saves a valid workout log", async () => {
         const user = await makeUser();
 
-        const log = await workoutLog.create({
+        const log = await WorkoutLog.create({
             userId: user.id,
             length: 75,
             exercises: validExercises,

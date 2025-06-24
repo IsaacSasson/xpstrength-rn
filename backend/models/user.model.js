@@ -9,8 +9,8 @@ import dotenv from 'dotenv'
 import Friend from "./friend.model.js";
 import Milestone from "./milestone.model.js";
 import Goal from "./goal.model.js";
-import customWorkout from "./customWorkout.model.js";
-import workoutLog from "./workoutLog.model.js";
+import CustomWorkout from "./customWorkout.model.js";
+import WorkoutLog from "./workoutLog.model.js";
 import shopUnlocks from "../../shared/shop_products.json" with { type: "json"};
 import authorityTypes from "../../shared/role_types.json" with { type: "json" };
 
@@ -218,11 +218,11 @@ User.hasMany(Goal, { foreignKey: 'userId' });
 Goal.belongsTo(User, { foreignKey: 'userId' });
 
 //User-CustomWorkout Relationships
-User.hasMany(customWorkout, { foreignKey: 'userId' });
-customWorkout.belongsTo(User, { foreignKey: 'userId' });
+User.hasMany(CustomWorkout, { foreignKey: 'userId' });
+CustomWorkout.belongsTo(User, { foreignKey: 'userId' });
 
 //User-workoutLog Relationships
-User.hasMany(workoutLog, { foreignKey: "userId" });
-workoutLog.belongsTo(User, { foreignKey: 'userId' });
+User.hasMany(WorkoutLog, { foreignKey: "userId" });
+WorkoutLog.belongsTo(User, { foreignKey: 'userId' });
 
 export default User;

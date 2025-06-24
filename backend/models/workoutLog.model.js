@@ -1,7 +1,8 @@
 import { Sequelize, DataTypes } from "sequelize";
 import { sequelize } from "../config/db.config.js";
+import exercises from "../../shared/exercises.json" with { type: "json"};
 
-const workoutLog = sequelize.define(
+const WorkoutLog = sequelize.define(
     "workoutLog",
     {
         id: { type: DataTypes.INTEGER, allowNull: false, primaryKey: true, autoIncrement: true, unique: true },
@@ -38,6 +39,9 @@ const workoutLog = sequelize.define(
                             if (typeof obj[key] !== type || !Number.isFinite(obj[key]))
                                 throw new Error(`Item ${idx}: “${key}” must be a finite ${type}`);
                         }
+                        if (obj.exercise < 0 || obj.exercise > exercises.length) {
+                            throw new Error('Unknown Exercise ID');
+                        }
                     })
                 }
             }
@@ -50,4 +54,4 @@ const workoutLog = sequelize.define(
     }
 )
 
-export default workoutLog;
+export default WorkoutLog;

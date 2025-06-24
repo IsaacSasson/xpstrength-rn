@@ -1,8 +1,9 @@
 import { Sequelize, DataTypes } from "sequelize";
 import forbiddenWords from "../validations/forbiddenWords.js";
 import { sequelize } from "../config/db.config.js";
+import exercises from "../../shared/exercises.json" with { type: "json" };
 
-const customWorkout = sequelize.define(
+const CustomWorkout = sequelize.define(
     "customWorkouts",
     {
         id: { type: DataTypes.INTEGER, allowNull: false, primaryKey: true, autoIncrement: true, unique: true },
@@ -41,9 +42,11 @@ const customWorkout = sequelize.define(
                         for (const [key, type] of Object.entries(REQUIRED)) {
                             if (!(key in obj))
                                 throw new Error(`Item ${idx}: missing “${key}” key`);
-
                             if (typeof obj[key] !== type || !Number.isFinite(obj[key]))
                                 throw new Error(`Item ${idx}: “${key}” must be a finite ${type}`);
+                        }
+                        if (obj.exercise < 0 || obj.exercise > exercises.length) {
+                            throw new Error('Unknown Exercise ID');
                         }
                     })
                 }
@@ -57,4 +60,4 @@ const customWorkout = sequelize.define(
     }
 )
 
-export default customWorkout
+export default CustomWorkout
