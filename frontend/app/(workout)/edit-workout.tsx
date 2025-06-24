@@ -354,7 +354,9 @@ const EditWorkout: React.FC = () => {
           <View style={{ position: "absolute", inset: 0 }} />
           <View style={{ flex: 1, justifyContent: "flex-end" }}>
             <View style={{ borderColor: secondaryColor, backgroundColor: tertiaryColor }} className="bg-black-100 rounded-t-3xl border-t-2">
+              {/* make draggable */}
               <View className="w-16 h-1 bg-gray-100 rounded-full mx-auto my-4" />
+              
               <Text className="text-white text-xl font-psemibold text-center mb-4">Select Days</Text>
               <ScrollView className="max-h-96">
                 {daysOfWeek.map(day => {
