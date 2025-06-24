@@ -8,7 +8,7 @@ const PersonalBest = sequelize.define(
     {
         id: { type: DataTypes.INTEGER, allowNull: false, primaryKey: true, autoIncrement: true, unique: true },
         userId: {
-            type: DataTypes.INTEGER, allowNull: false, references: {
+            type: DataTypes.INTEGER, allowNull: false, unique: true, references: {
                 model: "Users",
                 key: "id"
             },

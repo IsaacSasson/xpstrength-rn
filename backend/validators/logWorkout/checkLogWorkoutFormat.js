@@ -19,7 +19,7 @@ export async function checkLogWorkoutFormat(value) {
             if (typeof obj[key] !== type || !Number.isFinite(obj[key]))
                 throw new Error(`Item ${idx}: “${key}” must be a finite ${type}`);
         }
-        if (obj.exercise < 0 || obj.exercise > exercises.length) {
+        if (obj.exercise < 0 || obj.exercise > exercises.length - 1) {
             throw new Error('Unknown Exercise ID');
         }
     })

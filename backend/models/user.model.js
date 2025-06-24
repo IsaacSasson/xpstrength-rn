@@ -11,6 +11,8 @@ import Goal from "./goal.model.js";
 import CustomWorkout from "./customWorkout.model.js";
 import WorkoutLog from "./workoutLog.model.js";
 import PersonalBest from "./personalBests.model.js";
+import ExerciseLog from "./exerciseLog.model.js";
+
 import { checkShopProductFormat } from "../validators/user/checkShopProductFormat.js";
 import { isTextClean } from "../validators/general/isTextClean.js";
 import { checkAuthType } from "../validators/user/checkAuthType.js";
@@ -174,6 +176,18 @@ User.afterCreate("Create Associating Milestones Row", async (user, options) => {
     }, { transaction: options.transaction });
 })
 
+User.afterCreate("Create Associating Personal Bests Row", async (user, options) => {
+    await PersonalBest.create({
+        userId: user.id
+    }, { transaction: options.transaction });
+})
+
+User.afterCreate("Create Associating ExerciseLog Row", async (user, options) => {
+    await ExerciseLog.create({
+        userId: user.id
+    }, { transaction: options.transaction });
+})
+
 // User-Friend Relationships
 User.hasOne(Friend, { foreignKey: 'userId' });
 Friend.belongsTo(User, { foreignKey: 'userId' });
@@ -196,6 +210,10 @@ WorkoutLog.belongsTo(User, { foreignKey: 'userId' });
 
 //User-personalBests Relationships
 User.hasOne(PersonalBest, { foreignKey: "userId" });
-PersonalBest.belongsTo(User, { foreignKey: "userId" })
+PersonalBest.belongsTo(User, { foreignKey: "userId" });
+
+//User-exerciseLog Relationships
+User.hasOne(ExerciseLog, { foreignKey: "userId" });
+ExerciseLog.belongsTo(User, { foreignKey: "userId" });
 
 export default User;
