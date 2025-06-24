@@ -18,12 +18,14 @@ const TabsLayout = () => {
 
   // Determine the active tab index based on the URL
   let activeTabIndex = 0;
-  if (pathname.includes('/home')) {
+  if (pathname.includes('/friends')) {
     activeTabIndex = 1;
-  } else if (pathname.includes('/stats')) {
+  } else if (pathname.includes('/home')) {
     activeTabIndex = 2;
-  } else if (pathname.includes('/shop')) {
+  } else if (pathname.includes('/stats')) {
     activeTabIndex = 3;
+  } else if (pathname.includes('/shop')) {
+    activeTabIndex = 4;
   }
 
   return (
