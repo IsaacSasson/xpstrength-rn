@@ -17,10 +17,15 @@ import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { Picker } from "@react-native-picker/picker";
 import { useThemeContext } from "@/context/ThemeContext";
 
+/* ───────── Layout constants ───────── */
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const COL_WIDTH = 80;              // room for “9999 lbs”
+const CARD_PREVIEW_SCALE = 0.9;              // scale for off-center cards
+const CARD_SPACING = 14;                     // gap between cards
+const CARD_WIDTH = SCREEN_WIDTH * 0.80;      // visible card width
+const SIDE_PADDING = (SCREEN_WIDTH - CARD_WIDTH) / 2; // first/last inset
+const COL_WIDTH = 80;                        // room for “9999 lbs”
 const MAX_FIELD_VALUE = 9999;
-const CARD_HEIGHT = 550;           // tweak this to make cards taller / shorter
+const CARD_HEIGHT = 550;                     // full-size height
 
 /* ---------- sample data ---------- */
 interface Set {
@@ -205,7 +210,7 @@ const ActiveWorkout = () => {
     setPauseModalVisible(false);
   };
 
-  /* ───────── NEW: cancel confirmation ───────── */
+  /* ───────── Cancel confirmation ───────── */
   const [confirmCancelVisible, setConfirmCancelVisible] = useState(false);
   const showConfirmCancel = () => setConfirmCancelVisible(true);
   const hideConfirmCancel = () => setConfirmCancelVisible(false);
@@ -213,6 +218,9 @@ const ActiveWorkout = () => {
 
   const handleFinish = () => router.replace("/"); // existing finish action
   const editableBg = "rgba(255,255,255,0.08)";
+
+  /* ───────── Animated scroll logic ───────── */
+  const scrollX = useRef(new Animated.Value(0)).current;
 
   return (
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
@@ -250,164 +258,207 @@ const ActiveWorkout = () => {
       </SafeAreaView>
 
       {/* ───────── Exercise carousel ───────── */}
-      <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
-        {exercises.map((ex, exIdx) => (
-          <View key={ex.id} style={{ width: SCREEN_WIDTH, paddingHorizontal: 16 }}>
-            <View
-              className="rounded-2xl p-4 mt-10"
-              style={{ backgroundColor: tertiaryColor, height: CARD_HEIGHT }}
+      <Animated.ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        snapToInterval={CARD_WIDTH + CARD_SPACING}
+        decelerationRate="fast"
+        scrollEventThrottle={16}
+        contentContainerStyle={{ paddingHorizontal: SIDE_PADDING }}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+          { useNativeDriver: true }
+        )}
+      >
+        {exercises.map((ex, exIdx) => {
+          const inputRange = [
+            (exIdx - 1) * (CARD_WIDTH + CARD_SPACING),
+            exIdx * (CARD_WIDTH + CARD_SPACING),
+            (exIdx + 1) * (CARD_WIDTH + CARD_SPACING),
+          ];
+          const scale = scrollX.interpolate({
+            inputRange,
+            outputRange: [CARD_PREVIEW_SCALE, 1, CARD_PREVIEW_SCALE],
+            extrapolate: "clamp",
+          });
+
+          return (
+            <Animated.View
+              key={ex.id}
+              style={{
+                width: CARD_WIDTH,
+                marginRight: CARD_SPACING,
+                transform: [{ scale }],
+              }}
             >
-              {/* Card header */}
-              <View className="flex-row items-center mb-4">
-                <View className="flex-1 items-center">
-                  <Text className="text-2xl font-pbold text-center" style={{ color: secondaryColor }}>
-                    {ex.name}
+              <View
+                className="rounded-2xl p-4 mt-10"
+                style={{ backgroundColor: tertiaryColor, height: CARD_HEIGHT }}
+              >
+                {/* Card header */}
+                <View className="flex-row items-center mb-4">
+                  <View className="flex-1 items-center">
+                    <Text
+                      className="text-2xl font-pbold text-center"
+                      style={{ color: secondaryColor }}
+                    >
+                      {ex.name}
+                    </Text>
+                  </View>
+                  <MaterialCommunityIcons name="dots-vertical" size={20} color="#FFFFFF" />
+                </View>
+
+                {/* Table header */}
+                <View
+                  className="flex-row py-1 mb-2 rounded-lg"
+                  style={{ backgroundColor: "#1B1B2E" }}
+                >
+                  <Text
+                    style={{ width: COL_WIDTH, marginLeft: 30 }}
+                    className="text-white font-pmedium"
+                  >
+                    SET
+                  </Text>
+                  <Text
+                    style={{ flex: 1, textAlign: "center", marginRight: 15 }}
+                    className="text-white font-pmedium"
+                  >
+                    REPS
+                  </Text>
+                  <Text
+                    style={{ width: COL_WIDTH, textAlign: "right", marginRight: 15 }}
+                    className="text-white font-pmedium"
+                  >
+                    WEIGHT
                   </Text>
                 </View>
-                <MaterialCommunityIcons name="dots-vertical" size={20} color="#FFFFFF" />
-              </View>
 
-              {/* Table header */}
-              <View className="flex-row py-1 mb-2 rounded-lg" style={{ backgroundColor: "#1B1B2E" }}>
-                <Text style={{ width: COL_WIDTH, marginLeft: 30 }} className="text-white font-pmedium">
-                  SET
-                </Text>
-                <Text style={{ flex: 1, textAlign: "center", marginRight: 15 }} className="text-white font-pmedium">
-                  REPS
-                </Text>
-                <Text
-                  style={{ width: COL_WIDTH, textAlign: "right", marginRight: 15 }}
-                  className="text-white font-pmedium"
+                {/* Sets list */}
+                <ScrollView
+                  style={{ flex: 1, marginBottom: 250 }}
+                  nestedScrollEnabled
+                  showsVerticalScrollIndicator={false}
                 >
-                  WEIGHT
-                </Text>
-              </View>
+                  {ex.sets.map((s, setIdx) => (
+                    <View
+                      key={s.id}
+                      className="flex-row mb-2"
+                      style={{ minHeight: 32, alignItems: "center" }}
+                    >
+                      {/* Set # */}
+                      <View style={{ width: COL_WIDTH, alignItems: "center" }}>
+                        <Text className="text-gray-100">{s.id}</Text>
+                      </View>
 
-              {/* Sets list */}
-              <ScrollView
-                style={{ flex: 1, marginBottom: 250 }}
-                nestedScrollEnabled
-                showsVerticalScrollIndicator={false}
-              >
-                {ex.sets.map((s, setIdx) => (
-                  <View
-                    key={s.id}
-                    className="flex-row mb-2"
-                    style={{ minHeight: 32, alignItems: "center" }}
+                      {/* Reps */}
+                      <View style={{ flex: 1, alignItems: "center" }}>
+                        {editing &&
+                        editing.exIdx === exIdx &&
+                        editing.setIdx === setIdx &&
+                        editing.field === "reps" ? (
+                          <TextInput
+                            value={editingValue}
+                            onChangeText={setEditingValue}
+                            onBlur={finishEdit}
+                            onSubmitEditing={finishEdit}
+                            keyboardType="numeric"
+                            autoFocus
+                            maxLength={4}
+                            style={{
+                              color: "#FFFFFF",
+                              backgroundColor: editableBg,
+                              paddingVertical: 2,
+                              paddingHorizontal: 6,
+                              borderRadius: 10,
+                              minWidth: 60,
+                              textAlign: "center",
+                            }}
+                          />
+                        ) : (
+                          <TouchableOpacity
+                            onPress={() => startEdit(exIdx, setIdx, "reps", s.reps)}
+                            style={{
+                              backgroundColor: editableBg,
+                              paddingVertical: 2,
+                              paddingHorizontal: 6,
+                              borderRadius: 10,
+                              minWidth: 60,
+                            }}
+                          >
+                            <Text className="text-gray-100" style={{ textAlign: "center" }}>
+                              {s.reps}
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+
+                      {/* Weight */}
+                      <View style={{ width: COL_WIDTH, alignItems: "center" }}>
+                        {editing &&
+                        editing.exIdx === exIdx &&
+                        editing.setIdx === setIdx &&
+                        editing.field === "lbs" ? (
+                          <TextInput
+                            value={editingValue}
+                            onChangeText={setEditingValue}
+                            onBlur={finishEdit}
+                            onSubmitEditing={finishEdit}
+                            keyboardType="numeric"
+                            autoFocus
+                            maxLength={4}
+                            style={{
+                              color: "#FFFFFF",
+                              backgroundColor: editableBg,
+                              paddingVertical: 2,
+                              paddingHorizontal: 6,
+                              borderRadius: 10,
+                              minWidth: 60,
+                              textAlign: "center",
+                            }}
+                          />
+                        ) : (
+                          <TouchableOpacity
+                            onPress={() => startEdit(exIdx, setIdx, "lbs", s.lbs)}
+                            style={{
+                              backgroundColor: editableBg,
+                              paddingVertical: 2,
+                              paddingHorizontal: 6,
+                              borderRadius: 10,
+                              minWidth: 60,
+                            }}
+                          >
+                            <Text className="text-gray-100" style={{ textAlign: "center" }}>
+                              {s.lbs} lbs
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </View>
+                  ))}
+                </ScrollView>
+
+                {/* Add / Remove buttons pinned to bottom */}
+                <View className="flex-row justify-between">
+                  <TouchableOpacity
+                    onPress={() => removeSet(exIdx)}
+                    className="px-4 py-2 rounded-lg"
+                    style={{ backgroundColor: "#FF4C4C" }}
                   >
-                    {/* Set # */}
-                    <View style={{ width: COL_WIDTH, alignItems: "center" }}>
-                      <Text className="text-gray-100">{s.id}</Text>
-                    </View>
-
-                    {/* Reps */}
-                    <View style={{ flex: 1, alignItems: "center" }}>
-                      {editing &&
-                      editing.exIdx === exIdx &&
-                      editing.setIdx === setIdx &&
-                      editing.field === "reps" ? (
-                        <TextInput
-                          value={editingValue}
-                          onChangeText={setEditingValue}
-                          onBlur={finishEdit}
-                          onSubmitEditing={finishEdit}
-                          keyboardType="numeric"
-                          autoFocus
-                          maxLength={4}
-                          style={{
-                            color: "#FFFFFF",
-                            backgroundColor: editableBg,
-                            paddingVertical: 2,
-                            paddingHorizontal: 6,
-                            borderRadius: 10,
-                            minWidth: 60,
-                            textAlign: "center",
-                          }}
-                        />
-                      ) : (
-                        <TouchableOpacity
-                          onPress={() => startEdit(exIdx, setIdx, "reps", s.reps)}
-                          style={{
-                            backgroundColor: editableBg,
-                            paddingVertical: 2,
-                            paddingHorizontal: 6,
-                            borderRadius: 10,
-                            minWidth: 60,
-                          }}
-                        >
-                          <Text className="text-gray-100" style={{ textAlign: "center" }}>
-                            {s.reps}
-                          </Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-
-                    {/* Weight */}
-                    <View style={{ width: COL_WIDTH, alignItems: "center" }}>
-                      {editing &&
-                      editing.exIdx === exIdx &&
-                      editing.setIdx === setIdx &&
-                      editing.field === "lbs" ? (
-                        <TextInput
-                          value={editingValue}
-                          onChangeText={setEditingValue}
-                          onBlur={finishEdit}
-                          onSubmitEditing={finishEdit}
-                          keyboardType="numeric"
-                          autoFocus
-                          maxLength={4}
-                          style={{
-                            color: "#FFFFFF",
-                            backgroundColor: editableBg,
-                            paddingVertical: 2,
-                            paddingHorizontal: 6,
-                            borderRadius: 10,
-                            minWidth: 60,
-                            textAlign: "center",
-                          }}
-                        />
-                      ) : (
-                        <TouchableOpacity
-                          onPress={() => startEdit(exIdx, setIdx, "lbs", s.lbs)}
-                          style={{
-                            backgroundColor: editableBg,
-                            paddingVertical: 2,
-                            paddingHorizontal: 6,
-                            borderRadius: 10,
-                            minWidth: 60,
-                          }}
-                        >
-                          <Text className="text-gray-100" style={{ textAlign: "center" }}>
-                            {s.lbs} lbs
-                          </Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  </View>
-                ))}
-              </ScrollView>
-
-              {/* Add / Remove buttons pinned to bottom */}
-              <View className="flex-row justify-between">
-                <TouchableOpacity
-                  onPress={() => removeSet(exIdx)}
-                  className="px-4 py-2 rounded-lg"
-                  style={{ backgroundColor: "#FF4C4C" }}
-                >
-                  <Text className="text-white font-pmedium">Remove Set</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => addSet(exIdx)}
-                  className="px-4 py-2 rounded-lg"
-                  style={{ backgroundColor: primaryColor }}
-                >
-                  <Text className="text-white font-pmedium">Add Set</Text>
-                </TouchableOpacity>
+                    <Text className="text-white font-pmedium">Remove Set</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => addSet(exIdx)}
+                    className="px-4 py-2 rounded-lg"
+                    style={{ backgroundColor: primaryColor }}
+                  >
+                    <Text className="text-white font-pmedium">Add Set</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          </View>
-        ))}
-      </ScrollView>
+            </Animated.View>
+          );
+        })}
+      </Animated.ScrollView>
 
       {/* ───────── Bottom timer bar ───────── */}
       <SafeAreaView edges={["bottom"]}>

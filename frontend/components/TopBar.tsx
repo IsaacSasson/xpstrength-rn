@@ -10,31 +10,43 @@ type TopBarProps = {
 
 const TopBar: React.FC<TopBarProps> = ({ subtext, title, titleTop }) => {
   return (
-    <View className="justify-between items-start flex-row mb-6">
-      <View>
-        {titleTop ? (
-          <>
-            <Text className="text-2xl font-psemibold text-white">{title}</Text>
-            <Text className="font-psemibold text-sm text-gray-100">{subtext}</Text>
-          </>
-        ) : (
-          <>
-            <Text className="font-pmedium text-sm text-gray-100">{subtext}</Text>
-            <Text className="text-2xl font-psemibold text-white">{title}</Text>
-          </>
-        )}
+    <SafeAreaView edges={["top"]} className="bg-primary">
+      <View className="px-4 pt-6">
+        <View className="justify-between items-start flex-row mb-6">
+          <View>
+            {titleTop ? (
+              <>
+                <Text className="text-2xl font-psemibold text-white">
+                  {title}
+                </Text>
+                <Text className="font-psemibold text-sm text-gray-100">
+                  {subtext}
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text className="font-pmedium text-sm text-gray-100">
+                  {subtext}
+                </Text>
+                <Text className="text-2xl font-psemibold text-white">
+                  {title}
+                </Text>
+              </>
+            )}
+          </View>
+          <View>
+            <Image
+              source={require("../assets/images/logo.png")}
+              style={{
+                height: 57,
+                width: 100,
+              }}
+              resizeMode="contain"
+            />
+          </View>
+        </View>
       </View>
-      <View>
-        <Image
-          source={require("../assets/images/logo.png")}
-          style={{
-            height: 57,
-            width: 100,
-          }}
-          resizeMode="contain"
-        />
-      </View>
-    </View>
+    </SafeAreaView>
   );
 };
 

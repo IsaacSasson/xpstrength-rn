@@ -14,13 +14,9 @@ const Stats = () => {
   // Get theme and user level from contexts
   const { primaryColor, tertiaryColor } = useThemeContext();
   const { level } = useUserProgress();
-  
+
   // Use our custom hook for stats data
-  const { 
-    getRadarData,
-    loading, 
-    error
-  } = useStats();
+  const { getRadarData, loading, error } = useStats();
 
   const [activeMetric, setActiveMetric] = useState<MetricType>("volume");
   const [displayData, setDisplayData] = useState<any>(null);
@@ -80,7 +76,14 @@ const Stats = () => {
   // If loading or error, show appropriate UI
   if (loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: "#0F0E1A", justifyContent: 'center', alignItems: 'center' }}>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: "#0F0E1A",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
         <Text className="text-white font-pmedium">Loading your stats...</Text>
       </View>
     );
@@ -88,7 +91,14 @@ const Stats = () => {
 
   if (error) {
     return (
-      <View style={{ flex: 1, backgroundColor: "#0F0E1A", justifyContent: 'center', alignItems: 'center' }}>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: "#0F0E1A",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
         <Text className="text-white font-pmedium">{error}</Text>
       </View>
     );
@@ -98,11 +108,7 @@ const Stats = () => {
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
       <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
 
-      <SafeAreaView edges={["top"]} className="bg-primary">
-        <View className="px-4 pt-6">
-          <TopBar subtext={`Level ${level}`} title="Your Stats" titleTop={true} />
-        </View>
-      </SafeAreaView>
+      <TopBar subtext={`Level ${level}`} title="Your Stats" titleTop={true} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -120,17 +126,14 @@ const Stats = () => {
         />
 
         {displayData && (
-          <RadarChart 
-            activeMetric={activeMetric} 
-            displayData={displayData} 
-            color={primaryColor} 
+          <RadarChart
+            activeMetric={activeMetric}
+            displayData={displayData}
+            color={primaryColor}
           />
         )}
 
-        <StatButtons 
-          color={primaryColor}
-          tertiaryColor={tertiaryColor}
-        />
+        <StatButtons color={primaryColor} tertiaryColor={tertiaryColor} />
       </ScrollView>
     </View>
   );

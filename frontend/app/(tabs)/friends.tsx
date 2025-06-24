@@ -189,15 +189,13 @@ const Friends = () => {
       <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
 
       {/* Header: Override bg-primary with dynamic color */}
-      <SafeAreaView edges={["top"]} style={{ backgroundColor: "bg-primary" }}>
-        <View className="px-4 pt-6">
+    
           <TopBar
             subtext={getSubtext()}
             title="Your Friends"
             titleTop={true}
           />
-        </View>
-      </SafeAreaView>
+      
 
       <View className="px-4 mb-4">
         <SearchInput

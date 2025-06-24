@@ -92,11 +92,7 @@ const Profile = () => {
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
       <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
 
-      <SafeAreaView edges={["top"]} className="bg-primary">
-        <View className="px-4 pt-6">
-          <TopBar subtext={`It's You!`} title="Your Profile" titleTop={true} />
-        </View>
-      </SafeAreaView>
+      <TopBar subtext={`It's You!`} title="Your Profile" titleTop={true} />
 
       <ScrollView showsVerticalScrollIndicator={false} className="px-4">
         {/* ----- User Card ----- */}
