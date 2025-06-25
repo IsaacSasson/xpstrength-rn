@@ -1,5 +1,6 @@
+// Path: /app/components/home/QuickActions.tsx
 import React from 'react';
-import { View, Text, TouchableOpacity, ViewStyle, TextStyle } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
@@ -20,36 +21,28 @@ const QuickActions: React.FC<QuickActionsProps> = ({
   iconColor = '#fff',
   backgroundColor = '#333',
 }) => {
-  const containerStyle: ViewStyle = {
-    width: '50%',
-    padding: 8,
-  };
-
-  const buttonStyle: ViewStyle = {
-    backgroundColor,
-    borderRadius: 16,
-    height: 90,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  };
-
-  const textStyle: TextStyle = {
-    color: '#fff',
-    fontFamily: 'PMedium',
-    textAlign: 'center',
-    marginTop: 12,
-  };
-
   return (
-    <View style={containerStyle}>
-      <TouchableOpacity onPress={onPress} activeOpacity={0.7} style={buttonStyle}>
+    <View className="w-1/2 p-2">
+      <TouchableOpacity
+        onPress={onPress}
+        activeOpacity={0.7}
+        style={{
+          backgroundColor,
+          borderRadius: 16,
+          height: 90,
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: 16,
+        }}
+      >
         {iconType === 'material' ? (
           <MaterialCommunityIcons name={icon as any} size={28} color={iconColor} />
         ) : (
           <FontAwesome5 name={icon as any} size={24} color={iconColor} />
         )}
-        <Text style={textStyle}>{title}</Text>
+        <Text className="text-white font-pmedium text-center mt-3">
+          {title}
+        </Text>
       </TouchableOpacity>
     </View>
   );

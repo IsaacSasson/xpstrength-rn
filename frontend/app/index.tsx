@@ -24,13 +24,13 @@ export default function App() {
           
           <Image 
             source={cards}
-            className="max-w-[380px] w-full"
+            className="max-w-[400px] w-full"
             style= {{ height: 300 }}
           />
 
           <View className="mt-5">
             <Text className="text-3xl text-white font-bold text-center leading-[40px]">
-              Discover Endless Possibilities with{' '}
+              Level Up Your Physique with{' '}
               <Text className="relative text-secondary-100 pb-5 overflow-visible">
               XPStrength
               </Text>
