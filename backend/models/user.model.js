@@ -12,6 +12,7 @@ import CustomWorkout from "./customWorkout.model.js";
 import WorkoutLog from "./workoutLog.model.js";
 import PersonalBest from "./personalBests.model.js";
 import ExerciseLog from "./exerciseLog.model.js";
+import WorkoutPlan from "./workoutPlan.model.js";
 
 import { checkShopProductFormat } from "../validators/user/checkShopProductFormat.js";
 import { isTextClean } from "../validators/general/isTextClean.js";
@@ -24,10 +25,10 @@ const User = sequelize.define(
     {
         id: { type: DataTypes.INTEGER, allowNull: false, autoIncrement: true, primaryKey: true },
         username: {
-            type: DataTypes.STRING(16), allowNull: false, unique: true, validate:
+            type: DataTypes.STRING(30), allowNull: false, unique: true, validate:
             {
                 notEmpty: true,
-                len: [3, 16],
+                len: [3, 30],
                 is: ["^[A-Za-z0-9_]+$", 'i'],
                 isTextClean
             },
@@ -188,6 +189,12 @@ User.afterCreate("Create Associating ExerciseLog Row", async (user, options) => 
     }, { transaction: options.transaction });
 })
 
+User.afterCreate("Create Associating Plan Row", async (user, options) => {
+    await WorkoutPlan.create({
+        userId: user.id
+    }, { transaction: options.transaction });
+})
+
 // User-Friend Relationships
 User.hasOne(Friend, { foreignKey: 'userId' });
 Friend.belongsTo(User, { foreignKey: 'userId' });
@@ -215,5 +222,9 @@ PersonalBest.belongsTo(User, { foreignKey: "userId" });
 //User-exerciseLog Relationships
 User.hasOne(ExerciseLog, { foreignKey: "userId" });
 ExerciseLog.belongsTo(User, { foreignKey: "userId" });
+
+//User-plannedWorkout RelationShips
+User.hasOne(WorkoutPlan, { foreignKey: "userId" });
+WorkoutPlan.belongsTo(User, { foreignKey: "userId" });
 
 export default User;
