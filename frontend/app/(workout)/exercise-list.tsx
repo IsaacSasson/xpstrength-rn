@@ -18,6 +18,7 @@ import { useThemeContext } from "@/context/ThemeContext";
 import { exerciseImageMap } from "@/app/utils/exerciseImageMap";
 import exercisesData from "@/assets/exercises.json";
 import CustomDropdown, { DropdownOption } from "@/components/CustomDropdown";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 interface Exercise {
   id: string;
@@ -216,7 +217,8 @@ const ExerciseList = () => {
   return (
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
       <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
-      <View className="px-4 pt-4 pb-4">
+      <SafeAreaView edges={["top"]} className="bg-primary">
+      <View className="px-4 pt-6 pb-4">
         <View className="flex-row items-center justify-between mb-4">
           <View className="flex-1 flex-row items-center">
             <TouchableOpacity onPress={goBack} className="mr-3">
@@ -322,6 +324,7 @@ const ExerciseList = () => {
           </View>
         )}
       </View>
+      </SafeAreaView>
 
       <ScrollView className="flex-1 px-4">
         {loading ? (

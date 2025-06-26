@@ -10,6 +10,9 @@ import {
   Modal,
   Animated,
   TextInput,
+  Alert,
+  useWindowDimensions,
+  PanResponder,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -19,15 +22,15 @@ import { useThemeContext } from "@/context/ThemeContext";
 
 /* ───────── Layout constants ───────── */
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const CARD_PREVIEW_SCALE = 0.9;              // scale for off-center cards
-const CARD_SPACING = 14;                     // gap between cards
-const CARD_WIDTH = SCREEN_WIDTH * 0.80;      // visible card width
-const SIDE_PADDING = (SCREEN_WIDTH - CARD_WIDTH) / 2; // first/last inset
-const COL_WIDTH = 80;                        // room for “9999 lbs”
+const CARD_PREVIEW_SCALE = 0.9;
+const CARD_SPACING = 14;
+const CARD_WIDTH = SCREEN_WIDTH * 0.8;
+const SIDE_PADDING = (SCREEN_WIDTH - CARD_WIDTH) / 2;
+const COL_WIDTH = 80;
 const MAX_FIELD_VALUE = 9999;
-const CARD_HEIGHT = 550;                     // full-size height
+const CARD_HEIGHT = 550;
 
-/* ---------- sample data ---------- */
+/* ---------- Sample data ---------- */
 interface Set {
   id: number;
   lbs: number;
@@ -65,7 +68,108 @@ const initialExercises: Exercise[] = [
   },
 ];
 
-/* ---------- component ---------- */
+/* -------------------------------------------------------------------------- */
+/*                        DRAGGABLE BOTTOM-SHEET (generic)                    */
+/* -------------------------------------------------------------------------- */
+interface DraggableBottomSheetProps {
+  visible: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+  primaryColor: string;
+}
+const DraggableBottomSheet: React.FC<DraggableBottomSheetProps> = ({
+  visible,
+  onClose,
+  children,
+  primaryColor,
+}) => {
+  const { height } = useWindowDimensions();
+  const sheetHeight = height * 0.45;
+  const translateY = useRef(new Animated.Value(sheetHeight)).current;
+
+  /* Show / hide */
+  useEffect(() => {
+    if (visible) {
+      translateY.setValue(sheetHeight);
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [visible]);
+
+  /* Drag logic */
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 5,
+      onPanResponderGrant: () => {
+        translateY.extractOffset();
+        translateY.setValue(0);
+      },
+      onPanResponderMove: (_, g) => {
+        if (g.dy >= 0) translateY.setValue(g.dy);
+      },
+      onPanResponderRelease: (_, g) => {
+        translateY.flattenOffset();
+        const shouldClose = g.dy > sheetHeight * 0.25 || g.vy > 0.8;
+        Animated.timing(translateY, {
+          toValue: shouldClose ? sheetHeight : 0,
+          duration: 200,
+          useNativeDriver: true,
+        }).start(() => {
+          if (shouldClose) onClose();
+        });
+      },
+      onPanResponderTerminationRequest: () => false,
+    })
+  ).current;
+
+  if (!visible) return null;
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      statusBarTranslucent
+      animationType="none"
+      onRequestClose={onClose}
+    >
+      <View style={{ flex: 1 }} pointerEvents="none" />
+      <Animated.View
+        style={{
+          transform: [{ translateY }],
+          height: sheetHeight,
+          backgroundColor: "#1C1B29",
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
+          borderTopWidth: 2,
+          borderColor: primaryColor,
+        }}
+      >
+        {/* Drag handle */}
+        <View
+          {...panResponder.panHandlers}
+          className="items-center px-4 pt-3 pb-4"
+        >
+          <View className="w-16 h-1 bg-gray-100 rounded-full mb-4" />
+        </View>
+
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 40 }}
+        >
+          {children}
+        </ScrollView>
+      </Animated.View>
+    </Modal>
+  );
+};
+
+/* -------------------------------------------------------------------------- */
+/*                            MAIN COMPONENT                                  */
+/* -------------------------------------------------------------------------- */
 const ActiveWorkout = () => {
   const { primaryColor, secondaryColor, tertiaryColor } = useThemeContext();
 
@@ -73,11 +177,16 @@ const ActiveWorkout = () => {
   const [elapsed, setElapsed] = useState(0);
   const [paused, setPaused] = useState(false);
   useEffect(() => {
-    const id = !paused ? setInterval(() => setElapsed((s) => s + 1), 1000) : undefined;
+    const id = !paused
+      ? setInterval(() => setElapsed((s) => s + 1), 1000)
+      : undefined;
     return () => id && clearInterval(id);
   }, [paused]);
   const fmt = (s: number) =>
-    `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+    `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(
+      2,
+      "0"
+    )}`;
 
   /* ───────── Rest timer state ───────── */
   const [durMin, setDurMin] = useState(1);
@@ -110,7 +219,11 @@ const ActiveWorkout = () => {
         if (t <= 1) {
           clearInterval(restRef.current as NodeJS.Timeout);
           setRestRunning(false);
-          Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }).start();
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+          }).start();
           return 0;
         }
         return t - 1;
@@ -148,28 +261,43 @@ const ActiveWorkout = () => {
                 ...ex.sets,
                 {
                   id: ex.sets.length + 1,
-                  reps: Math.min(ex.sets[ex.sets.length - 1].reps, MAX_FIELD_VALUE),
-                  lbs: Math.min(ex.sets[ex.sets.length - 1].lbs, MAX_FIELD_VALUE),
+                  reps: Math.min(
+                    ex.sets[ex.sets.length - 1].reps,
+                    MAX_FIELD_VALUE
+                  ),
+                  lbs: Math.min(
+                    ex.sets[ex.sets.length - 1].lbs,
+                    MAX_FIELD_VALUE
+                  ),
                 },
               ],
             }
-          : ex,
-      ),
+          : ex
+      )
     );
 
   const removeSet = (exIdx: number) =>
     setExercises((prev) =>
       prev.map((ex, i) =>
-        i === exIdx && ex.sets.length > 1 ? { ...ex, sets: ex.sets.slice(0, -1) } : ex,
-      ),
+        i === exIdx && ex.sets.length > 1
+          ? { ...ex, sets: ex.sets.slice(0, -1) }
+          : ex
+      )
     );
 
   /* ───────── Inline editing ───────── */
-  type EditingState = { exIdx: number; setIdx: number; field: "reps" | "lbs" } | null;
+  type EditingState =
+    | { exIdx: number; setIdx: number; field: "reps" | "lbs" }
+    | null;
   const [editing, setEditing] = useState<EditingState>(null);
   const [editingValue, setEditingValue] = useState("");
 
-  const startEdit = (exIdx: number, setIdx: number, field: "reps" | "lbs", current: number) => {
+  const startEdit = (
+    exIdx: number,
+    setIdx: number,
+    field: "reps" | "lbs",
+    current: number
+  ) => {
     setEditing({ exIdx, setIdx, field });
     setEditingValue(String(current));
   };
@@ -189,11 +317,11 @@ const ActiveWorkout = () => {
           ? {
               ...ex,
               sets: ex.sets.map((s, sIdx) =>
-                sIdx === editing.setIdx ? { ...s, [editing.field]: num } : s,
+                sIdx === editing.setIdx ? { ...s, [editing.field]: num } : s
               ),
             }
-          : ex,
-      ),
+          : ex
+      )
     );
     setEditing(null);
     setEditingValue("");
@@ -216,11 +344,32 @@ const ActiveWorkout = () => {
   const hideConfirmCancel = () => setConfirmCancelVisible(false);
   const doCancelWorkout = () => router.replace("/home");
 
-  const handleFinish = () => router.replace("/"); // existing finish action
-  const editableBg = "rgba(255,255,255,0.08)";
+  const handleFinish = () => router.replace("/");
+
+  /* ───────── Options bottom-sheet state ───────── */
+  const [showOptionsSheet, setShowOptionsSheet] = useState(false);
+  const openOptionsSheet = () => setShowOptionsSheet(true);
+  const closeOptionsSheet = () => setShowOptionsSheet(false);
+
+  /* ───────── Option handlers (placeholders) ───────── */
+  const handleNotes = () => Alert.alert("Notes", "Open notes editor…");
+  const handleReplace = () =>
+    Alert.alert("Replace Workout", "Replace workout action…");
+  const handleInstructions = () =>
+    Alert.alert("Instructions", "Show workout instructions…");
+  const handleDelete = () =>
+    Alert.alert("Delete Workout", "Are you sure?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => router.replace("/home"),
+      },
+    ]);
 
   /* ───────── Animated scroll logic ───────── */
   const scrollX = useRef(new Animated.Value(0)).current;
+  const editableBg = "rgba(255,255,255,0.08)";
 
   return (
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
@@ -230,10 +379,16 @@ const ActiveWorkout = () => {
       <SafeAreaView edges={["top"]}>
         <View className="px-4 pt-4 flex-row items-center justify-between">
           <View>
-            <Text className="text-lg font-psemibold" style={{ color: secondaryColor }}>
+            <Text
+              className="text-lg font-psemibold"
+              style={{ color: secondaryColor }}
+            >
               Push Day Workout
             </Text>
-            <Text className="font-psemibold mt-1" style={{ color: secondaryColor }}>
+            <Text
+              className="font-psemibold mt-1"
+              style={{ color: secondaryColor }}
+            >
               {fmt(elapsed)}
             </Text>
           </View>
@@ -305,7 +460,13 @@ const ActiveWorkout = () => {
                       {ex.name}
                     </Text>
                   </View>
-                  <MaterialCommunityIcons name="dots-vertical" size={20} color="#FFFFFF" />
+                  <TouchableOpacity onPress={openOptionsSheet}>
+                    <MaterialCommunityIcons
+                      name="dots-vertical"
+                      size={20}
+                      color="#FFFFFF"
+                    />
+                  </TouchableOpacity>
                 </View>
 
                 {/* Table header */}
@@ -376,7 +537,9 @@ const ActiveWorkout = () => {
                           />
                         ) : (
                           <TouchableOpacity
-                            onPress={() => startEdit(exIdx, setIdx, "reps", s.reps)}
+                            onPress={() =>
+                              startEdit(exIdx, setIdx, "reps", s.reps)
+                            }
                             style={{
                               backgroundColor: editableBg,
                               paddingVertical: 2,
@@ -385,7 +548,10 @@ const ActiveWorkout = () => {
                               minWidth: 60,
                             }}
                           >
-                            <Text className="text-gray-100" style={{ textAlign: "center" }}>
+                            <Text
+                              className="text-gray-100"
+                              style={{ textAlign: "center" }}
+                            >
                               {s.reps}
                             </Text>
                           </TouchableOpacity>
@@ -427,7 +593,10 @@ const ActiveWorkout = () => {
                               minWidth: 60,
                             }}
                           >
-                            <Text className="text-gray-100" style={{ textAlign: "center" }}>
+                            <Text
+                              className="text-gray-100"
+                              style={{ textAlign: "center" }}
+                            >
                               {s.lbs} lbs
                             </Text>
                           </TouchableOpacity>
@@ -511,9 +680,18 @@ const ActiveWorkout = () => {
       {/* ───────── Pause modal ───────── */}
       <Modal visible={pauseModalVisible} transparent animationType="fade">
         <View className="flex-1 justify-center items-center bg-black/50">
-          <View className="items-center p-6 rounded-2xl" style={{ backgroundColor: "#161622" }}>
-            <MaterialCommunityIcons name="pause-circle-outline" size={72} color={primaryColor} />
-            <Text className="text-white font-pbold text-xl mt-4">Workout Paused</Text>
+          <View
+            className="items-center p-6 rounded-2xl"
+            style={{ backgroundColor: "#161622" }}
+          >
+            <MaterialCommunityIcons
+              name="pause-circle-outline"
+              size={72}
+              color={primaryColor}
+            />
+            <Text className="text-white font-pbold text-xl mt-4">
+              Workout Paused
+            </Text>
             <TouchableOpacity
               onPress={handleResume}
               className="mt-6 px-8 py-3 rounded-lg"
@@ -545,13 +723,29 @@ const ActiveWorkout = () => {
 
             {restLeft > 0 ? (
               <View className="items-center mt-6">
-                <Text className="text-white p-2 font-pbold text-6xl">{fmt(restLeft)}</Text>
-                <Text className="text-white font-pmedium mt-4">Rest timer running</Text>
+                <Text className="text-white p-2 font-pbold text-6xl">
+                  {fmt(restLeft)}
+                </Text>
+                <Text className="text-white font-pmedium mt-4">
+                  Rest timer running
+                </Text>
               </View>
             ) : (
-              <Animated.View style={{ alignItems: "center", opacity: fadeAnim, marginTop: 8 }}>
-                <MaterialCommunityIcons name="alarm" size={72} color={primaryColor} />
-                <Text className="text-white font-pbold text-3xl mt-4">Time is up!</Text>
+              <Animated.View
+                style={{
+                  alignItems: "center",
+                  opacity: fadeAnim,
+                  marginTop: 8,
+                }}
+              >
+                <MaterialCommunityIcons
+                  name="alarm"
+                  size={72}
+                  color={primaryColor}
+                />
+                <Text className="text-white font-pbold text-3xl mt-4">
+                  Time is up!
+                </Text>
                 <TouchableOpacity
                   onPress={closeRestModal}
                   className="mt-6 px-10 py-3 rounded-lg"
@@ -572,7 +766,9 @@ const ActiveWorkout = () => {
             className="pt-4 pb-6 rounded-t-2xl"
             style={{ backgroundColor: "#161622", paddingHorizontal: 24 }}
           >
-            <Text className="text-white text-center font-psemibold mb-2">Set Rest Timer</Text>
+            <Text className="text-white text-center font-psemibold mb-2">
+              Set Rest Timer
+            </Text>
             <View className="flex-row justify-center">
               <Picker
                 selectedValue={durMin}
@@ -649,6 +845,63 @@ const ActiveWorkout = () => {
           </Animated.View>
         </View>
       </Modal>
+
+      {/* ───────── Options bottom-sheet ───────── */}
+      <DraggableBottomSheet
+        visible={showOptionsSheet}
+        onClose={closeOptionsSheet}
+        primaryColor={primaryColor}
+      >
+        {[
+           {
+            label: "Instructions",
+            icon: "information-outline",
+            onPress: handleInstructions,
+          },
+          
+          { label: "Notes", icon: "note-text-outline", onPress: handleNotes },
+          {
+            label: "Replace Workout",
+            icon: "swap-horizontal",
+            onPress: handleReplace,
+          },
+         
+          {
+            label: "Delete",
+            icon: "delete-outline",
+            onPress: handleDelete,
+            danger: true,
+          },
+        ].map((opt) => (
+          <TouchableOpacity
+            key={opt.label}
+            className="flex-row items-center p-4 border-b border-black-200"
+            onPress={() => {
+              opt.onPress();
+              closeOptionsSheet();
+            }}
+          >
+            <MaterialCommunityIcons
+              name={opt.icon as any}
+              size={24}
+              color={opt.danger ? "#FF4D4D" : "#FFFFFF"}
+            />
+            <Text
+              className="text-lg font-pmedium ml-3"
+              style={{ color: opt.danger ? "#FF4D4D" : "white" }}
+            >
+              {opt.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+
+        <TouchableOpacity
+          className="bg-black-200 m-4 mt-6 p-4 rounded-xl"
+          onPress={closeOptionsSheet}
+        >
+          <Text className="text-white font-pmedium text-center">Cancel</Text>
+        </TouchableOpacity>
+      </DraggableBottomSheet>
     </View>
   );
 };
