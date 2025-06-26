@@ -20,6 +20,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useThemeContext } from "@/context/ThemeContext";
+import Header from "@/components/Header";
 
 /* -------------------------------------------------------------------------- */
 /*                               Data & Types                                */
@@ -301,7 +302,6 @@ interface DraggableBottomSheetProps {
   onClose: () => void;
   children: React.ReactNode;
   primaryColor: string;
-
 }
 
 const DraggableBottomSheet: React.FC<DraggableBottomSheetProps> = ({
@@ -309,8 +309,6 @@ const DraggableBottomSheet: React.FC<DraggableBottomSheetProps> = ({
   onClose,
   children,
   primaryColor,
-
-  
 }) => {
   const { height } = useWindowDimensions();
   const sheetHeight = height * 0.5; // 50 % for demo
@@ -377,7 +375,7 @@ const DraggableBottomSheet: React.FC<DraggableBottomSheetProps> = ({
           borderTopLeftRadius: 24,
           borderTopRightRadius: 24,
           borderTopWidth: 2,
-          borderColor: primaryColor
+          borderColor: primaryColor,
         }}
       >
         {/* ---------- Drag handle & title (DRAGGABLE AREA) ---------- */}
@@ -385,9 +383,7 @@ const DraggableBottomSheet: React.FC<DraggableBottomSheetProps> = ({
           {...panResponder.panHandlers}
           className="items-center px-4 pt-3 pb-4"
         >
-          <View 
-          
-          className="w-16 h-1 bg-gray-100 rounded-full mb-4" />
+          <View className="w-16 h-1 bg-gray-100 rounded-full mb-4" />
           <Text className="text-white text-xl font-psemibold">Select Days</Text>
         </View>
 
@@ -501,19 +497,7 @@ const EditWorkout = () => {
       <SafeAreaView edges={["top"]} className="bg-primary">
         <View className="px-4 pt-6">
           <View className="flex-row items-center justify-between mb-6">
-            <View className="flex-row items-center">
-              <TouchableOpacity onPress={goBack} className="mr-4">
-                <FontAwesome5 name="arrow-left" size={20} color="white" />
-              </TouchableOpacity>
-              <View>
-                <Text className="text-2xl font-psemibold text-white">
-                  Edit Workout
-                </Text>
-                <Text className="font-pmedium text-sm text-gray-100">
-                   Editing workout for Monday
-                </Text>
-              </View>
-            </View>
+            <Header MText="Edit Workout" SText="Customize your workout plan" />
 
             <TouchableOpacity
               onPress={() => {
@@ -623,7 +607,6 @@ const EditWorkout = () => {
         onClose={() => setShowDayPicker(false)}
         primaryColor={primaryColor}
       >
-
         {/* children = list + done button */}
         {daysOfWeek.map((day) => {
           const selected = workout.days.includes(day);

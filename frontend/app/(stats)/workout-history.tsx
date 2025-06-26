@@ -12,7 +12,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useThemeContext } from "@/context/ThemeContext";
-import { router } from 'expo-router';
+import { router } from "expo-router";
+import Header from "@/components/Header";
 
 // ------------------------------------------------------------------
 // reusable ExpandableSection (copied from DayCard logic)
@@ -22,7 +23,10 @@ interface ExpandableSectionProps {
   children: React.ReactNode;
 }
 
-const ExpandableSection: React.FC<ExpandableSectionProps> = ({ isExpanded, children }) => {
+const ExpandableSection: React.FC<ExpandableSectionProps> = ({
+  isExpanded,
+  children,
+}) => {
   const [contentHeight, setContentHeight] = useState(0);
   const animation = useRef(new Animated.Value(0)).current;
 
@@ -41,9 +45,20 @@ const ExpandableSection: React.FC<ExpandableSectionProps> = ({ isExpanded, child
 
   return (
     <View>
-      <Animated.View style={{ height: animation, overflow: "hidden" }}>{children}</Animated.View>
+      <Animated.View style={{ height: animation, overflow: "hidden" }}>
+        {children}
+      </Animated.View>
       {/* hidden measure */}
-      <View style={{ position: "absolute", top: 10000, left: 0, right: 0, opacity: 0 }} onLayout={onMeasure}>
+      <View
+        style={{
+          position: "absolute",
+          top: 10000,
+          left: 0,
+          right: 0,
+          opacity: 0,
+        }}
+        onLayout={onMeasure}
+      >
         {children}
       </View>
     </View>
@@ -97,7 +112,12 @@ const sampleHistory: PastWorkout[] = [
   },
 ];
 
-const formatDate = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+const formatDate = (iso: string) =>
+  new Date(iso).toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
 
 // ------------------------------------------------------------------
 // Main Component
@@ -111,10 +131,11 @@ const WorkoutHistory = () => {
     setHistory(sampleHistory); // TODO replace with real fetch
   }, []);
 
-  const toggleExpand = (id: string) => setExpandedId(prev => (prev === id ? null : id));
+  const toggleExpand = (id: string) =>
+    setExpandedId((prev) => (prev === id ? null : id));
 
   const goBack = () => {
-   router.back();
+    router.back();
   };
 
   return (
@@ -125,13 +146,7 @@ const WorkoutHistory = () => {
       <SafeAreaView edges={["top"]} className="bg-primary">
         <View className="px-4 pt-6">
           <View className="flex-row items-center mb-6">
-            <TouchableOpacity onPress={goBack} className="mr-4">
-              <FontAwesome5 name="arrow-left" size={20} color="white" />
-            </TouchableOpacity>
-            <View>
-              <Text className="text-2xl font-psemibold text-white">History</Text>
-              <Text className="font-pmedium text-sm text-gray-100">Your past workouts</Text>
-            </View>
+            <Header MText="Workout History" SText="Review your past workouts" />
           </View>
         </View>
       </SafeAreaView>
@@ -139,31 +154,71 @@ const WorkoutHistory = () => {
       {/* Body */}
       {history.length === 0 ? (
         <View className="flex-1 justify-center items-center px-4">
-          <MaterialCommunityIcons name="history" size={64} color={primaryColor} />
-          <Text className="text-white font-pmedium text-lg mt-4">No workout history yet</Text>
-          <Text className="text-gray-100 text-center mt-2">Complete a workout and it will appear here.</Text>
+          <MaterialCommunityIcons
+            name="history"
+            size={64}
+            color={primaryColor}
+          />
+          <Text className="text-white font-pmedium text-lg mt-4">
+            No workout history yet
+          </Text>
+          <Text className="text-gray-100 text-center mt-2">
+            Complete a workout and it will appear here.
+          </Text>
         </View>
       ) : (
-        <ScrollView showsVerticalScrollIndicator={false} className="px-4 pb-6" contentContainerStyle={{ paddingBottom: 20 }}>
-          {history.map(workout => {
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          className="px-4 pb-6"
+          contentContainerStyle={{ paddingBottom: 20 }}
+        >
+          {history.map((workout) => {
             const isExpanded = expandedId === workout.id;
             return (
-              <View key={workout.id} className="rounded-xl overflow-hidden mb-4" style={{ backgroundColor: tertiaryColor }}>
+              <View
+                key={workout.id}
+                className="rounded-xl overflow-hidden mb-4"
+                style={{ backgroundColor: tertiaryColor }}
+              >
                 {/* Header Row (tap to expand) */}
-                <TouchableOpacity className="p-4 flex-row items-center justify-between" onPress={() => toggleExpand(workout.id)} activeOpacity={0.8}>
+                <TouchableOpacity
+                  className="p-4 flex-row items-center justify-between"
+                  onPress={() => toggleExpand(workout.id)}
+                  activeOpacity={0.8}
+                >
                   <View className="flex-row items-center">
-                    <MaterialCommunityIcons name="dumbbell" size={22} color={primaryColor} />
+                    <MaterialCommunityIcons
+                      name="dumbbell"
+                      size={22}
+                      color={primaryColor}
+                    />
                     <View className="ml-3">
-                      <Text className="text-white font-psemibold text-lg">{workout.name}</Text>
-                      <Text className="font-pmedium text-gray-100" style={{ color: secondaryColor }}>{formatDate(workout.date)}</Text>
+                      <Text className="text-white font-psemibold text-lg">
+                        {workout.name}
+                      </Text>
+                      <Text
+                        className="font-pmedium text-gray-100"
+                        style={{ color: secondaryColor }}
+                      >
+                        {formatDate(workout.date)}
+                      </Text>
                     </View>
                   </View>
 
                   <View className="flex-row items-center">
-                    <View className="px-3 py-1 rounded-lg mr-3" style={{ backgroundColor: primaryColor }}>
-                      <Text className="text-white font-pmedium text-xs">{workout.duration}</Text>
+                    <View
+                      className="px-3 py-1 rounded-lg mr-3"
+                      style={{ backgroundColor: primaryColor }}
+                    >
+                      <Text className="text-white font-pmedium text-xs">
+                        {workout.duration}
+                      </Text>
                     </View>
-                    <FontAwesome5 name={isExpanded ? "chevron-up" : "chevron-down"} size={14} color="#CDCDE0" />
+                    <FontAwesome5
+                      name={isExpanded ? "chevron-up" : "chevron-down"}
+                      size={14}
+                      color="#CDCDE0"
+                    />
                   </View>
                 </TouchableOpacity>
 
@@ -171,10 +226,21 @@ const WorkoutHistory = () => {
                 <ExpandableSection isExpanded={isExpanded}>
                   <View className="p-4 border-t border-black-200">
                     {workout.exercises.map((ex, idx) => (
-                      <View key={idx} className="flex-row items-center mb-3 last:mb-0">
-                        <FontAwesome5 name="angle-right" size={14} color={primaryColor} />
-                        <Text className="text-white font-pmedium ml-3">{ex.name}</Text>
-                        <Text className="text-gray-100 ml-auto">{ex.sets} × {ex.reps}</Text>
+                      <View
+                        key={idx}
+                        className="flex-row items-center mb-3 last:mb-0"
+                      >
+                        <FontAwesome5
+                          name="angle-right"
+                          size={14}
+                          color={primaryColor}
+                        />
+                        <Text className="text-white font-pmedium ml-3">
+                          {ex.name}
+                        </Text>
+                        <Text className="text-gray-100 ml-auto">
+                          {ex.sets} × {ex.reps}
+                        </Text>
                       </View>
                     ))}
                   </View>

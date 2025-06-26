@@ -13,6 +13,7 @@ import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useThemeContext } from "@/context/ThemeContext";
 import { router } from 'expo-router';
+import Header from "@/components/Header";
 
 /* ------------------------------------------------------------------
    Types
@@ -98,13 +99,10 @@ const GoalsAndAchievements = () => {
       <SafeAreaView edges={["top"]} className="bg-primary">
         <View className="px-4 pt-6">
           <View className="flex-row items-center mb-6">
-            <TouchableOpacity onPress={goBack} className="mr-4">
-              <FontAwesome5 name="arrow-left" size={20} color="white" />
-            </TouchableOpacity>
-            <View>
-              <Text className="text-2xl font-psemibold text-white">Goals & Achievements</Text>
-              <Text className="font-pmedium text-sm text-gray-100">Track progress and celebrate wins</Text>
-            </View>
+           <Header 
+          MText="Goals & Achievements"
+          SText="Track progress and celebrate milestones"
+          />
           </View>
         </View>
       </SafeAreaView>

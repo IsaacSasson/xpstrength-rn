@@ -12,6 +12,7 @@ import { router } from "expo-router";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import DayCard from "@/components/DayCard";
 import { useThemeContext } from "@/context/ThemeContext";
+import Header from "@/components/Header";
 
 // Weekly workout data defined directly in this file
 const weeklyWorkoutData = [
@@ -101,7 +102,7 @@ const weeklyWorkoutData = [
 const WeeklyPlan = () => {
   // Use our theme context
   const { primaryColor } = useThemeContext();
-  
+
   // Get current day (0 = Sunday, 1 = Monday, etc.)
   const today = new Date().getDay();
   // Adjust so that Monday becomes index 0 (Sunday becomes index 6)
@@ -148,17 +149,10 @@ const WeeklyPlan = () => {
       <SafeAreaView edges={["top"]} className="bg-primary">
         <View className="px-4 pt-6">
           <View className="flex-row items-center mb-6">
-            <TouchableOpacity onPress={goBack} className="mr-4">
-              <FontAwesome5 name="arrow-left" size={20} color="white" />
-            </TouchableOpacity>
-            <View>
-              <Text className="text-2xl font-psemibold text-white">
-                Weekly Workout Plan
-              </Text>
-              <Text className="font-pmedium text-sm text-gray-100">
-                Your training schedule
-              </Text>
-            </View>
+            <Header
+              MText="Weekly Workout Plan"
+              SText="Your workout schedule for the week"
+            />
           </View>
         </View>
       </SafeAreaView>

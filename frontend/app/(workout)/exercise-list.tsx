@@ -19,6 +19,7 @@ import { exerciseImageMap } from "@/app/utils/exerciseImageMap";
 import exercisesData from "@/assets/exercises.json";
 import CustomDropdown, { DropdownOption } from "@/components/CustomDropdown";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Header from "@/components/Header";
 
 interface Exercise {
   id: string;
@@ -107,17 +108,33 @@ const ExerciseList = () => {
 
   const filteredExercises = exercises
     .filter((exercise) => {
-      const { primaryMuscles, equipment, level, force_measure, mechanic, category } = selectedFilters;
+      const {
+        primaryMuscles,
+        equipment,
+        level,
+        force_measure,
+        mechanic,
+        category,
+      } = selectedFilters;
       return (
         (!primaryMuscles ||
-          (exercise.primaryMuscles && exercise.primaryMuscles.toLowerCase().includes(primaryMuscles.toLowerCase()))) &&
-        (!equipment || exercise.equipment.toLowerCase() === equipment.toLowerCase()) &&
+          (exercise.primaryMuscles &&
+            exercise.primaryMuscles
+              .toLowerCase()
+              .includes(primaryMuscles.toLowerCase()))) &&
+        (!equipment ||
+          exercise.equipment.toLowerCase() === equipment.toLowerCase()) &&
         (!level || exercise.level.toLowerCase() === level.toLowerCase()) &&
         (!force_measure ||
-          (exercise.force_measure !== "unknown" && exercise.force_measure.toLowerCase() === force_measure.toLowerCase())) &&
-        (!mechanic || exercise.mechanic.toLowerCase() === mechanic.toLowerCase()) &&
-        (!category || exercise.category.toLowerCase() === category.toLowerCase()) &&
-        (!searchTerm || exercise.name.toLowerCase().includes(searchTerm.toLowerCase()))
+          (exercise.force_measure !== "unknown" &&
+            exercise.force_measure.toLowerCase() ===
+              force_measure.toLowerCase())) &&
+        (!mechanic ||
+          exercise.mechanic.toLowerCase() === mechanic.toLowerCase()) &&
+        (!category ||
+          exercise.category.toLowerCase() === category.toLowerCase()) &&
+        (!searchTerm ||
+          exercise.name.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     })
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -143,16 +160,16 @@ const ExerciseList = () => {
         }
       }
     });
-    
+
     const sortedValues = Array.from(values).sort();
-    return sortedValues.map(value => ({
+    return sortedValues.map((value) => ({
       label: capitalizeWords(value),
-      value: value
+      value: value,
     }));
   };
 
   const capitalizeWords = (str: string) => {
-    return str.replace(/\b\w/g, l => l.toUpperCase());
+    return str.replace(/\b\w/g, (l) => l.toUpperCase());
   };
 
   const goBack = () => {
@@ -161,18 +178,28 @@ const ExerciseList = () => {
 
   const handleAddOrReplace = () => {
     if (selectedExercises.length === 0) {
-      Alert.alert("No exercises selected!", "Please select at least one exercise.");
+      Alert.alert(
+        "No exercises selected!",
+        "Please select at least one exercise."
+      );
       return;
     }
-    
-    const selectedExerciseObjects = exercises.filter((ex) => selectedExercises.includes(ex.id));
-    
+
+    const selectedExerciseObjects = exercises.filter((ex) =>
+      selectedExercises.includes(ex.id)
+    );
+
     if (isReplaceMode && replaceIndex !== null) {
-      console.log("Replacing exercise at index:", replaceIndex, "with:", selectedExerciseObjects[0]);
+      console.log(
+        "Replacing exercise at index:",
+        replaceIndex,
+        "with:",
+        selectedExerciseObjects[0]
+      );
     } else {
       console.log("Adding exercises to workout:", selectedExerciseObjects);
     }
-    
+
     router.back();
   };
 
@@ -201,129 +228,150 @@ const ExerciseList = () => {
     }
   };
 
-  const handleFilterChange = (field: keyof typeof selectedFilters, value: string) => {
-    setSelectedFilters(prev => ({ ...prev, [field]: value }));
+  const handleFilterChange = (
+    field: keyof typeof selectedFilters,
+    value: string
+  ) => {
+    setSelectedFilters((prev) => ({ ...prev, [field]: value }));
     setCurrentPage(1);
   };
 
   // Create dropdown options with "Any" option as first item
-  const createDropdownOptions = (field: keyof Exercise, placeholder: string): DropdownOption[] => {
-    return [
-      { label: placeholder, value: "" },
-      ...getUniqueValues(field)
-    ];
+  const createDropdownOptions = (
+    field: keyof Exercise,
+    placeholder: string
+  ): DropdownOption[] => {
+    return [{ label: placeholder, value: "" }, ...getUniqueValues(field)];
   };
 
   return (
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
       <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
       <SafeAreaView edges={["top"]} className="bg-primary">
-      <View className="px-4 pt-6 pb-4">
-        <View className="flex-row items-center justify-between mb-4">
-          <View className="flex-1 flex-row items-center">
-            <TouchableOpacity onPress={goBack} className="mr-3">
-              <FontAwesome5 name="arrow-left" size={20} color="white" />
+        <View className="px-4 pt-6 pb-4">
+          <View className="flex-row items-center justify-between mb-4">
+            <Header
+              MText="Exercise List"
+              SText={
+                loading
+                  ? "Loading..."
+                  : `${exercises.length} exercises available`
+              }
+            />
+          </View>
+
+          <View className="flex-row items-center justify-between mb-2">
+            <TextInput
+              className="flex-1 bg-black-100 border border-black-200 text-white rounded-lg px-3 py-2 mr-2"
+              placeholder="Search exercises..."
+              placeholderTextColor="#7b7b8b"
+              value={searchTerm}
+              onChangeText={handleSearch}
+            />
+            <TouchableOpacity
+              onPress={() => setShowAdditionalFilters(!showAdditionalFilters)}
+              className="p-2 bg-black-100 border border-black-200 rounded-lg mr-2"
+            >
+              <MaterialCommunityIcons
+                name="filter"
+                size={20}
+                color={primaryColor}
+              />
             </TouchableOpacity>
-            <View>
-              <Text className="text-white font-psemibold text-2xl">Exercise List</Text>
-              <Text className="text-gray-100 text-sm">
-                {loading ? "Loading..." : `${exercises.length} exercises available`}
+            <TouchableOpacity
+              style={{ backgroundColor: primaryColor }}
+              className="px-4 py-2 rounded-lg"
+              onPress={handleAddOrReplace}
+            >
+              <Text className="text-white font-pmedium">
+                {isReplaceMode ? "Replace" : "Add to Workout"}
               </Text>
-            </View>
+            </TouchableOpacity>
           </View>
-        </View>
-        
-        <View className="flex-row items-center justify-between mb-2">
-          <TextInput
-            className="flex-1 bg-black-100 border border-black-200 text-white rounded-lg px-3 py-2 mr-2"
-            placeholder="Search exercises..."
-            placeholderTextColor="#7b7b8b"
-            value={searchTerm}
-            onChangeText={handleSearch}
-          />
-          <TouchableOpacity
-            onPress={() => setShowAdditionalFilters(!showAdditionalFilters)}
-            className="p-2 bg-black-100 border border-black-200 rounded-lg mr-2"
-          >
-            <MaterialCommunityIcons name="filter" size={20} color={primaryColor} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={{ backgroundColor: primaryColor }}
-            className="px-4 py-2 rounded-lg"
-            onPress={handleAddOrReplace}
-          >
-            <Text className="text-white font-pmedium">
-              {isReplaceMode ? "Replace" : "Add to Workout"}
-            </Text>
-          </TouchableOpacity>
-        </View>
 
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
-          <View className="flex-1">
-            <CustomDropdown
-              placeholder="Any Muscles"
-              value={selectedFilters.primaryMuscles}
-              options={createDropdownOptions("primaryMuscles", "Any Muscles")}
-              onSelect={(value) => handleFilterChange('primaryMuscles', value)}
-              primaryColor={primaryColor}
-            />
-          </View>
-          
-          <View className="flex-1">
-            <CustomDropdown
-              placeholder="Any Equipment"
-              value={selectedFilters.equipment}
-              options={createDropdownOptions("equipment", "Any Equipment")}
-              onSelect={(value) => handleFilterChange('equipment', value)}
-              primaryColor={primaryColor}
-            />
-          </View>
-          
-          <View className="flex-1">
-            <CustomDropdown
-              placeholder="Any Difficulty"
-              value={selectedFilters.level}
-              options={createDropdownOptions("level", "Any Difficulty")}
-              onSelect={(value) => handleFilterChange('level', value)}
-              primaryColor={primaryColor}
-            />
-          </View>
-        </View>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              gap: 8,
+            }}
+          >
+            <View className="flex-1">
+              <CustomDropdown
+                placeholder="Any Muscles"
+                value={selectedFilters.primaryMuscles}
+                options={createDropdownOptions("primaryMuscles", "Any Muscles")}
+                onSelect={(value) =>
+                  handleFilterChange("primaryMuscles", value)
+                }
+                primaryColor={primaryColor}
+              />
+            </View>
 
-        {showAdditionalFilters && (
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8, marginTop: 8 }}>
             <View className="flex-1">
               <CustomDropdown
-                placeholder="Any Force"
-                value={selectedFilters.force_measure}
-                options={createDropdownOptions("force_measure", "Any Force")}
-                onSelect={(value) => handleFilterChange('force_measure', value)}
+                placeholder="Any Equipment"
+                value={selectedFilters.equipment}
+                options={createDropdownOptions("equipment", "Any Equipment")}
+                onSelect={(value) => handleFilterChange("equipment", value)}
                 primaryColor={primaryColor}
               />
             </View>
-            
+
             <View className="flex-1">
               <CustomDropdown
-                placeholder="Any Mechanic"
-                value={selectedFilters.mechanic}
-                options={createDropdownOptions("mechanic", "Any Mechanic")}
-                onSelect={(value) => handleFilterChange('mechanic', value)}
-                primaryColor={primaryColor}
-              />
-            </View>
-            
-            <View className="flex-1">
-              <CustomDropdown
-                placeholder="Any Category"
-                value={selectedFilters.category}
-                options={createDropdownOptions("category", "Any Category")}
-                onSelect={(value) => handleFilterChange('category', value)}
+                placeholder="Any Difficulty"
+                value={selectedFilters.level}
+                options={createDropdownOptions("level", "Any Difficulty")}
+                onSelect={(value) => handleFilterChange("level", value)}
                 primaryColor={primaryColor}
               />
             </View>
           </View>
-        )}
-      </View>
+
+          {showAdditionalFilters && (
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                gap: 8,
+                marginTop: 8,
+              }}
+            >
+              <View className="flex-1">
+                <CustomDropdown
+                  placeholder="Any Force"
+                  value={selectedFilters.force_measure}
+                  options={createDropdownOptions("force_measure", "Any Force")}
+                  onSelect={(value) =>
+                    handleFilterChange("force_measure", value)
+                  }
+                  primaryColor={primaryColor}
+                />
+              </View>
+
+              <View className="flex-1">
+                <CustomDropdown
+                  placeholder="Any Mechanic"
+                  value={selectedFilters.mechanic}
+                  options={createDropdownOptions("mechanic", "Any Mechanic")}
+                  onSelect={(value) => handleFilterChange("mechanic", value)}
+                  primaryColor={primaryColor}
+                />
+              </View>
+
+              <View className="flex-1">
+                <CustomDropdown
+                  placeholder="Any Category"
+                  value={selectedFilters.category}
+                  options={createDropdownOptions("category", "Any Category")}
+                  onSelect={(value) => handleFilterChange("category", value)}
+                  primaryColor={primaryColor}
+                />
+              </View>
+            </View>
+          )}
+        </View>
       </SafeAreaView>
 
       <ScrollView className="flex-1 px-4">
@@ -334,10 +382,20 @@ const ExerciseList = () => {
           </View>
         ) : filteredExercises.length === 0 ? (
           <View className="items-center justify-center py-20">
-            <MaterialCommunityIcons name="dumbbell" size={50} color={primaryColor} />
-            <Text className="text-white font-pmedium text-lg mt-4">No exercises found</Text>
-            <Text className="text-gray-100 text-center mt-2">Try adjusting your filters or search terms</Text>
-            <Text className="text-gray-100 text-sm mt-4">{exercises.length} total exercises available</Text>
+            <MaterialCommunityIcons
+              name="dumbbell"
+              size={50}
+              color={primaryColor}
+            />
+            <Text className="text-white font-pmedium text-lg mt-4">
+              No exercises found
+            </Text>
+            <Text className="text-gray-100 text-center mt-2">
+              Try adjusting your filters or search terms
+            </Text>
+            <Text className="text-gray-100 text-sm mt-4">
+              {exercises.length} total exercises available
+            </Text>
           </View>
         ) : (
           <View>
@@ -348,10 +406,12 @@ const ExerciseList = () => {
                 <TouchableOpacity
                   key={exercise.id}
                   className={`flex-row p-3 rounded-lg mb-3`}
-                  style={{ 
-                    backgroundColor: isSelected ? `${primaryColor}20` : tertiaryColor,
+                  style={{
+                    backgroundColor: isSelected
+                      ? `${primaryColor}20`
+                      : tertiaryColor,
                     borderWidth: isSelected ? 1 : 0,
-                    borderColor: isSelected ? primaryColor : 'transparent'
+                    borderColor: isSelected ? primaryColor : "transparent",
                   }}
                   onPress={() => handleExerciseClick(exercise.id)}
                   activeOpacity={0.7}
@@ -361,31 +421,52 @@ const ExerciseList = () => {
                       <>
                         <Image
                           source={images[0]}
-                          style={[styles.exerciseImage, { opacity: imageIndex === 0 ? 1 : 0 }]}
+                          style={[
+                            styles.exerciseImage,
+                            { opacity: imageIndex === 0 ? 1 : 0 },
+                          ]}
                           resizeMode="cover"
                         />
                         {images.length > 1 && (
                           <Image
                             source={images[1]}
-                            style={[styles.exerciseImage, { opacity: imageIndex === 1 ? 1 : 0 }]}
+                            style={[
+                              styles.exerciseImage,
+                              { opacity: imageIndex === 1 ? 1 : 0 },
+                            ]}
                             resizeMode="cover"
                           />
                         )}
                       </>
                     ) : (
                       <View className="w-full h-full rounded-lg bg-black-200 items-center justify-center">
-                        <MaterialCommunityIcons name="dumbbell" size={30} color="#7b7b8b" />
+                        <MaterialCommunityIcons
+                          name="dumbbell"
+                          size={30}
+                          color="#7b7b8b"
+                        />
                       </View>
                     )}
                   </View>
                   <View className="flex-1">
-                    <Text className="text-white font-semibold text-lg">{exercise.name}</Text>
-                    <Text style={{ color: primaryColor }} className="text-sm mt-1">
-                      <Text className="font-semibold">Target Muscle:</Text> <Text className="text-gray-100">{exercise.primaryMuscles}</Text>
+                    <Text className="text-white font-semibold text-lg">
+                      {exercise.name}
+                    </Text>
+                    <Text
+                      style={{ color: primaryColor }}
+                      className="text-sm mt-1"
+                    >
+                      <Text className="font-semibold">Target Muscle:</Text>{" "}
+                      <Text className="text-gray-100">
+                        {exercise.primaryMuscles}
+                      </Text>
                     </Text>
                     {exercise.secondaryMuscles && (
                       <Text style={{ color: primaryColor }} className="text-sm">
-                        <Text className="font-semibold">Secondary:</Text> <Text className="text-gray-100">{exercise.secondaryMuscles}</Text>
+                        <Text className="font-semibold">Secondary:</Text>{" "}
+                        <Text className="text-gray-100">
+                          {exercise.secondaryMuscles}
+                        </Text>
                       </Text>
                     )}
                   </View>
@@ -394,10 +475,14 @@ const ExerciseList = () => {
                       className={`w-5 h-5 rounded-full border-2 items-center justify-center`}
                       style={{
                         borderColor: primaryColor,
-                        backgroundColor: isSelected ? primaryColor : 'transparent'
+                        backgroundColor: isSelected
+                          ? primaryColor
+                          : "transparent",
                       }}
                     >
-                      {isSelected && <FontAwesome5 name="check" size={10} color="white" />}
+                      {isSelected && (
+                        <FontAwesome5 name="check" size={10} color="white" />
+                      )}
                     </View>
                   </View>
                 </TouchableOpacity>
@@ -409,8 +494,16 @@ const ExerciseList = () => {
 
       {filteredExercises.length > 0 && (
         <View className="flex-row justify-between items-center bg-black-100 p-4">
-          <TouchableOpacity onPress={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="p-2">
-            <FontAwesome5 name="chevron-left" size={16} color={currentPage === 1 ? "#7b7b8b" : "white"} />
+          <TouchableOpacity
+            onPress={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="p-2"
+          >
+            <FontAwesome5
+              name="chevron-left"
+              size={16}
+              color={currentPage === 1 ? "#7b7b8b" : "white"}
+            />
           </TouchableOpacity>
           <View className="flex-row items-center">
             {Array.from({ length: Math.min(7, totalPages) }, (_, idx) => {
@@ -422,7 +515,8 @@ const ExerciseList = () => {
                     onPress={() => handlePageChange(pageNumber)}
                     className={`px-3 py-1 mx-1 rounded-lg`}
                     style={{
-                      backgroundColor: pageNumber === currentPage ? primaryColor : "#232533"
+                      backgroundColor:
+                        pageNumber === currentPage ? primaryColor : "#232533",
                     }}
                   >
                     <Text className="text-white">{pageNumber}</Text>
@@ -432,8 +526,16 @@ const ExerciseList = () => {
               return null;
             })}
           </View>
-          <TouchableOpacity onPress={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} className="p-2">
-            <FontAwesome5 name="chevron-right" size={16} color={currentPage === totalPages ? "#7b7b8b" : "white" } />
+          <TouchableOpacity
+            onPress={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className="p-2"
+          >
+            <FontAwesome5
+              name="chevron-right"
+              size={16}
+              color={currentPage === totalPages ? "#7b7b8b" : "white"}
+            />
           </TouchableOpacity>
         </View>
       )}
@@ -446,19 +548,19 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     marginRight: 16,
-    position: 'relative',
-    overflow: 'hidden',
+    position: "relative",
+    overflow: "hidden",
     borderRadius: 8,
-    backgroundColor: '#232533',
+    backgroundColor: "#232533",
   },
   exerciseImage: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
     borderRadius: 8,
   },
 });
