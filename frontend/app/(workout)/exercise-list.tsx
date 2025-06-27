@@ -15,8 +15,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useThemeContext } from "@/context/ThemeContext";
-import { exerciseImageMap } from "@/app/utils/exerciseImageMap";
-import exercisesData from "@/assets/exercises.json";
+import { loadExercises } from "@/app/utils/loadExercises";
 import CustomDropdown, { DropdownOption } from "@/components/CustomDropdown";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Header from "@/components/Header";
@@ -58,46 +57,14 @@ const ExerciseList = () => {
   const [imageIndex, setImageIndex] = useState(0);
 
   const itemsPerPage = 5;
-
-  useEffect(() => {
-    const loadExercises = () => {
-      try {
-        setLoading(true);
-        type Row =
-          | { type: "header"; version: string; comment: string }
-          | { type: "database"; name: string }
-          | { type: "table"; name: string; database: string; data: any[] };
-        const rows = exercisesData as unknown as Row[];
-        const tableRow = rows.find(
-          (row): row is Extract<Row, { type: "table" }> =>
-            row.type === "table" && Array.isArray((row as any).data)
-        );
-        const exerciseArray: any[] = tableRow?.data ?? [];
-        const parsedExercises: Exercise[] = exerciseArray.map((exercise) => {
-          let images: string[] = [];
-          if (typeof exercise.images === "string") {
-            try {
-              images = JSON.parse(exercise.images);
-            } catch {
-              images = [];
-            }
-          } else if (Array.isArray(exercise.images)) {
-            images = exercise.images;
-          }
-          const numericImages = images
-            .map((p) => exerciseImageMap[p])
-            .filter(Boolean) as number[];
-          return { ...exercise, images: numericImages };
-        });
-        setExercises(parsedExercises);
-      } catch (error) {
-        console.error("Error loading exercises:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadExercises();
-  }, []);
+  
+// Load exercises from JSON file
+   useEffect(() => {
+   setLoading(true);
+   const parsed = loadExercises();
+   setExercises(parsed);
+   setLoading(false);
+ }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {

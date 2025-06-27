@@ -1,4 +1,3 @@
-// Path: /app/(workout)/active-workout.tsx
 import React, { useEffect, useRef, useState } from "react";
 import {
   View,
@@ -19,6 +18,7 @@ import { router } from "expo-router";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { Picker } from "@react-native-picker/picker";
 import { useThemeContext } from "@/context/ThemeContext";
+import { loadExercises, ExerciseData } from "@/app/utils/loadExercises";
 
 /* ───────── Layout constants ───────── */
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -30,43 +30,15 @@ const COL_WIDTH = 80;
 const MAX_FIELD_VALUE = 9999;
 const CARD_HEIGHT = 550;
 
-/* ---------- Sample data ---------- */
+/* ---------- Local types ---------- */
 interface Set {
   id: number;
   lbs: number;
   reps: number;
 }
-interface Exercise {
-  id: string;
-  name: string;
+interface Exercise extends ExerciseData {
   sets: Set[];
 }
-const initialExercises: Exercise[] = [
-  {
-    id: "e1",
-    name: "3/4 Sit-Up",
-    sets: [
-      { id: 1, lbs: 0, reps: 10 },
-      { id: 2, lbs: 0, reps: 10 },
-    ],
-  },
-  {
-    id: "e2",
-    name: "Bench Press",
-    sets: [
-      { id: 1, lbs: 185, reps: 8 },
-      { id: 2, lbs: 195, reps: 6 },
-    ],
-  },
-  {
-    id: "e3",
-    name: "Lat Pulldown",
-    sets: [
-      { id: 1, lbs: 120, reps: 10 },
-      { id: 2, lbs: 130, reps: 8 },
-    ],
-  },
-];
 
 /* -------------------------------------------------------------------------- */
 /*                        DRAGGABLE BOTTOM-SHEET (generic)                    */
@@ -248,8 +220,25 @@ const ActiveWorkout = () => {
     resetRest();
   };
 
-  /* ───────── Exercises ───────── */
-  const [exercises, setExercises] = useState<Exercise[]>(initialExercises);
+  /* ───────── Exercises (loaded from JSON) ───────── */
+  const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [selectedExerciseIdx, setSelectedExerciseIdx] = useState<number | null>(
+    null
+  );
+
+  useEffect(() => {
+    /* Use the same data as ExerciseList, grab the first three for now */
+    const data = loadExercises()
+      .slice(0, 3)
+      .map<Exercise>((ex, idx) => ({
+        ...ex,
+        sets: [
+          { id: 1, reps: 10, lbs: 0 },
+          { id: 2, reps: 10, lbs: 0 },
+        ],
+      }));
+    setExercises(data);
+  }, []);
 
   const addSet = (exIdx: number) =>
     setExercises((prev) =>
@@ -286,9 +275,11 @@ const ActiveWorkout = () => {
     );
 
   /* ───────── Inline editing ───────── */
-  type EditingState =
-    | { exIdx: number; setIdx: number; field: "reps" | "lbs" }
-    | null;
+  type EditingState = {
+    exIdx: number;
+    setIdx: number;
+    field: "reps" | "lbs";
+  } | null;
   const [editing, setEditing] = useState<EditingState>(null);
   const [editingValue, setEditingValue] = useState("");
 
@@ -348,24 +339,34 @@ const ActiveWorkout = () => {
 
   /* ───────── Options bottom-sheet state ───────── */
   const [showOptionsSheet, setShowOptionsSheet] = useState(false);
-  const openOptionsSheet = () => setShowOptionsSheet(true);
+  const openOptionsSheet = (idx: number) => {
+    setSelectedExerciseIdx(idx);
+    setShowOptionsSheet(true);
+  };
   const closeOptionsSheet = () => setShowOptionsSheet(false);
+
+  /* ───────── Instructions modal ───────── */
+  const [instructionsModalVisible, setInstructionsModalVisible] = useState(false);
+  const [currentInstructions, setCurrentInstructions] = useState("");
+
+  const handleInstructions = () => {
+    if (selectedExerciseIdx !== null) {
+      setCurrentInstructions(exercises[selectedExerciseIdx].instructions);
+      setInstructionsModalVisible(true);
+    }
+  };
 
   /* ───────── Option handlers (placeholders) ───────── */
   const handleNotes = () => Alert.alert("Notes", "Open notes editor…");
   const handleReplace = () =>
     Alert.alert("Replace Workout", "Replace workout action…");
-  const handleInstructions = () =>
-    Alert.alert("Instructions", "Show workout instructions…");
-  const handleDelete = () =>
-    Alert.alert("Delete Workout", "Are you sure?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => router.replace("/home"),
-      },
-    ]);
+  const handleDelete = () => {
+  if (selectedExerciseIdx !== null) {
+    setExercises((prev) => prev.filter((_, idx) => idx !== selectedExerciseIdx));
+    setSelectedExerciseIdx(null);
+  }
+  closeOptionsSheet();
+};
 
   /* ───────── Animated scroll logic ───────── */
   const scrollX = useRef(new Animated.Value(0)).current;
@@ -460,7 +461,7 @@ const ActiveWorkout = () => {
                       {ex.name}
                     </Text>
                   </View>
-                  <TouchableOpacity onPress={openOptionsSheet}>
+                  <TouchableOpacity onPress={() => openOptionsSheet(exIdx)}>
                     <MaterialCommunityIcons
                       name="dots-vertical"
                       size={20}
@@ -487,7 +488,11 @@ const ActiveWorkout = () => {
                     REPS
                   </Text>
                   <Text
-                    style={{ width: COL_WIDTH, textAlign: "right", marginRight: 15 }}
+                    style={{
+                      width: COL_WIDTH,
+                      textAlign: "right",
+                      marginRight: 15,
+                    }}
                     className="text-white font-pmedium"
                   >
                     WEIGHT
@@ -584,7 +589,9 @@ const ActiveWorkout = () => {
                           />
                         ) : (
                           <TouchableOpacity
-                            onPress={() => startEdit(exIdx, setIdx, "lbs", s.lbs)}
+                            onPress={() =>
+                              startEdit(exIdx, setIdx, "lbs", s.lbs)
+                            }
                             style={{
                               backgroundColor: editableBg,
                               paddingVertical: 2,
@@ -846,6 +853,51 @@ const ActiveWorkout = () => {
         </View>
       </Modal>
 
+      {/* ───────── Instructions modal ───────── */}
+      <Modal
+        visible={instructionsModalVisible}
+        transparent
+        animationType="fade"
+      >
+        <View className="flex-1 justify-center items-center bg-black/50">
+          <View
+            style={{
+              width: SCREEN_WIDTH * 0.9,
+              height: SCREEN_WIDTH ,
+              backgroundColor: "#161622",
+              padding: 20,
+              borderRadius: 20,
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <Text className="text-white font-pbold text-xl">
+                Instructions
+              </Text>
+              <TouchableOpacity
+                onPress={() => setInstructionsModalVisible(false)}
+                style={{ padding: 4 }}
+              >
+                <MaterialCommunityIcons
+                  name="close"
+                  size={26}
+                  color="#FFFFFF"
+                />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView 
+              showsVerticalScrollIndicator={false}
+            >
+              
+
+              <Text className="text-gray-100 font-pmedium pr-2 text-base">
+                {currentInstructions}
+              </Text>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       {/* ───────── Options bottom-sheet ───────── */}
       <DraggableBottomSheet
         visible={showOptionsSheet}
@@ -853,19 +905,17 @@ const ActiveWorkout = () => {
         primaryColor={primaryColor}
       >
         {[
-           {
+          {
             label: "Instructions",
             icon: "information-outline",
             onPress: handleInstructions,
           },
-          
           { label: "Notes", icon: "note-text-outline", onPress: handleNotes },
           {
             label: "Replace Workout",
             icon: "swap-horizontal",
             onPress: handleReplace,
           },
-         
           {
             label: "Delete",
             icon: "delete-outline",
