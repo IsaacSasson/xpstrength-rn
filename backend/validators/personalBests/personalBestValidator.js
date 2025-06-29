@@ -1,4 +1,5 @@
 import WorkoutLog from '../../models/workoutLog.model.js'
+import exercises from '../../../shared/exercises.json' with { type: "json"};
 
 export async function personalBestValidator(value) {
     if (!Array.isArray(value)) {
@@ -18,7 +19,9 @@ export async function personalBestValidator(value) {
             if (typeof obj[key] !== type || !Number.isFinite(obj[key]))
                 throw new Error(`Item ${idx}: “${key}” must be a finite ${type}`);
         }
-
+        if (obj.exercise < 0 || obj.exercise > exercises.length - 1) {
+            throw new Error('Exercise logged not found in available exercises');
+        }
         const userId = this.userId;
         const id = obj.workoutId
         const log = await WorkoutLog.findOne({ where: { id: id, userId: userId } });

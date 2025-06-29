@@ -14,48 +14,12 @@ const PersonalBest = sequelize.define(
             },
             onDelete: 'CASCADE'
         },
-        chest: {
+        personalBests: {
             type: DataTypes.JSON, allowNull: false, defaultValue: [], validate: {
                 personalBestValidator
             },
-            comment: "Array of all personal best exercises for chest"
-        },
-        core: {
-            type: DataTypes.JSON, allowNull: false, defaultValue: [], validate: {
-                personalBestValidator
-            },
-            comment: "Array of all personal best exercises for core"
-        },
-        back: {
-            type: DataTypes.JSON, allowNull: false, defaultValue: [], validate: {
-                personalBestValidator
-            },
-            comment: "Array of all personal best exercises for back"
-        },
-        shoulders: {
-            type: DataTypes.JSON, allowNull: false, defaultValue: [], validate: {
-                personalBestValidator
-            },
-            comment: "Array of all personal best exercises for shoulders"
-        },
-        triceps: {
-            type: DataTypes.JSON, allowNull: false, defaultValue: [], validate: {
-                personalBestValidator
-            },
-            comment: "Array of all personal best exercises for triceps"
-        },
-        biceps: {
-            type: DataTypes.JSON, allowNull: false, defaultValue: [], validate: {
-                personalBestValidator
-            },
-            comment: "Array of all personal best exercises for biceps"
-        },
-        legs: {
-            type: DataTypes.JSON, allowNull: false, defaultValue: [], validate: {
-                personalBestValidator
-            },
-            comment: "Array of all personal best exercises for legs"
-        },
+            comment: "Array of all personal best exercises"
+        }
     },
     {
         tableName: "PersonalBests",
