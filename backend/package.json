@@ -35,6 +35,7 @@
     "express-slow-down": "^2.1.0",
     "morgan": "^1.10.0",
     "mysql2": "^3.14.1",
+    "pino": "^9.7.0",
     "request": "^2.88.2",
     "sequelize": "^6.37.7",
     "sharp": "^0.34.2"

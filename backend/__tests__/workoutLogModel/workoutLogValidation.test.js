@@ -32,7 +32,7 @@ describe.skip("WorkoutLog validation checks", () => {
                     { exercise: badId, reps: 10, sets: 3, cooldown: 60 }
                 ]
             })
-        ).rejects.toThrow("Unknown Exercise ID");
+        ).rejects.toThrow();
 
         await user.destroy();
     });

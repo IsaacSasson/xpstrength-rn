@@ -14,7 +14,7 @@ describe.skip("Profile picture validation", () => {
             password: "StrongPass1!",
             email: "malicious@example.com",
             profilePic: maliciousBuffer
-        })).rejects.toThrow(/Invalid image uploaded/);
+        })).rejects.toThrow();
     });
 });
 

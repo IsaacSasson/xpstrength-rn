@@ -12,7 +12,7 @@ export async function assertDatabaseConnected() {
 
         await sequelize.authenticate();
         console.log("DB connection established.")
-        if (process.env.NODE_ENV = "development") {
+        if (process.env.NODE_ENV === "development") {
             await sequelize.sync({ force: true });
         }
         else {

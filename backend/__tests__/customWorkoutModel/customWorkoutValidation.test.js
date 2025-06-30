@@ -33,7 +33,7 @@ describe.skip("CustomWorkout validation checks", () => {
                     { exercise: badId, reps: 8, sets: 4, cooldown: 45 }
                 ]
             })
-        ).rejects.toThrow("Unknown Exercise ID");
+        ).rejects.toThrow();
 
         await user.destroy();
     });

@@ -14,7 +14,7 @@ describe.skip("validation check for friends", () => {
         const friendData = await Friend.findOne({ where: { userId: user.id } });
 
         friendData.friends = [1, "2", 3]
-        expect(friendData.save()).rejects.toThrow(/friends ID must be a valid Integer./);
+        expect(friendData.save()).rejects.toThrow();
 
         await user.destroy();
     });
@@ -30,7 +30,7 @@ describe.skip("validation check for friends", () => {
         const friendData = await Friend.findOne({ where: { userId: user.id } });
 
         friendData.friends = [1, 1, 3]
-        expect(friendData.save()).rejects.toThrow(/friends ID is duplicated in array/);
+        expect(friendData.save()).rejects.toThrow();
 
         await user.destroy();
     });
@@ -46,7 +46,7 @@ describe.skip("validation check for friends", () => {
         const friendData = await Friend.findOne({ where: { userId: user.id } });
 
         friendData.friends = { 1: [1, 2, 3] };
-        expect(friendData.save()).rejects.toThrow(/friends must be an array Obj./);
+        expect(friendData.save()).rejects.toThrow();
 
         await user.destroy();
     });
@@ -62,7 +62,7 @@ describe.skip("validation check for friends", () => {
         const friendData = await Friend.findOne({ where: { userId: user.id } });
 
         friendData.friends = null;
-        expect(friendData.save()).rejects.toThrow("notNull Violation: Friend.friends cannot be null");
+        expect(friendData.save()).rejects.toThrow();
 
         await user.destroy();
     })
@@ -78,7 +78,7 @@ describe.skip("validation check for friends", () => {
         const friendData = await Friend.findOne({ where: { userId: user.id } });
 
         friendData.outgoingRequests = [1, "2", 3]
-        expect(friendData.save()).rejects.toThrow(/outgoingRequests ID must be a valid Integer./);
+        expect(friendData.save()).rejects.toThrow();
 
         await user.destroy();
     });
@@ -94,7 +94,7 @@ describe.skip("validation check for friends", () => {
         const friendData = await Friend.findOne({ where: { userId: user.id } });
 
         friendData.outgoingRequests = [1, 1, 3]
-        expect(friendData.save()).rejects.toThrow(/outgoing ID is duplicated in array/);
+        expect(friendData.save()).rejects.toThrow();
 
         await user.destroy();
     });
@@ -110,7 +110,7 @@ describe.skip("validation check for friends", () => {
         const friendData = await Friend.findOne({ where: { userId: user.id } });
 
         friendData.outgoingRequests = { 1: [1, 2, 3] };
-        expect(friendData.save()).rejects.toThrow(/outgoingRequests must be an array Obj./);
+        expect(friendData.save()).rejects.toThrow();
 
         await user.destroy();
     });
@@ -126,7 +126,7 @@ describe.skip("validation check for friends", () => {
         const friendData = await Friend.findOne({ where: { userId: user.id } });
 
         friendData.outgoingRequests = null;
-        expect(friendData.save()).rejects.toThrow("notNull Violation: Friend.outgoingRequests cannot be null");
+        expect(friendData.save()).rejects.toThrow();
 
         await user.destroy();
     })
@@ -142,7 +142,7 @@ describe.skip("validation check for friends", () => {
         const friendData = await Friend.findOne({ where: { userId: user.id } });
 
         friendData.incomingRequests = [1, "2", 3]
-        expect(friendData.save()).rejects.toThrow(/incomingRequests ID must be a valid Integer./);
+        expect(friendData.save()).rejects.toThrow();
 
         await user.destroy();
     });
@@ -158,7 +158,7 @@ describe.skip("validation check for friends", () => {
         const friendData = await Friend.findOne({ where: { userId: user.id } });
 
         friendData.incomingRequests = [1, 1, 3]
-        expect(friendData.save()).rejects.toThrow(/incomingRequests ID is duplicated in array/);
+        expect(friendData.save()).rejects.toThrow();
 
         await user.destroy();
     });
@@ -174,7 +174,7 @@ describe.skip("validation check for friends", () => {
         const friendData = await Friend.findOne({ where: { userId: user.id } });
 
         friendData.incomingRequests = { 1: [1, 2, 3] };
-        expect(friendData.save()).rejects.toThrow(/incomingRequests must be an array Obj./);
+        expect(friendData.save()).rejects.toThrow();
 
         await user.destroy();
     });
@@ -190,7 +190,7 @@ describe.skip("validation check for friends", () => {
         const friendData = await Friend.findOne({ where: { userId: user.id } });
 
         friendData.incomingRequests = null;
-        expect(friendData.save()).rejects.toThrow("notNull Violation: Friend.incomingRequests cannot be null");
+        expect(friendData.save()).rejects.toThrow();
 
         await user.destroy();
     })

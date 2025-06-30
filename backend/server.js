@@ -5,12 +5,9 @@ import cors from 'cors';
 import morgan from 'morgan';
 import v1Router from './routes/v1.routes.js';
 import rateLimiter from './middleware/rateLimit.middleware.js'
-import { assertDatabaseConnected } from './config/db.config.js';
-import logger from './middleware/log.middleware.js';
-
-// ---------------- Models
-import User from "./models/user.model.js"
-
+import { assertDatabaseConnected, sequelize } from './config/db.config.js';
+import models from './models/index.js';
+import { requestLogger } from './middleware/log.middleware.js';
 
 // ----------------- Config
 dotenv.config();
@@ -43,7 +40,7 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 //  Routes
-app.use('/api/v1', logger, v1Router);
+app.use('/api/v1', requestLogger, v1Router);
 
 //  Boot sequence
 async function start() {

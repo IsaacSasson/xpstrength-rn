@@ -1,26 +1,30 @@
-import dotenv from 'dotenv';
-dotenv.config();
+import pino from 'pino';
+const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
-export async function logger(req, _res, next) {
+export function requestLogger(req, res, next) {
+    const started = Date.now();
+    const { method, originalUrl: url } = req;
 
-    const ip = req.ip;
+    const clientIp = req.headers['x-forwarded-for']?.split(',')[0] || req.ip;
 
-    const host = req.get('host');
-    const url = `${req.protocol}://${host}${req.originalUrl}`;
+    const safeBody = () => {
+        if (!req.body || !Object.keys(req.body).length) return undefined;
+        const clone = { ...req.body };
+        ['password', 'token'].forEach(k => delete clone[k]);
+        return clone;
+    };
 
-    let bodyPreview = '';
-    if (req.body && Object.keys(req.body).length) {
-        bodyPreview = JSON.stringify(req.body).slice(0, 50);
-        if (JSON.stringify(req.body).length > 50) bodyPreview += '…';
-    }
+    res.on('finish', () => {
+        logger.info({
+            ts: Date.now(),
+            method,
+            url,
+            status: res.statusCode,
+            ms: Date.now() - started,
+            ip: clientIp,
+            body: safeBody(),
+        }, 'request-complete');
+    });
 
-    if (process.env.NODE_ENV === "production") {
-        //TODO write logs into database with sequelized object instead of printing Prod based on Log
-        console.log(`${ip} → ${url} ${bodyPreview ? '| body: ' + bodyPreview : ''}`);
-    } else if (process.env.NODE_ENV === "development") {
-        console.log(`${bodyPreview ? '| body: ' + bodyPreview : ''}`);
-    }
-    next()
+    next();
 }
-
-export default logger;

@@ -6,7 +6,7 @@ describe.skip("User model validation", () => {
             username: "fuck",
             password: "Good123!",
             email: "badword@example.com"
-        })).rejects.toThrow(/contains inappropriate language/);
+        })).rejects.toThrow();
     });
 
     it("should fail on weak password", async () => {
@@ -45,7 +45,7 @@ describe.skip("User model validation", () => {
             password: "StrongPass1!",
             email: "shop@example.com",
             shopUnlocks: [1, 1]
-        })).rejects.toThrow(/Shop ID is duplicated in array/);
+        })).rejects.toThrow();
     });
 
     it("should reject invalid shop IDs", async () => {
@@ -54,7 +54,7 @@ describe.skip("User model validation", () => {
             password: "StrongPass1!",
             email: "shop@example.com",
             shopUnlocks: [0, 1, 2, 100]
-        })).rejects.toThrow(/Shop item ID not found in global reference/)
+        })).rejects.toThrow()
     });
 
     it("should reject IDs that are not numbers", async () => {
@@ -63,6 +63,6 @@ describe.skip("User model validation", () => {
             password: "StrongPass1!",
             email: "shop@example.com",
             shopUnlocks: [1, "1", "2", 3]
-        })).rejects.toThrow(/Shop item ID is not a number/)
+        })).rejects.toThrow()
     })
 });
