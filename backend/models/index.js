@@ -8,6 +8,7 @@ import PersonalBest from './personalBests.model.js';
 import ExerciseLog from './exerciseLog.model.js';
 import WorkoutPlan from './workoutPlan.model.js';
 import User from './user.model.js';
+import Stats from './stats.model.js';
 
 export {
     Friend,
@@ -19,6 +20,7 @@ export {
     ExerciseLog,
     WorkoutPlan,
     User,
+    Stats,
 };
 
 export default {
@@ -31,4 +33,5 @@ export default {
     ExerciseLog,
     WorkoutPlan,
     User,
+    Stats
 };

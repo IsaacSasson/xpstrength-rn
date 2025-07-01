@@ -13,6 +13,7 @@ import WorkoutLog from "./workoutLog.model.js";
 import PersonalBest from "./personalBests.model.js";
 import ExerciseLog from "./exerciseLog.model.js";
 import WorkoutPlan from "./workoutPlan.model.js";
+import Stats from "./stats.model.js";
 
 import { checkShopProductFormat } from "../validators/user/checkShopProductFormat.js";
 import { isTextClean } from "../validators/general/isTextClean.js";
@@ -131,13 +132,13 @@ const User = sequelize.define(
         timestamps: true,
         underscored: true,
     }
-)
+);
 
 User.beforeSave("Hash Password", async (user, options) => {
     if (user.changed('password')) {
         user.password = await bcrypt.hash(user.password, parseInt(process.env.SALT_ROUNDS, 10));
     }
-})
+});
 
 User.beforeSave("Validate Images", async (user, options) => {
     if (user.changed('profilePic') && user.profilePic) {
@@ -159,7 +160,7 @@ User.beforeSave("Validate Images", async (user, options) => {
             throw new Error('Invalid image uploaded');
         }
     }
-})
+});
 
 User.afterCreate("Create Associating Friends Row", async (user, options) => {
     await Friend.create({
@@ -168,32 +169,38 @@ User.afterCreate("Create Associating Friends Row", async (user, options) => {
         outgoingRequests: [],
         friends: [],
     }, { transaction: options.transaction });
-})
+});
 
 User.afterCreate("Create Associating Milestones Row", async (user, options) => {
     await Milestone.create({
         userId: user.id,
         milestones: []
     }, { transaction: options.transaction });
-})
+});
 
 User.afterCreate("Create Associating Personal Bests Row", async (user, options) => {
     await PersonalBest.create({
         userId: user.id
     }, { transaction: options.transaction });
-})
+});
 
 User.afterCreate("Create Associating ExerciseLog Row", async (user, options) => {
     await ExerciseLog.create({
         userId: user.id
     }, { transaction: options.transaction });
-})
+});
 
 User.afterCreate("Create Associating Plan Row", async (user, options) => {
     await WorkoutPlan.create({
         userId: user.id
     }, { transaction: options.transaction });
-})
+});
+
+User.afterCreate("Create Associating Stats Row", async (user, options) => {
+    await Stats.create({
+        userId: user.id
+    }, { transaction: options.transaction });
+});
 
 // User-Friend Relationships
 User.hasOne(Friend, { foreignKey: 'userId' });
@@ -226,5 +233,9 @@ ExerciseLog.belongsTo(User, { foreignKey: "userId" });
 //User-plannedWorkout RelationShips
 User.hasOne(WorkoutPlan, { foreignKey: "userId" });
 WorkoutPlan.belongsTo(User, { foreignKey: "userId" });
+
+//User-Stats Relationships
+User.hasOne(Stats, { foreignKey: "userId" });
+Stats.belongsTo(User, { foreignKey: "userId" });
 
 export default User;
