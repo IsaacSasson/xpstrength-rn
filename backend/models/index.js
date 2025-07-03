@@ -11,6 +11,7 @@ import User from './user.model.js';
 import Stats from './stats.model.js';
 import History from './history.model.js';
 import Event from './eventQueue.model.js';
+import Auth from './auth.model.js';
 
 export {
     Friend,
@@ -24,7 +25,9 @@ export {
     User,
     Stats,
     History,
-    Event
+    Event,
+    Auth
+
 };
 
 export default {
@@ -39,5 +42,6 @@ export default {
     User,
     Stats,
     History,
-    Event
+    Event,
+    Auth
 };

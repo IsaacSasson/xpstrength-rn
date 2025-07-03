@@ -7,3 +7,7 @@
 | **Launch prod locally**            | `npm start`                                                 |
 | **Launch prod with pm2 cluster**   | `npm run start` (after editing script) Helps Balance Traffic|
  
+-Setup Friends BST Serializers
+-Setup Utils for models (done in process while doing routes)
+-Ensure total in stats does not exceed it proper amount
+-Database Writeup for understanding what and why certain things are + their relationships

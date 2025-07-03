@@ -16,6 +16,7 @@ import WorkoutPlan from "./workoutPlan.model.js";
 import Stats from "./stats.model.js";
 import History from "./history.model.js";
 import Event from "./eventQueue.model.js";
+import Auth from "./auth.model.js";
 
 import { checkShopProductFormat } from "../validators/user/checkShopProductFormat.js";
 import { isTextClean } from "../validators/general/isTextClean.js";
@@ -207,7 +208,13 @@ User.afterCreate("Create Associating Stats Row", async (user, options) => {
     }, { transaction: options.transaction });
 });
 
-//TODO when a user gets deleted make sure to unfriend all friends, cancel all outgoing requests and deny all incoming requests
+User.afterCreate("Create Associating Auth Row", async (user, options) => {
+    await Stats.create({
+        userId: user.id
+    }, { transaction: options.transaction });
+});
+
+//TODO when a user gets deleted make sure to unfriend all friends, cancel all outgoing requests and deny all incoming requests (When Event Queue is formed and webhooks start this)
 
 // User-Friend Relationships
 User.hasOne(Friend, { foreignKey: 'userId' });
@@ -253,5 +260,9 @@ History.belongsTo(User, { foreignKey: 'userId' });
 User.hasMany(Event, { foreignKey: 'userId' });
 Event.belongsTo(User, { foreignKey: 'userId' });
 Event.belongsTo(User, { foreignKey: 'actorId' }); //Only one User has many Events tied to their name, but an Event can partially belong to the actor so if the actor is gone, the event is also gone.
+
+//User-Auth Relationships
+User.hasOne(Auth, { foreignKey: 'userId' });
+Auth.belongsTo(User, { foreignKey: 'userId' });
 
 export default User;

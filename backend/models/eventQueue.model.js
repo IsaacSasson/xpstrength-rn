@@ -1,6 +1,6 @@
 import { DataTypes } from 'sequelize';
 import { sequelize } from '../config/db.config.js';
-import eventsTypes from '../../shared/events.json';
+import eventsTypes from '../../shared/events.json' with {type: 'json'};
 
 const Event = sequelize.define(
     'Event',
