@@ -24,7 +24,10 @@ const PersonalBest = sequelize.define(
     {
         tableName: "PersonalBests",
         underscored: true,
-        timestamps: true
+        timestamps: true,
+        indexes: [
+            { fields: ['user_id'] },
+        ],
     }
 );
 

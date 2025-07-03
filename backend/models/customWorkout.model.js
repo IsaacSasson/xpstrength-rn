@@ -32,7 +32,10 @@ const CustomWorkout = sequelize.define(
     {
         tableName: "customWorkouts",
         timestamps: true,
-        underscored: true
+        underscored: true,
+        indexes: [
+            { fields: ['user_id'] },
+        ],
     }
 )
 

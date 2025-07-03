@@ -40,9 +40,12 @@ const Friend = sequelize.define(
         tableName: "Friends",
         timestamps: true,
         underscored: true,
+        indexes: [
+            { fields: ['user_id'] },
+        ],
     }
-
-
 )
+
+//TODO have friends tables be initialized as a BST in code when loaded in, in serializable format
 
 export default Friend;

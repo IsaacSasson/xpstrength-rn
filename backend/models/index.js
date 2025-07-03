@@ -9,6 +9,8 @@ import ExerciseLog from './exerciseLog.model.js';
 import WorkoutPlan from './workoutPlan.model.js';
 import User from './user.model.js';
 import Stats from './stats.model.js';
+import History from './history.model.js';
+import Event from './eventQueue.model.js';
 
 export {
     Friend,
@@ -21,6 +23,8 @@ export {
     WorkoutPlan,
     User,
     Stats,
+    History,
+    Event
 };
 
 export default {
@@ -33,5 +37,7 @@ export default {
     ExerciseLog,
     WorkoutPlan,
     User,
-    Stats
+    Stats,
+    History,
+    Event
 };

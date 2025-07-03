@@ -57,8 +57,13 @@ const Stats = sequelize.define(
     {
         tableName: "Stats",
         underscored: true,
-        timestamps: true
+        timestamps: true,
+        indexes: [
+            { fields: ['user_id'] },
+        ],
 
     })
+
+//TODO have the stats total always be intact with the minor categorys
 
 export default Stats;

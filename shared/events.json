@@ -1,0 +1,8 @@
+[
+    "friend-request-cancelled",
+    "friend-request-accepted",
+    "friend-request-declined",
+    "friend-status-updated",
+    "friend-profile-updated",
+    "friend-removed"
+]

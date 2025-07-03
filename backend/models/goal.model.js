@@ -55,6 +55,10 @@ const Goal = sequelize.define(
         timestamps: true,
         underscored: true,
 
+        indexes: [
+            { fields: ['user_id'] },
+        ],
+
         validate: {
             currentNotExceedTotal() {
                 if (this.current > this.total) {

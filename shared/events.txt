@@ -1,0 +1,6 @@
+"friend-request-cancelled" -> An incoming request to the user was cancelled by the actor
+"friend-request-accepted" -> An outgoing request from the user was accepted by the actor
+"friend-request-declined" -> An outgoing request from the user was declined by the actor
+"friend-status-updated" -> An actor who is friends with the user had their status updated
+"friend-profile-updated" -> An actor who is friends with the user updated their user profile
+"friend-removed" -> An actor who is friends with the user decided to remove them as their friend

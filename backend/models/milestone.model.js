@@ -26,7 +26,10 @@ const Milestone = sequelize.define(
     {
         tableName: "Milestones",
         timestamps: true,
-        underscored: true
+        underscored: true,
+        indexes: [
+            { fields: ['user_id'] },
+        ],
     }
 )
 

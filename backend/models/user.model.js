@@ -14,6 +14,8 @@ import PersonalBest from "./personalBests.model.js";
 import ExerciseLog from "./exerciseLog.model.js";
 import WorkoutPlan from "./workoutPlan.model.js";
 import Stats from "./stats.model.js";
+import History from "./history.model.js";
+import Event from "./eventQueue.model.js";
 
 import { checkShopProductFormat } from "../validators/user/checkShopProductFormat.js";
 import { isTextClean } from "../validators/general/isTextClean.js";
@@ -131,6 +133,9 @@ const User = sequelize.define(
         tableName: 'Users',
         timestamps: true,
         underscored: true,
+        indexes: [
+            { fields: ['id'] },
+        ],
     }
 );
 
@@ -202,6 +207,8 @@ User.afterCreate("Create Associating Stats Row", async (user, options) => {
     }, { transaction: options.transaction });
 });
 
+//TODO when a user gets deleted make sure to unfriend all friends, cancel all outgoing requests and deny all incoming requests
+
 // User-Friend Relationships
 User.hasOne(Friend, { foreignKey: 'userId' });
 Friend.belongsTo(User, { foreignKey: 'userId' });
@@ -237,5 +244,14 @@ WorkoutPlan.belongsTo(User, { foreignKey: "userId" });
 //User-Stats Relationships
 User.hasOne(Stats, { foreignKey: "userId" });
 Stats.belongsTo(User, { foreignKey: "userId" });
+
+//User-History Relationships
+User.hasMany(History, { foreignKey: 'userId' });
+History.belongsTo(User, { foreignKey: 'userId' });
+
+//User-Event Relationships
+User.hasMany(Event, { foreignKey: 'userId' });
+Event.belongsTo(User, { foreignKey: 'userId' });
+Event.belongsTo(User, { foreignKey: 'actorId' }); //Only one User has many Events tied to their name, but an Event can partially belong to the actor so if the actor is gone, the event is also gone.
 
 export default User;
