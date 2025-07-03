@@ -11,3 +11,14 @@
 -Setup Utils for models (done in process while doing routes)
 -Ensure total in stats does not exceed it proper amount
 -Database Writeup for understanding what and why certain things are + their relationships
+
+-Routes are for all routing purposes
+-Middleware is common functions that can be conjoined with routes
+-Utils are Utiilitys for functions Or classes we use multiple times
+-Services run the logic code for a Controller
+-Controller handles the HTTP traffic and cleanup for a Services
+-Models are the DB defined models we have
+-Config has configuration files
+-Tests are for unit testing
+-Migrations are for DB Migrations
+-Validators are for DB validations
