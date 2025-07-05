@@ -15,7 +15,7 @@ const History = sequelize.define(
             },
             onDelete: 'CASCADE'
         },
-        name: {
+        action: {
             type: DataTypes.STRING, allowNull: false, unique: false, validate: {
                 isTextClean
             },

@@ -209,7 +209,7 @@ User.afterCreate("Create Associating Stats Row", async (user, options) => {
 });
 
 User.afterCreate("Create Associating Auth Row", async (user, options) => {
-    await Stats.create({
+    await Auth.create({
         userId: user.id
     }, { transaction: options.transaction });
 });

@@ -42,7 +42,7 @@ describe.skip('Stats – validator & auto-create behaviour', () => {
         await user.destroy();
     });
 
-    describe('update() re-validates the JSON payloads', () => {
+    describe.skip('update() re-validates the JSON payloads', () => {
         let user, stats;
         beforeEach(async () => {
             user = await makeUser();
