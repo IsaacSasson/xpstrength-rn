@@ -1,0 +1,29 @@
+import AppError from "./AppError"
+import { History } from "../models";
+
+export default class AddHistory {
+    constructor(type, message, userId, actorId = null) {
+        this.type = type
+        this.userId = userId
+        this.actorId = actorId
+
+        switch (this.type) {
+            //Add More Setups in the future
+            case "AUTH":
+                this.message = message + " at " + Date.now()
+                break;
+            default:
+                throw new AppError("Unknown ActionType", 500, "INTERNAL-ERROR")
+        }
+    }
+
+    async log(t) {
+        const log = await History.create(
+            {
+                userId: this.userId,
+                action: this.message,
+            },
+            { transaction: t }
+        );
+    }
+}

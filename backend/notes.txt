@@ -22,3 +22,7 @@
 -Tests are for unit testing
 -Migrations are for DB Migrations
 -Validators are for DB validations
+
+npm test is updated |
+ until I fix all the tests (most likely never) use npm test -- file_location
+ this way we dont spawn a million docker instances
