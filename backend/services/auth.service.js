@@ -6,7 +6,7 @@ import AppHistory from '../utils/AddHistory.js'
 
 export async function registerUser(input_information) {
     try {
-        if (input_information === null | input_information === "") {
+        if (input_information === null || input_information === "") {
             throw new AppError("Failed to register with null user data", 400, "BAD_DATA");
         }
         const result = await sequelize.transaction(async t => {
@@ -24,12 +24,14 @@ export async function registerUser(input_information) {
                     totalTimeWorkedOut: 0,
                     totalCoins: 0,
                     shopUnlocks: []
-                }
+                },
+                { transaction: t }
             );
 
             const action = new AppHistory(
                 "AUTH",
                 `${user.username} registered for an account with id ${user.id}`,
+                user.id,
                 null
             );
 
