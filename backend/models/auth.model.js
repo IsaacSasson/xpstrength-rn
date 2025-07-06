@@ -28,6 +28,28 @@ const Auth = sequelize.define(
     }
 );
 
-// Add Unit Tests for Auth
+Auth.authorize = async (userId, t = null) => {
+    return Auth.update({
+        authorized: true
+    }, {
+        where: {
+            userId: userId
+        },
+        transaction: t,
+    });
+}
+
+Auth.unauthorize = async (userId, t = null) => {
+    return Auth.update({
+        authorized: false
+    }, {
+        where: {
+            userId: userId
+        },
+        transaction: t,
+    });
+}
+
+Auth.unauthorize
 
 export default Auth

@@ -1,4 +1,4 @@
-import { DataTypes } from 'sequelize';
+import { DataTypes, Op } from 'sequelize';
 import { sequelize } from '../config/db.config.js';
 import eventsTypes from '../../shared/events.json' with {type: 'json'};
 
@@ -35,7 +35,7 @@ const Event = sequelize.define(
             type: DataTypes.JSON, allowNull: true,
         },
         seenAt: {
-            type: DataTypes.DATE, allowNull: true,
+            type: DataTypes.DATE, allowNull: true, defaultValue: null,
         },
     },
     {
@@ -54,7 +54,7 @@ Event.markSeen = async (userId, upToId, t = null) => {
         {
             where: {
                 userId,
-                id: { [sequelize.Op.lte]: upToId },
+                id: { [Op.lte]: upToId },
                 seenAt: null,
             },
             transaction: t,
