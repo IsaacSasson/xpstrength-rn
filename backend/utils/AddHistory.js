@@ -1,5 +1,5 @@
-import AppError from "./AppError"
-import { History } from "../models";
+import AppError from "./AppError.js"
+import { History } from "../models/index.js";
 
 export default class AddHistory {
     constructor(type, message, userId, actorId = null) {
