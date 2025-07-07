@@ -9,6 +9,8 @@ export default function error(err, req, res, next) {
     }
 
     if (!err.isApp) {
+        console.error(err);
+
         err = new AppError(
             err.message || "Internal server error",
             err.status || 500,
