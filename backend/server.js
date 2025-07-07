@@ -23,7 +23,7 @@ app.use(
         origin: [
             'https://your-spa-domain.com',
             `http://localhost:${process.env.PORT}`,
-            'http://localhost:3000'
+            'http://localhost:8081'
         ],
         credentials: true,
         optionsSuccessStatus: 200,
