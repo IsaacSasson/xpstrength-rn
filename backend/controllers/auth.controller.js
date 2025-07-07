@@ -32,7 +32,7 @@ export async function postLogin(req, res, next) {
     }
 };
 
-export async function postRefreshToken(req, res, next) {
+export async function getRefreshToken(req, res, next) {
     try {
         const token = req.cookies.refreshToken;
         if (!token) {

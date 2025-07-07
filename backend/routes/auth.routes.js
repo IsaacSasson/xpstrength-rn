@@ -7,7 +7,7 @@ authRouter.post("/register", postRegister);
 
 authRouter.post("/login", postLogin);
 
-authRouter.post("/refresh-token", postRefreshToken);
+authRouter.get("/refresh-token", postRefreshToken);
 
 authRouter.post("/forgotPassword", postForgotPassword);
 
