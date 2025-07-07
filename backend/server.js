@@ -8,12 +8,14 @@ import rateLimiter from './middleware/rateLimit.middleware.js'
 import { assertDatabaseConnected, sequelize } from './config/db.config.js';
 import models from './models/index.js';
 import { requestLogger } from './middleware/log.middleware.js';
+import cookieParser from 'cookie-parser'
 
 // ----------------- Config
 dotenv.config();
 const app = express();
 
 //  Deserialziers
+app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

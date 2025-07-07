@@ -1,9 +1,10 @@
 import authService from '../services/auth.service.js'
+import AppError from '../utils/AppError.js';
 
 //allows a user to register an account
 export async function postRegister(req, res, next) {
     try {
-        const data = req.body.data;
+        const data = req.body?.data;
 
         const user = await authService.registerUser(data);
         return res.status(201).json(user);
@@ -14,7 +15,7 @@ export async function postRegister(req, res, next) {
 
 export async function postLogin(req, res, next) {
     try {
-        const { username, password } = req.body.data;
+        const { username, password } = req.body?.data;
 
         const { accessToken, refreshToken } = await authService.loginUser({ username, password });
 
@@ -34,7 +35,7 @@ export async function postLogin(req, res, next) {
 
 export async function getRefreshToken(req, res, next) {
     try {
-        const token = req.cookies.refreshToken;
+        const token = req?.cookies?.refreshToken;
         if (!token) {
             throw new AppError('No refresh token provided', 401, 'NO_TOKEN');
         }
@@ -68,7 +69,7 @@ export async function getRefreshToken(req, res, next) {
 
 export async function postForgotPassword(req, res, next) {
     try {
-        const email = req.body.email;
+        const email = req.body?.email;
 
         const response = await authService.forgotPassword(email);
         res.status(200).json(response);
@@ -89,4 +90,4 @@ export async function postResetPassword(req, res, next) {
 
 }
 
-export default { postRegister, postForgotPassword, postResetPassword, postRefreshToken, postForgotPassword };
+export default { postRegister, postForgotPassword, postResetPassword, getRefreshToken, postForgotPassword };

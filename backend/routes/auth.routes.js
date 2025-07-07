@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { postRegister, postForgotPassword, postResetPassword, postLogin, postRefreshToken } from "../controllers/auth.controller.js";
+import { postRegister, postForgotPassword, postResetPassword, postLogin, getRefreshToken } from "../controllers/auth.controller.js";
 
 const authRouter = Router()
 
@@ -7,7 +7,7 @@ authRouter.post("/register", postRegister);
 
 authRouter.post("/login", postLogin);
 
-authRouter.get("/refresh-token", postRefreshToken);
+authRouter.get("/refresh-token", getRefreshToken);
 
 authRouter.post("/forgotPassword", postForgotPassword);
 
