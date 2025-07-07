@@ -6,10 +6,9 @@ import FormField from "@/components/FormField";
 import CustomButton from "@/components/CustomButton";
 import { Link, router } from "expo-router";
 
+import { API_BASE } from "../config";
 
 const SignUp = () => {
-
-
   const [isSubmitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
     username: "",
@@ -18,11 +17,35 @@ const SignUp = () => {
   });
 
   const submit = async () => {
-
+    // simple validation
     if(!form.username || !form.email || !form.password) {
       Alert.alert('Error', 'Please fill in all the fields')
     }
 
+    try {
+      setSubmitting(true);
+      const response = await fetch(`${API_BASE}/api/v1/auth/register`, {
+        method: "POST",
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          data: {
+            username: form.username.trim(),
+            email: form.email.trim(),
+            password: form.password,
+          },
+        }),
+      });
+
+      const json = await response.json();
+      if (response.ok) {
+        router.push('/sign-in');
+        return;
+      }
+    } catch (error) {
+      console.error('Sign-up error:', error);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
