@@ -8,7 +8,7 @@ dotenv.config();
 const RESET_SECRET = process.env.PASS_RESET_SECRET;
 const RESET_EXPIRES = process.env.PASS_RESET_EXPIRES || "1m";
 
-const REFRESH_SECRET = process.env.RESET_SECRET;
+const REFRESH_SECRET = process.env.REFRESH_SECRET;
 const REFRESH_EXPIRES = process.env.REFRESH_EXPIRES || "1m";
 
 const AUTH_SECRET = process.env.AUTH_SECRET;
@@ -154,3 +154,5 @@ export async function verifyWebSocketToken(token) {
 
     return user;
 }
+
+export default { generatePasswordResetToken, verifyResetToken, generateRefreshToken, verifyRefreshToken, generateAuthToken, verifyAuthToken, generateWebSocketToken, verifyWebSocketToken };

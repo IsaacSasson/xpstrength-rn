@@ -1,13 +1,16 @@
 import { Router } from "express";
-import error from "../middleware/error.middleware.js";
-import { postRegister, postForgotPassword, postResetPassword } from "../controllers/auth.controller.js";
+import { postRegister, postForgotPassword, postResetPassword, postLogin, postRefreshToken } from "../controllers/auth.controller.js";
 
 const authRouter = Router()
 
-authRouter.post("/register", postRegister, error);
+authRouter.post("/register", postRegister);
 
-authRouter.post("/forgotPassword", postForgotPassword, error);
+authRouter.post("/login", postLogin);
 
-authRouter.post("/resetPassword", postResetPassword, error);
+authRouter.post("/refresh-token", postRefreshToken);
+
+authRouter.post("/forgotPassword", postForgotPassword);
+
+authRouter.post("/resetPassword", postResetPassword);
 
 export default authRouter

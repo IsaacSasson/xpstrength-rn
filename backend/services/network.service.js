@@ -1,5 +1,5 @@
-import mapSequelizeError from "../utils/mapSequelizeError";
-import AppError from "../utils/AppError";
+import mapSequelizeError from "../utils/mapSequelizeError.js";
+import AppError from "../utils/AppError.js";
 import { User } from '../models/index.js';
 import { sequelize } from '../config/db.config.js';
 import AppHistory from '../utils/AddHistory.js'
@@ -10,7 +10,7 @@ export async function logoutUser(input_information) {
 }
 
 //Compares and checks users hash of user data from DB to their DB and sends them events to update the frontend
-export async function eventChanges(input_information) {
+export async function syncEvents(input_information) {
     return
 }
 
@@ -20,4 +20,4 @@ export async function connectWS(params) {
     return
 }
 
-export default { logoutUser, userEventChanges, connectUserWS }
+export default { logoutUser, syncEvents, connectWS }

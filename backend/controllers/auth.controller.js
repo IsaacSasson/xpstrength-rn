@@ -6,7 +6,7 @@ export async function postRegister(req, res, next) {
         const data = req.body.data;
 
         const user = await authService.registerUser(data);
-        res.status(201).json(user);
+        return res.status(201).json(user);
     } catch (err) {
         next(err);
     }
@@ -14,16 +14,55 @@ export async function postRegister(req, res, next) {
 
 export async function postLogin(req, res, next) {
     try {
-        const authData = req.body.data;
+        const { username, password } = req.body.data;
 
-        const refreshToken = await authService.loginUser(authData);
+        const { accessToken, refreshToken } = await authService.loginUser({ username, password });
+
+        res.cookie('refreshToken', refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            path: '/api/v1/auth/refresh-token',
+            maxAge: 60 * 24 * 60 * 60 * 1000
+        });
+
+        return res.status(200).json({ data: { accessToken } })
     } catch (err) {
         next(err);
     }
 };
 
 export async function postRefreshToken(req, res, next) {
-    return
+    try {
+        const token = req.cookies.refreshToken;
+        if (!token) {
+            throw new AppError('No refresh token provided', 401, 'NO_TOKEN');
+        }
+
+        const { accessToken, refreshToken } = await authService.refreshToken(token);
+
+        if (refreshToken) {
+            res.cookie('refreshToken', refreshToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                path: '/api/v1/auth/refresh-token',
+                maxAge: 60 * 24 * 60 * 60 * 1000
+            });
+        } else {
+            res.clearCookie('refreshToken', {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                path: '/api/v1/auth/refresh-token'
+            });
+            throw new AppError('user forced to disconnect', 401, 'UNAUTHENTICATED');
+        }
+
+        return res.status(200).json({ data: { accessToken } })
+    } catch (err) {
+        next(err);
+    }
 }
 
 
@@ -50,4 +89,4 @@ export async function postResetPassword(req, res, next) {
 
 }
 
-export default { postRegister, postForgotPassword, postResetPassword };
+export default { postRegister, postForgotPassword, postResetPassword, postRefreshToken, postForgotPassword };
