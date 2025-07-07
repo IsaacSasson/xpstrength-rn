@@ -1,5 +1,4 @@
-// Path: /app/(tabs)/home.tsx
-import React from "react";
+import React, { useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -11,23 +10,72 @@ import { router } from "expo-router";
 import TopBar from "@/components/TopBar";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import ActivityView from "@/components/home/ActivityView";
-import TodaysWorkout from "@/components/home/TodaysWorkout";
+import TodaysWorkout, { WorkoutType } from "@/components/home/TodaysWorkout";
 import QuickActions from "@/components/home/QuickActions";
-
+import Calender from "@/components/home/Calender";
 import { useThemeContext } from "@/context/ThemeContext";
 
+/* ------------------------------ Helpers -------------------------------- */
+const dateKey = (d: Date) =>
+  `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+
+const startOfToday = (() => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+})();
+
+/* ----------------------------- Component ------------------------------- */
 const Home = () => {
   const { primaryColor, tertiaryColor } = useThemeContext();
 
+  /* -------- Public navigation shortcuts -------- */
   const goToCreateWorkout = () => router.push("/create-workout");
   const goToPlannedWorkouts = () => router.push("/weekly-plan");
   const goToFriends = () => router.push("/friends");
   const goToStats = () => router.push("/stats");
 
-  const today = new Date();
-  const options = { weekday: "long", month: "long", day: "numeric" } as const;
-  const formattedDate = today.toLocaleDateString("en-US", options);
+  /* -------- Calendar / selection state -------- */
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
+  /* -------- Demo data sets -------- */
+  const restDays = useMemo<Date[]>(() => [], []);          // add real rest days
+  const restSet = useMemo(() => new Set(restDays.map(dateKey)), [restDays]);
+
+  const workoutsByDate: Record<string, WorkoutType> = useMemo(() => {
+    const today = new Date();
+    return {
+      [dateKey(today)]: {
+        exists: true,
+        name: "Push Day",
+        calories: 550,
+        exercises: [
+          { name: "Bench Press", sets: 4, reps: "8-10" },
+          { name: "Incline Dumbbell Press", sets: 3, reps: "10-12" },
+          { name: "Shoulder Press", sets: 3, reps: "10-12" },
+          { name: "Tricep Pushdown", sets: 3, reps: "12-15" },
+        ],
+      },
+      // add more scheduled workouts here...
+    };
+  }, []);
+
+  /* -------- Determine what to show -------- */
+  const key = dateKey(selectedDate);
+  const workoutForDate = workoutsByDate[key] ?? null;
+
+  const isPastEmpty =
+    selectedDate < startOfToday &&
+    !restSet.has(key) &&
+    workoutForDate === null;
+
+  const formattedDate = selectedDate.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  } as const);
+
+  /* ----------------------------- Render ------------------------------- */
   return (
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
       <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
@@ -35,7 +83,7 @@ const Home = () => {
       <TopBar subtext="Welcome Back" title="Wiiwho" titleTop={false} />
 
       <ScrollView showsVerticalScrollIndicator={false} className="px-4 pb-6">
-        {/* Today's Date */}
+        {/* Header date label */}
         <View className="flex-row items-center justify-between mb-4">
           <Text className="text-white font-pmedium text-lg">
             {formattedDate}
@@ -51,8 +99,20 @@ const Home = () => {
           </TouchableOpacity>
         </View>
 
-        <TodaysWorkout />
+        {/* Calendar */}
+        <Calender
+          selectedDate={selectedDate}
+          onSelectDate={setSelectedDate}
+          restDays={restDays}
+        />
 
+        {/* Workout card (or “No Workout” card) */}
+        <TodaysWorkout
+          workout={workoutForDate}
+          allowCreate={!isPastEmpty}
+        />
+
+        {/* Quick Actions */}
         <Text className="text-white text-xl font-psemibold mb-4">
           Quick Actions
         </Text>
@@ -87,6 +147,7 @@ const Home = () => {
             backgroundColor={tertiaryColor}
           />
         </View>
+
         <ActivityView />
       </ScrollView>
     </View>
