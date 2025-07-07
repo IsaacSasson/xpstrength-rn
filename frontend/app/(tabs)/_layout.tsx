@@ -1,7 +1,7 @@
 // Path: /app/(tabs)/_layout.tsx
 import { View } from 'react-native';
 import { Tabs } from 'expo-router';
-import React from 'react';
+import React, { useRef } from 'react';
 import { usePathname } from 'expo-router';
 import TabTrailIndicator from '@/components/TabTrailIndicator';
 import TabIcon from '@/components/TabIcon';
@@ -15,17 +15,29 @@ const TabsLayout = () => {
 
   // Get the current pathname
   const pathname = usePathname();
+  const lastTabIndex = useRef(0); // remember previous tab index
+
+  const getTabIndex = (firstSeg: string) => {
+    switch (firstSeg) {
+      case 'profile':  return 0;
+      case 'friends':  return 1;
+      case 'home':     return 2;
+      case 'stats':    return 3;
+      case 'shop':     return 4;
+      default:         return lastTabIndex.current; // stay where we were
+    }
+  };
+
+  const firstSegment = pathname.split('/')[1] || '';
+  const activeTabIndex = getTabIndex(firstSegment);
 
   // Determine the active tab index based on the URL
-  let activeTabIndex = 0;
-  if (pathname.includes('/friends')) {
-    activeTabIndex = 1;
-  } else if (pathname.includes('/home')) {
-    activeTabIndex = 2;
-  } else if (pathname.includes('/stats')) {
-    activeTabIndex = 3;
-  } else if (pathname.includes('/shop')) {
-    activeTabIndex = 4;
+  if (firstSegment === 'profile'   ||
+      firstSegment === 'friends'   ||
+      firstSegment === 'home'      ||
+      firstSegment === 'stats'     ||
+      firstSegment === 'shop') {
+    lastTabIndex.current = activeTabIndex;
   }
 
   return (
@@ -123,16 +135,18 @@ const TabsLayout = () => {
       </Tabs>
 
       {/* Heart rate trail indicator */}
-      <TabTrailIndicator
-        activeIndex={activeTabIndex}
-        numTabs={5}
-        color={activeColor}
-        dotSize={8}
-        tabBarHeight={tabBarHeight}
-        animationDuration={300}
-        fadeOutDuration={800}
-        maxTrailLength={50}
-      />
+      {activeTabIndex > -1 && (
+        <TabTrailIndicator
+          activeIndex={activeTabIndex}
+          numTabs={5}
+          color={activeColor}
+          dotSize={8}
+          tabBarHeight={tabBarHeight}
+          animationDuration={300}
+          fadeOutDuration={800}
+          maxTrailLength={50}
+        />
+      )}
     </View>
   );
 };
