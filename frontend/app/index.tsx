@@ -9,9 +9,6 @@ import cards from '../assets/images/cards.png'
 
 export default function App() {
 
-
-
-
   return (
     <SafeAreaView className="bg-primary flex-1">
       <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
