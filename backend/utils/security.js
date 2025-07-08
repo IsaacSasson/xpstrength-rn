@@ -152,7 +152,7 @@ export async function verifyWebSocketToken(token) {
         throw new AppError('User not found for this WS TOKEN', 404, 'NOT_FOUND');
     }
 
-    return user;
+    return { user, decoded };
 }
 
 export default { generatePasswordResetToken, verifyResetToken, generateRefreshToken, verifyRefreshToken, generateAuthToken, verifyAuthToken, generateWebSocketToken, verifyWebSocketToken };

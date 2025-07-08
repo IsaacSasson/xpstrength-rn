@@ -9,15 +9,8 @@ export async function logoutUser(input_information) {
     return;
 }
 
-//Compares and checks users hash of user data from DB to their DB and sends them events to update the frontend
-export async function syncEvents(input_information) {
+export async function socketToken(input_information) {
     return
 }
 
-//Initializes a Websocket Connection with the User and Websocket Class
-//Possibly handle all websocket stuff here, just connect calls Init?? future
-export async function connectWS(params) {
-    return
-}
-
-export default { logoutUser, syncEvents, connectWS }
+export default { logoutUser, socketToken }

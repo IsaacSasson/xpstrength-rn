@@ -86,8 +86,8 @@ export async function loginUser(authData) {
     }
 };
 
-//Users gets a new refresh token
-export async function refreshToken(token) {
+//Users gets a new access token
+export async function accessToken(token) {
     try {
         if (!token) {
             throw new AppError("missing refresh token", 401, "NO_TOKEN");
@@ -140,4 +140,4 @@ export async function forgotUsername(input_information) {
 };
 
 
-export default { registerUser, loginUser, refreshToken, refreshToken, resetPassword, forgotUsername, forgotPassword }
+export default { registerUser, loginUser, accessToken, resetPassword, forgotUsername, forgotPassword }

@@ -8,7 +8,7 @@ export async function postLogoutUser(req, res, next) {
     }
 }
 
-export async function postEventSync(req, res, next) {
+export async function getSocketToken(req, res, next) {
     try {
         return;
     } catch (err) {
@@ -16,10 +16,4 @@ export async function postEventSync(req, res, next) {
     }
 }
 
-export async function postConnectWebsocket(req, res, next) {
-    try {
-        return;
-    } catch (err) {
-        next(err);
-    }
-}
+export default { postLogoutUser, getSocketToken }

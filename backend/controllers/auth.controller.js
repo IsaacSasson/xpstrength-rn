@@ -33,14 +33,14 @@ export async function postLogin(req, res, next) {
     }
 };
 
-export async function getRefreshToken(req, res, next) {
+export async function getAccessToken(req, res, next) {
     try {
         const token = req?.cookies?.refreshToken;
         if (!token) {
             throw new AppError('No refresh token provided', 401, 'NO_TOKEN');
         }
 
-        const { accessToken, refreshToken } = await authService.refreshToken(token);
+        const { accessToken, refreshToken } = await authService.accessToken(token);
 
         if (refreshToken) {
             res.cookie('refreshToken', refreshToken, {
@@ -90,4 +90,4 @@ export async function postResetPassword(req, res, next) {
 
 }
 
-export default { postRegister, postForgotPassword, postResetPassword, getRefreshToken, postForgotPassword };
+export default { postRegister, postForgotPassword, postResetPassword, getAccessToken, postForgotPassword };
