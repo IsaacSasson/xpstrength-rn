@@ -1,11 +1,17 @@
 import authService from '../services/auth.service.js'
 import AppError from '../utils/AppError.js';
 
+//Validate, send
+
 //allows a user to register an account
 export async function postRegister(req, res, next) {
-    try {
-        const data = req.body?.data;
+    if (!req.body?.data) {
+        return next(new AppError("Missing register payload", 400, "BAD_DATA"));
+    }
 
+    const data = req.body?.data;
+
+    try {
         const user = await authService.registerUser(data);
         return res.status(201).json(user);
     } catch (err) {
@@ -14,8 +20,14 @@ export async function postRegister(req, res, next) {
 };
 
 export async function postLogin(req, res, next) {
+
+    if (!req.body?.data) {
+        return next(new AppError("Missing login payload", 400, "BAD_DATA"));
+    }
+
+    const { username, password } = req.body.data;
+
     try {
-        const { username, password } = req.body?.data;
 
         const { accessToken, refreshToken } = await authService.loginUser({ username, password });
 
@@ -33,14 +45,17 @@ export async function postLogin(req, res, next) {
     }
 };
 
+//Returns accessToken for user, and resets refresh token
 export async function getAccessToken(req, res, next) {
+
+    if (!req?.cookies?.refreshToken) {
+        throw new AppError('No refresh token provided', 401, 'NO_TOKEN');
+    }
+
     try {
         const token = req?.cookies?.refreshToken;
-        if (!token) {
-            throw new AppError('No refresh token provided', 401, 'NO_TOKEN');
-        }
 
-        const { accessToken, refreshToken } = await authService.accessToken(token);
+        const { accessToken, refreshToken } = await authService.accessToken(token, res);
 
         if (refreshToken) {
             res.cookie('refreshToken', refreshToken, {
@@ -50,14 +65,6 @@ export async function getAccessToken(req, res, next) {
                 path: '/api/v1/auth/refresh-token',
                 maxAge: 60 * 24 * 60 * 60 * 1000
             });
-        } else {
-            res.clearCookie('refreshToken', {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'strict',
-                path: '/api/v1/auth/refresh-token'
-            });
-            throw new AppError('user forced to disconnect', 401, 'UNAUTHENTICATED');
         }
 
         return res.status(200).json({ data: { accessToken } })

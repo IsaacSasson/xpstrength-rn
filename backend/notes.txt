@@ -26,3 +26,5 @@
 npm test is updated |
  until I fix all the tests (most likely never) use npm test -- file_location
  this way we dont spawn a million docker instances
+
+ socket-token should have the same functionality as access token.

@@ -21,6 +21,7 @@ import Auth from "./auth.model.js";
 import { checkShopProductFormat } from "../validators/user/checkShopProductFormat.js";
 import { isTextClean } from "../validators/general/isTextClean.js";
 import { checkAuthType } from "../validators/user/checkAuthType.js";
+import { validateProfilePic } from "../validators/user/validateProfilePic.js";
 
 dotenv.config()
 
@@ -59,7 +60,9 @@ const User = sequelize.define(
             comment: "Users email, must be unique."
         },
         profilePic: {
-            type: DataTypes.BLOB, allowNull: true, defaultValue: null,
+            type: DataTypes.BLOB, allowNull: true, defaultValue: null, validate: {
+                validateProfilePic
+            },
             comment: "Image validation on backend so no malicious code input. PFP in blob format."
         },
         authority: {
@@ -149,12 +152,12 @@ User.beforeSave("Hash Password", async (user, options) => {
 User.beforeSave("Validate Images", async (user, options) => {
     if (user.changed('profilePic') && user.profilePic) {
         try {
+
+            if (pic === null) {
+                return;
+            }
             const image = sharp(user.profilePic);
             const metadata = await image.metadata();
-
-            if (metadata.format !== 'jpeg' && metadata.format !== 'png') {
-                throw new Error('Unsupported image type');
-            }
 
             const safeBuffer = await image
                 .resize({ width: 400, height: 400, fit: 'inside' }) // Max Size 400 x 400

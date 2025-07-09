@@ -33,15 +33,15 @@ export async function generatePasswordResetToken(user) {
 
 //Verify password Reset Token, returns user
 export async function verifyResetToken(token) {
-    let decoded;
+    let payload;
 
     try {
-        decoded = jwt.verify(token, RESET_SECRET);
+        payload = jwt.verify(token, RESET_SECRET);
     } catch (err) {
         throw new AppError("Invalid or expired password reset token", 401, "INVALID_TOKEN");
     }
 
-    const user = await User.findByPk(decoded.id);
+    const user = await User.findByPk(payload.id);
     if (!user) {
         throw new AppError('User not found for this reset token', 404, 'NOT_FOUND');
     }
@@ -66,20 +66,20 @@ export async function generateRefreshToken(user) {
 
 //Verifys refresh-token given to user
 export async function verifyRefreshToken(token) {
-    let decoded;
+    let payload;
 
     try {
-        decoded = jwt.verify(token, REFRESH_SECRET)
+        payload = jwt.verify(token, REFRESH_SECRET)
     } catch (err) {
         throw new AppError("Invalid or expired refresh token", 401, "INVALID_TOKEN");
     }
 
-    const user = await User.findByPk(decoded.id);
+    const user = await User.findByPk(payload.id);
     if (!user) {
         throw new AppError('User not found for this refresh token', 404, 'NOT_FOUND');
     }
 
-    return user
+    return { user, payload }
 }
 
 //Generate shortTerm authorization token GIVEN TO USER ON /refresh
@@ -92,7 +92,6 @@ export async function generateAuthToken(user) {
         id: user.id,
         username: user.username,
         email: user.email,
-        profilePic: user.profilePic,
         authority: user.authority,
         level: user.level,
         xp: user.xp,
@@ -108,15 +107,15 @@ export async function generateAuthToken(user) {
 
 //Verify Auth Token Authenticity
 export async function verifyAuthToken(token) {
-    let decoded;
+    let payload;
 
     try {
-        decoded = jwt.verify(token, AUTH_SECRET)
+        payload = jwt.verify(token, AUTH_SECRET)
     } catch (err) {
         throw new AppError("Invalid or expired auth token", 401, "INVALID_TOKEN");
     }
 
-    const user = await User.findByPk(decoded.id);
+    const user = await User.findByPk(payload.id);
     if (!user) {
         throw new AppError('User not found for this auth token', 404, 'NOT_FOUND');
     }
@@ -139,20 +138,20 @@ export async function generateWebSocketToken(user) {
 
 //VERIFY WEBSOCKET TOKEN
 export async function verifyWebSocketToken(token) {
-    let decoded;
+    let payload;
 
     try {
-        decoded = jwt.verify(token, WS_SECRET)
+        payload = jwt.verify(token, WS_SECRET)
     } catch (err) {
         throw new AppError("Invalid or expired WS token", 401, "INVALID_TOKEN");
     }
 
-    const user = await User.findByPk(decoded.id);
+    const user = await User.findByPk(payload.id);
     if (!user) {
         throw new AppError('User not found for this WS TOKEN', 404, 'NOT_FOUND');
     }
 
-    return { user, decoded };
+    return { user, payload };
 }
 
 export default { generatePasswordResetToken, verifyResetToken, generateRefreshToken, verifyRefreshToken, generateAuthToken, verifyAuthToken, generateWebSocketToken, verifyWebSocketToken };

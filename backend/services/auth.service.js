@@ -3,12 +3,14 @@ import AppError from '../utils/AppError.js';
 import { User, Auth } from '../models/index.js';
 import { sequelize } from '../config/db.config.js';
 import AppHistory from '../utils/AddHistory.js'
+import bcrypt from "bcrypt";
+
 import { generateRefreshToken, generateAuthToken, verifyRefreshToken } from '../utils/security.js';
 
 //Registers new user to the DB
 export async function registerUser(userInfo) {
     try {
-        if (userInfo === null || userInfo === "") {
+        if (userInfo === null || userInfo === "" || Object.keys(userInfo).length === 0) {
             throw new AppError("Failed to register with null user data", 400, "BAD_DATA");
         }
         const result = await sequelize.transaction(async t => {
@@ -41,30 +43,45 @@ export async function registerUser(userInfo) {
             return user;
         });
 
-        return result;
+        //get safe data to return
+        const { password, ...safeResult } = result.get?.({ plain: true }) || result;
+
+        return safeResult
+
     } catch (err) {
         throw mapSequelizeError(err);
     }
 };
 
-//Logs user in
+//Logs user in, gives user accessToken and refreshToken in http header
 export async function loginUser(authData) {
     try {
+        if (authData === null || authData === "" || Object.keys(authData).length === 0) {
+            throw new AppError("Failed to register with null auth data", 400, "BAD_DATA");
+        }
+
         const { username, password } = authData;
-        const user = User.findOne({ where: { username: username } });
+
+        if (!username || !password) {
+            throw new AppError("password or username not provided", 400, "BAD_DATA")
+        }
+
+        const user = await User.findOne({ where: { username: username } });
         if (!user || !user.id) {
             throw new AppError("incorrect password or username", 401, "UNAUTHENTICATED");
         }
-        hashedPassword = await bcrypt.hash(password, parseInt(process.env.SALT_ROUNDS, 10));
 
-        if (hashedPassword !== user.password) {
-            throw new AppError("incorrect password username", 401, "UNAUTHENTICATED");
+
+        const match = await bcrypt.compare(password, user.password);
+
+        if (!match) {
+            throw new AppError("incorrect password or username", 401, "UNAUTHENTICATED");
         }
 
         const refreshToken = await generateRefreshToken(user);
         const accessToken = await generateAuthToken(user);
 
-        const result = await sequelize.transaction(async t => {
+        await sequelize.transaction(async t => {
             await Auth.authorize(user.id);
 
             const action = new AppHistory(
@@ -76,8 +93,7 @@ export async function loginUser(authData) {
 
             await action.log(t);
 
-            //TODO Connect User to WebSocket
-            return user;
+            return
         });
 
         return { accessToken, refreshToken };
@@ -86,28 +102,41 @@ export async function loginUser(authData) {
     }
 };
 
-//Users gets a new access token
-export async function accessToken(token) {
+//Users gets a new access token and
+export async function accessToken(token, res) {
     try {
-        if (!token) {
-            throw new AppError("missing refresh token", 401, "NO_TOKEN");
-        }
+        const { user, payload } = await verifyRefreshToken(token);
 
-        const user = await verifyRefreshToken(token);
         if (!user || !user.id) {
             throw new AppError("user not found", 404, "NOT_FOUND");
         }
 
-        const Authenticated = await Auth.findOne({ where: { userId: user.id } });
-        if (!Authenticated.authorized) {
-            return { accessToken: null, refreshToken: null };
+        const authRow = await Auth.findOne({ where: { userId: user.id } });
+        if (!authRow || !authRow.authorized) {
+            throw new AppError("User is not authorized", 403, "UNAUTHORIZED");
         }
 
-        const refreshToken = await generateRefreshToken(user);
+        let refreshToken = null
+
+        //if they have less than 10 days left on their expiration, refresh their refresh token
+        const TEN_DAYS = 10 * 24 * 60 * 60 * 1000;
+
+        const msUntilExpiry = payload.exp * 1000 - Date.now();
+        if (msUntilExpiry <= TEN_DAYS && msUntilExpiry > 0) {
+            refreshToken = await generateRefreshToken(user)
+        }
+
         const accessToken = await generateAuthToken(user);
 
         return { accessToken, refreshToken };
     } catch (err) {
+        //If the users refresh token fails, in anyway remove it
+        res.clearCookie('refreshToken', {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            path: '/api/v1/auth/refresh-token'
+        });
         throw mapSequelizeError(err);
     }
 };
