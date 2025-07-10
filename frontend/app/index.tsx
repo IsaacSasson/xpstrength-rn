@@ -34,7 +34,7 @@ export default function App() {
             </Text>
           </View>
 
-          <Link href="/friends" className="text-secondary">Go to Home (testing)</Link>
+          <Link href="/home" className="text-secondary">Go to Home (testing)</Link>
 
           <Text className="text-sm font-pregular text-gray-100 mt-7 text-center">
             Where creativity meets innovation: embark on a journey of limitless exploration with XPStrength
