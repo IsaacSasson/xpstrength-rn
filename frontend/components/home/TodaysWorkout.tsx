@@ -17,10 +17,34 @@ interface Props {
   workout: WorkoutType | null;
   /** Allow “Create Workout” button when no workout exists */
   allowCreate?: boolean;
+  /** Date currently selected in the calendar */
+  selectedDate: Date;
 }
 
+/* --------------------------- Helpers ----------------------------------- */
+const getHeadingForDate = (selectedDate: Date): string => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const sel = new Date(selectedDate);
+  sel.setHours(0, 0, 0, 0);
+
+  const diffDays = Math.round((sel.getTime() - today.getTime()) / 86_400_000);
+
+  if (diffDays === 0) return "Today's Workout";
+  if (diffDays === 1) return "Tomorrow's Workout";
+  if (diffDays === -1) return "Yesterday's Workout";
+
+  const dayName = sel.toLocaleDateString("en-US", { weekday: "long" });
+  return `${dayName}'s Workout`;
+};
+
 /* --------------------------- Component --------------------------------- */
-const TodaysWorkout: React.FC<Props> = ({ workout, allowCreate = true }) => {
+const TodaysWorkout: React.FC<Props> = ({
+  workout,
+  allowCreate = true,
+  selectedDate,
+}) => {
   const { primaryColor, secondaryColor, tertiaryColor } = useThemeContext();
 
   const goToEditWorkout = () => router.push("/edit-workout");
@@ -28,6 +52,7 @@ const TodaysWorkout: React.FC<Props> = ({ workout, allowCreate = true }) => {
   const goToActiveWorkout = () => router.push("/active-workout");
 
   const data: WorkoutType = workout ?? { exists: false };
+  const heading = getHeadingForDate(selectedDate);
 
   return (
     <View
@@ -35,9 +60,7 @@ const TodaysWorkout: React.FC<Props> = ({ workout, allowCreate = true }) => {
       style={{ backgroundColor: tertiaryColor }}
     >
       <View className="flex-row items-center justify-between mb-4">
-        <Text className="text-white text-xl font-psemibold">
-          Today's Workout
-        </Text>
+        <Text className="text-white text-xl font-psemibold">{heading}</Text>
 
         {data.exists && (
           <TouchableOpacity onPress={goToEditWorkout} className="p-2">
@@ -49,27 +72,24 @@ const TodaysWorkout: React.FC<Props> = ({ workout, allowCreate = true }) => {
       {data.exists ? (
         /* ---------------------- HAS WORKOUT ------------------------------- */
         <View>
-          <Text
-            style={{ color: secondaryColor }}
-            className="text-lg font-pmedium mb-4"
-          >
-            {data.name}
-          </Text>
+          {data.name && (
+            <Text
+              style={{ color: secondaryColor }}
+              className="text-lg font-pmedium mb-4"
+            >
+              {data.name}
+            </Text>
+          )}
 
           <View className="mb-4">
             {data.exercises?.map((ex, idx) => (
-              <View
-                key={idx}
-                className="flex-row items-center mb-3 last:mb-0"
-              >
+              <View key={idx} className="flex-row items-center mb-3 last:mb-0">
                 <MaterialCommunityIcons
                   name="dumbbell"
                   size={18}
                   color={primaryColor}
                 />
-                <Text className="text-white font-pmedium ml-3">
-                  {ex.name}
-                </Text>
+                <Text className="text-white font-pmedium ml-3">{ex.name}</Text>
                 <Text className="text-gray-100 ml-auto">
                   {ex.sets} sets × {ex.reps}
                 </Text>
@@ -119,9 +139,7 @@ const TodaysWorkout: React.FC<Props> = ({ workout, allowCreate = true }) => {
               activeOpacity={0.7}
             >
               <FontAwesome5 name="plus" size={14} color="#FFF" />
-              <Text className="text-white font-pmedium ml-2">
-                Create Workout
-              </Text>
+              <Text className="text-white font-pmedium ml-2">Create Workout</Text>
             </TouchableOpacity>
           )}
         </View>

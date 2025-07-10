@@ -5,9 +5,7 @@ import {
   StatusBar,
   Text,
   ScrollView,
-  TouchableOpacity,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import TopBar from "@/components/TopBar";
 import SearchInput from "@/components/SearchInput";
@@ -17,19 +15,14 @@ import pfptest from "@/assets/images/favicon.png";
 
 // Import the hooks
 import { useThemeContext } from "@/context/ThemeContext";
-import { useUserProgress } from "@/context/UserProgressContext";
 import { useFriends, FriendType } from '@/hooks/useFriends'; // Import our custom hook
 
 const Friends = () => {
   // Use our theme context
   const { primaryColor, tertiaryColor } = useThemeContext();
-  const { level } = useUserProgress();
   
   // Use our custom hook for friends data
   const { 
-    getFriends,
-    getRequests,
-    getPending,
     getFriendsCount,
     getRequestsCount,
     getPendingCount,
@@ -187,16 +180,11 @@ const Friends = () => {
   return (
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
       <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
-
-      {/* Header: Override bg-primary with dynamic color */}
-    
           <TopBar
             subtext={getSubtext()}
             title="Your Friends"
             titleTop={true}
           />
-      
-
       <View className="px-4 mb-4">
         <SearchInput
           title="Search for friends"

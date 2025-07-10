@@ -39,7 +39,7 @@ const Home = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
   /* -------- Demo data sets -------- */
-  const restDays = useMemo<Date[]>(() => [], []);          // add real rest days
+  const restDays = useMemo<Date[]>(() => [], []); // add real rest days
   const restSet = useMemo(() => new Set(restDays.map(dateKey)), [restDays]);
 
   const workoutsByDate: Record<string, WorkoutType> = useMemo(() => {
@@ -65,9 +65,7 @@ const Home = () => {
   const workoutForDate = workoutsByDate[key] ?? null;
 
   const isPastEmpty =
-    selectedDate < startOfToday &&
-    !restSet.has(key) &&
-    workoutForDate === null;
+    selectedDate < startOfToday && !restSet.has(key) && workoutForDate === null;
 
   const formattedDate = selectedDate.toLocaleDateString("en-US", {
     weekday: "long",
@@ -110,6 +108,7 @@ const Home = () => {
         <TodaysWorkout
           workout={workoutForDate}
           allowCreate={!isPastEmpty}
+          selectedDate={selectedDate}
         />
 
         {/* Quick Actions */}
