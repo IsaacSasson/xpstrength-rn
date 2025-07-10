@@ -2,6 +2,7 @@ import { View, ScrollView, Image, Text, Alert } from "react-native";
 import React, { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import logo from "../../assets/images/logo.png";
+import { handleApiError } from '../utils/handleApiError';
 import FormField from "@/components/FormField";
 import CustomButton from "@/components/CustomButton";
 import { Link, router } from "expo-router";
@@ -20,6 +21,7 @@ const SignUp = () => {
     // simple validation
     if(!form.username || !form.email || !form.password) {
       Alert.alert('Error', 'Please fill in all the fields')
+      return;
     }
 
     try {
@@ -36,13 +38,19 @@ const SignUp = () => {
         }),
       });
 
-      const json = await response.json();
-      if (response.ok) {
-        router.push('/sign-in');
+      if (!response.ok) {
+        const { error } = await handleApiError(response);
+        console.log('Sign up failed:', error ?? 'Request failed');
         return;
       }
-    } catch (error) {
-      console.error('Sign-up error:', error);
+
+      router.push({
+        pathname: '/sign-in',
+        params: { username: form.username.trim() },
+      });
+    } catch (networkErr) {
+      console.error('Network error:', networkErr);
+      console.log('Network error', 'Check your connection');
     } finally {
       setSubmitting(false);
     }

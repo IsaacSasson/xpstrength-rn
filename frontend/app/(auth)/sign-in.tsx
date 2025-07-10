@@ -4,26 +4,58 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import logo from "../../assets/images/logo.png";
 import FormField from "@/components/FormField";
 import CustomButton from "@/components/CustomButton";
-import { Link, router } from "expo-router";
+import { Link, useLocalSearchParams, router } from "expo-router";
 
+import { API_BASE } from "../config";
+import { handleApiError } from '../utils/handleApiError';
+import { saveToken } from "../utils/tokenStore";
 
 const SignIn = () => {
-  const [isSubmitting, setisSubmitting] = useState(false);
+  const { username: prefillUsername } = useLocalSearchParams<{ username?: string }>();
+
+  const [isSubmitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
-    email: "",
+    username: prefillUsername ?? '',
     password: "",
   });
 
 
   const submit = async () => {
-      if(form.email === "" || form.password === "") {
-        Alert.alert('Error', 'Please fill in all the fields')
-      }
-      setisSubmitting(true);
+    if (!form.username || !form.password) {
+      Alert.alert("Error", "Please fill in all the fields");
+      return;
+    }
 
-     
-  
-    };
+    try {
+      setSubmitting(true);
+      const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          data: { username: form.username.trim(), password: form.password },
+        }),
+      });
+
+      if (!res.ok) {
+        const { error } = await handleApiError(res);
+        console.log("Login failed:", error ?? "Request failed");
+        return;
+      }
+
+      // pull token out and store it
+      const { data } = await res.json();
+      if (data?.accessToken) {
+        await saveToken(data.accessToken);
+      }
+
+      // logged in – drop them on the first tab & wipe auth stack
+      router.replace("/(tabs)/home");
+    } catch (e) {
+      console.error("Network error:", e);
+    } finally {
+      setSubmitting(false);
+    }
+  };
     
   return (
     <SafeAreaView className="bg-primary flex-1">
@@ -44,12 +76,11 @@ const SignIn = () => {
           </Text>
 
           <FormField
-            title="Email"
-            value={form.email}
-            handleChangeText={(e) => setForm({ ...form, email: e })}
+            title="Username"
+            value={form.username}
+            handleChangeText={(e) => setForm({ ...form, username: e })}
             otherStyles="mt-7"
-            keyboardType="email-address"
-            placeHolder={""}
+            placeHolder=""
           />
 
           <FormField
