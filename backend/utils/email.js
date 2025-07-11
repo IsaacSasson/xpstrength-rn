@@ -1,10 +1,28 @@
-// new Email(user, url).sendWelcome(); .sendPasswordReset() .forgotPassword()
+import nodemailer from 'nodemailer'
 
-export default class email {
-    constructor(user, url) {
-        this.to = user.email;
-        this.name = user.username;
-        this.url = url;
-        this.from = 'XP Strength <xpstrength.feedback@gmail.com>';
+const sendEmail = async options => {
+    // 1) Create a transporter
+    const transporter = nodemailer.createTransport({
+        host: process.env.EMAIL_HOST,
+        port: process.env.EMAIL_PORT,
+        auth: {
+            user: process.env.EMAIL_USERNAME,
+            pass: process.env.EMAIL_PASSWORD
+        }
+    })
+
+    // Activate in gmail "less secure app" option
+    // 2) Define the email options
+    const mailOptions = {
+        from: "XPStrength Support <support@xpstrength.io>",
+        to: options.email,
+        subject: options.subject,
+        text: options.message,
+        // html: 
     }
+
+    // 3) actually send the email
+    await transporter.sendMail(mailOptions)
 }
+
+export default sendEmail

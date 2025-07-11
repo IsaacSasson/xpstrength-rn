@@ -73,28 +73,72 @@ export async function getAccessToken(req, res, next) {
     }
 }
 
+export async function postForgotUsername(req, res, next) {
+    if (!req?.body?.data) {
+        return next(new AppError("Missing data payload", 400, "BAD_DATA"));
+    }
+
+    const email = req.body.data.email;
+
+    if (!email) {
+        return next(new AppError("Missing email paylaod", 400, "BAD_DATA"));
+    }
+
+    try {
+        await authService.forgotUsername(email);
+        return res.status(200).json({ message: `Username succesfully sent to ${email}` });
+    } catch (err) {
+        next(err);
+    }
+}
 
 export async function postForgotPassword(req, res, next) {
-    try {
-        const email = req.body?.email;
+    if (!req?.body?.data) {
+        return next(new AppError("Missing data payload", 400, "BAD_DATA"));
+    }
 
-        const response = await authService.forgotPassword(email);
-        res.status(200).json(response);
+    const username = req.body.data.username;
+
+    if (!username) {
+        return next(new AppError("Missing username paylaod", 400, "BAD_DATA"));
+    }
+
+    try {
+        await authService.forgotPassword(username, req);
+        return res.status(200).json({ message: `Password reset link succesfully sent to ${username}` });
     } catch (err) {
         next(err);
     }
 }
 
-export async function postResetPassword(req, res, next) {
+export async function getResetPassword(req, res, next) {
     try {
-        const email = req.body.email;
-
-        const response = await authService.resetPassword(email);
-        res.status(200).json(response);
+        return res.status(200)
     } catch (err) {
         next(err);
     }
 
 }
 
-export default { postRegister, postForgotPassword, postResetPassword, getAccessToken, postForgotPassword };
+export async function patchResetPassword(req, res, next) {
+    if (!req?.body?.data) {
+        return next(new AppError("Missing data payload", 400, "BAD_DATA"));
+    }
+
+    const resetToken = req.body.data.resetToken;
+    const newPassword = req.body.data.newPassword;
+
+    if (!resetToken || !newPassword) {
+        return next(new AppError("Missing resetToken or password data", 400, "BAD_DATA"));
+    }
+
+    try {
+        await authService.resetPassword(resetToken, newPassword);
+        return res.status(200).json({ message: "Password succesfully changed, try logging in with new password." })
+    } catch (err) {
+        next(err);
+    }
+
+}
+
+export default { postRegister, postForgotPassword, patchResetPassword, getAccessToken, postForgotPassword, getResetPassword };
