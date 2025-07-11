@@ -58,7 +58,7 @@ export class Email {
     }
 
     async sendForgotPassword() {
-        return this.send('forgotPassword', "Password Change Request")
+        return this.send('forgotPassword', "Your password reset token (valid for 15 min)")
     }
 
     async sendForgotUsername() {
