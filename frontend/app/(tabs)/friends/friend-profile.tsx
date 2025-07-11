@@ -1,4 +1,3 @@
-// Path: /app/(tabs)/profile.tsx
 import React from "react";
 import {
   View,
@@ -8,44 +7,17 @@ import {
   ScrollView,
   TouchableOpacity,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useLocalSearchParams } from "expo-router";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useThemeContext } from "@/context/ThemeContext";
-import TopBar from "@/components/TopBar";
+import { SafeAreaView } from "react-native-safe-area-context";
+import Header from "@/components/Header";
 import pfptest from "@/assets/images/favicon.png";
 
-/* ------------------------------------------------------------------
-   Dummy User Data (replace with real state later)
--------------------------------------------------------------------*/
-const user = {
-  username: "Wiiwho",
-  profilePic: { pfptest },
-  level: 12,
-  xp: 2863,
-  xpNext: 5000,
-  friends: 14,
-  totalWorkouts: 87,
-  totalMinutes: 4230, // 70h30m
-  joinDate: "2024-01-12",
-  goal: "Bench 315 lbs",
-  showcaseAchievements: [
-    { id: "a1", title: "7-Day Streak", icon: "fire" },
-    { id: "a2", title: "100 Push-Ups", icon: "medal" },
-    { id: "a3", title: "10 Miles", icon: "running" },
-  ],
-  showcaseLift: {
-    exercise: "Bench Press",
-    oneRm: 280,
-  },
-};
-
-/* ------------------------------------------------------------------
-   Helpers
--------------------------------------------------------------------*/
-const formatMinutes = (min: number) =>
-  `${Math.floor(min / 60)}h ${min % 60}m`;
-
+/* ------------------------------------------------------------------ */
+/*                               Utils                                */
+/* ------------------------------------------------------------------ */
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString("en-US", {
     month: "short",
@@ -69,148 +41,144 @@ const ProgressBar: React.FC<{
   );
 };
 
-/* ------------------------------------------------------------------
-   Component
--------------------------------------------------------------------*/
-const Profile = () => {
+/* ------------------------------------------------------------------ */
+/*                           Friend Profile                           */
+/* ------------------------------------------------------------------ */
+const FriendProfile = () => {
   const { primaryColor, secondaryColor, tertiaryColor } = useThemeContext();
 
+  /* ---- params from FriendCard ---- */
+  const {
+    name = "Unknown",
+    level = "0",
+    xp = "0",
+    joinDate = "2025-01-01",
+    goal = "Keep grinding!",
+    exercise = "Bench Press",
+    oneRm = "0",
+    friends = "0",
+    workouts = "0",
+  } = useLocalSearchParams<{
+    name?: string;
+    level?: string;
+    xp?: string;
+    joinDate?: string;
+    goal?: string;
+    exercise?: string;
+    oneRm?: string;
+    friends?: string;
+    workouts?: string;
+  }>();
+
+  /* ---- derived ---- */
+  const levelNum = Number(level);
+  const xpNum = Number(xp);
+  const xpNext = (levelNum + 1) * 250;
+  const workoutsNum = Number(workouts);
+  const oneRmNum = Number(oneRm);
+  const friendsNum = Number(friends);
+
+  /* ---------------------------------------------------------------- */
   return (
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
       <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
 
-      <TopBar subtext="It's You!" title="Your Profile" titleTop />
+      {/* ---------- header ---------- */}
+      <SafeAreaView edges={["top"]} className="bg-primary">
+        <View className="px-4 pt-6 mb-6">
+          <Header MText={`${name}'s Profile`} SText="It's Your Friend!" />
+        </View>
+      </SafeAreaView>
 
       <ScrollView showsVerticalScrollIndicator={false} className="px-4">
-        {/* ---------- USER CARD ---------- */}
+        {/* --------------- USER CARD --------------- */}
         <View
           className="rounded-2xl p-5 mb-6"
           style={{ backgroundColor: tertiaryColor }}
         >
-          {/* top row — avatar & text on left, menu on right */}
+          {/* top row → avatar/info + menu dots */}
           <View className="flex-row justify-between">
-            {/* avatar + info */}
+            {/* avatar + text */}
             <View className="flex-row">
               <Image
                 source={pfptest}
-                style={{ width: 60, height: 60, borderRadius: 30 }}
+                style={{
+                  width: 60,
+                  height: 60,
+                  borderRadius: 30,
+                }}
               />
               <View className="ml-3">
                 <Text
                   className="text-white font-psemibold text-xl"
                   style={{ color: primaryColor }}
                 >
-                  {user.username}
+                  {name}
                 </Text>
 
                 <Text className="text-gray-100 text-xs">
                   Goal:&nbsp;
-                  <Text style={{ color: secondaryColor }}>{user.goal}</Text>
+                  <Text style={{ color: secondaryColor }}>{goal}</Text>
                 </Text>
-
                 <Text className="text-gray-100 text-xs">
-                  Joined {formatDate(user.joinDate)}
+                  Joined {formatDate(joinDate)}
                 </Text>
               </View>
             </View>
 
-            {/* 3-dot menu (placeholder) */}
+            {/* 3-dot menu */}
             <TouchableOpacity
               className="p-2"
               onPress={() => {
-                /* TODO: open settings/action sheet */
+                /* future action sheet */
               }}
             >
               <FontAwesome5 name="ellipsis-h" size={18} color={primaryColor} />
             </TouchableOpacity>
           </View>
 
-          {/* XP bar */}
+          {/* --- XP progress bar --- */}
           <View className="mt-4">
             <View className="flex-row items-center justify-between mb-1">
-              <Text className="text-white">Level {user.level}</Text>
+              <Text className="text-white">Level {levelNum}</Text>
               <Text className="text-gray-100">
-                {user.xp}/{user.xpNext} XP
+                {xpNum}/{xpNext} XP
               </Text>
             </View>
-            <ProgressBar
-              progress={user.xp}
-              total={user.xpNext}
-              color={primaryColor}
-            />
+            <ProgressBar progress={xpNum} total={xpNext} color={primaryColor} />
           </View>
 
-          {/* Quick Stats — Friends / Workouts / Time */}
-          <View className="flex-row justify-between mt-4">
+          {/* --- Quick stats (Friends / Workouts / Time) --- */}
+          <View className="flex-row w-full justify-between mt-4">
             <View className="items-center flex-1">
               <FontAwesome5 name="user-friends" size={20} color={primaryColor} />
-              <Text className="text-white mt-1 font-pmedium">{user.friends}</Text>
+              <Text className="text-white mt-1 font-pmedium">{friendsNum}</Text>
               <Text className="text-gray-100 text-xs">Friends</Text>
             </View>
-
             <View className="items-center flex-1">
-              <MaterialCommunityIcons
-                name="dumbbell"
-                size={22}
-                color={primaryColor}
-              />
+              <FontAwesome5 name="dumbbell" size={22} color={primaryColor} />
               <Text className="text-white mt-1 font-pmedium">
-                {user.totalWorkouts}
+                {workoutsNum}
               </Text>
               <Text className="text-gray-100 text-xs">Workouts</Text>
             </View>
-
             <View className="items-center flex-1">
               <FontAwesome5 name="clock" size={20} color={primaryColor} />
               <Text className="text-white mt-1 font-pmedium">
-                {formatMinutes(user.totalMinutes)}
+                {Math.floor((workoutsNum * 45) / 60)}h{" "}
+                {(workoutsNum * 45) % 60}m
               </Text>
               <Text className="text-gray-100 text-xs">Time</Text>
             </View>
           </View>
         </View>
 
-        {/* ---------- GOAL ---------- */}
-        <View
-          className="rounded-2xl p-5 mb-6"
-          style={{ backgroundColor: tertiaryColor }}
-        >
-          <View className="flex-row items-center">
-            <Text className="text-white font-pmedium text-lg mr-2">
-              Current Goal:
-            </Text>
-            <Text style={{ color: secondaryColor }} className="text-lg">
-              {user.goal}
-            </Text>
-          </View>
-        </View>
-
-        {/* ---------- ACHIEVEMENTS ---------- */}
-        <Text className="text-white text-xl font-psemibold mb-3 text-center">
-          Featured Achievements
-        </Text>
-        <View className="flex-row mb-6">
-          {user.showcaseAchievements.map((ach) => (
-            <View key={ach.id} className="flex-1 items-center">
-              <View
-                className="h-16 w-16 rounded-full items-center justify-center mb-2"
-                style={{ backgroundColor: primaryColor }}
-              >
-                <FontAwesome5 name={ach.icon as any} size={24} color="#FFF" />
-              </View>
-              <Text className="text-center text-white text-xs font-pmedium px-1">
-                {ach.title}
-              </Text>
-            </View>
-          ))}
-        </View>
-
-        {/* ---------- SPOTLIGHT LIFT ---------- */}
+        {/* --------------- SPOTLIGHT --------------- */}
         <Text className="text-white text-xl font-psemibold mb-3">
           Spotlight Exercise
         </Text>
         <View
-          className="rounded-2xl p-5"
+          className="rounded-2xl p-5 mb-6"
           style={{ backgroundColor: tertiaryColor }}
         >
           <View className="flex-row items-center justify-between">
@@ -221,14 +189,14 @@ const Profile = () => {
                 color={primaryColor}
               />
               <Text className="text-white font-pmedium text-lg ml-2">
-                {user.showcaseLift.exercise}
+                {exercise}
               </Text>
             </View>
             <Text
               className="text-white font-psemibold text-lg"
               style={{ color: primaryColor }}
             >
-              {user.showcaseLift.oneRm} lbs
+              {oneRmNum} lbs
             </Text>
           </View>
         </View>
@@ -237,4 +205,4 @@ const Profile = () => {
   );
 };
 
-export default Profile;
+export default FriendProfile;
