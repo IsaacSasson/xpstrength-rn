@@ -4,8 +4,9 @@ import { User, Auth } from '../models/index.js';
 import { sequelize } from '../config/db.config.js';
 import AppHistory from '../utils/AddHistory.js'
 import bcrypt from "bcrypt";
+import sendEmail from '../utils/email.js'
 
-import { generateRefreshToken, generateAuthToken, verifyRefreshToken } from '../utils/security.js';
+import security, { generateRefreshToken, generateAuthToken, verifyRefreshToken, generatePasswordResetToken, verifyResetToken } from '../utils/security.js';
 
 //Registers new user to the DB
 export async function registerUser(userInfo) {
@@ -141,32 +142,92 @@ export async function accessToken(token, res) {
     }
 };
 
-//User Forgets their password so they request a new password
-export async function forgotPassword(email) {
-
+//User gets email of forgotten username
+export async function forgotUsername(email) {
     try {
-        const result = sequelize.transaction(async t => {
-            const user = User.findOne({ where: { email: email } });
-            if (!user) {
-                throw new AppError("There is no user with that email address", 404, "BAD_REFERENCE");
+        const username = await sequelize.transaction(async t => {
+            const user = await User.findOne({ where: { email: email } }, { transaction: t })
+
+            if (!user || !user.email) {
+                throw new AppError("User does not exist with that email", 400, "BAD_DATA");
             }
 
-        })
-        return result;
+            const username = user.username;
+            return username;
+        });
+
+        // TODO Email the User their username
+        const message = `Your username is ${username}.\nIf you didn't forget your username, please ignore this email!`;
+
+        await sendEmail({
+            email: email,
+            subject: "Your username",
+            message
+        });
+
+        return
+    } catch (err) {
+        throw mapSequelizeError(err)
+    }
+};
+
+//User Forgets their password so they request a new password
+export async function forgotPassword(username, req) {
+    try {
+        const { email, user } = await sequelize.transaction(async t => {
+            const user = await User.findOne({ where: { username: username } }, { transaction: t })
+
+            if (!user || !user.email) {
+                throw new AppError("User does not exist with that username", 400, "BAD_DATA");
+            }
+
+            const email = user.email;
+            return { email, user };
+        });
+
+        //Generate Secret for user
+        console.log(user)
+        const resetToken = await generatePasswordResetToken(user)
+
+        // TODO Send Email to user
+        const resetURL = `${req.protocol}://${req.get('host')}/api/v1/auth/resetPassword/${resetToken}`;
+
+        const message = `Forgot your password? Submit a PATCH request with your new password and passwordConfirm to: ${resetURL}.\nIf you didn't forget your password, please ignore this email!`;
+
+        await sendEmail({
+            email: email,
+            subject: "Your password reset token (valid for 15 min)",
+            message
+        });
+
+        return
     } catch (err) {
         throw mapSequelizeError(err)
     }
 };
 
 //User has password reset token and attempts to change password with new password info
-export async function resetPassword(input_information) {
-    return;
-}
+export async function resetPassword(resetToken, newPassword) {
 
-//User gets email of forgotten username
-export async function forgotUsername(input_information) {
-    return;
-};
+    //Check if token valid or not
+    let user;
+    try {
+        user = verifyResetToken(resetToken);
+    } catch (err) {
+        throw new AppError("Password token expired or invalid, please generate a new link.")
+    }
+
+    //Attempt to change password
+    try {
+        await sequelize.transaction(async t => {
+            await user.update({ password: newPassword })
+        })
+
+        return
+    } catch (err) {
+        throw mapSequelizeError(err)
+    }
+}
 
 
 export default { registerUser, loginUser, accessToken, resetPassword, forgotUsername, forgotPassword }

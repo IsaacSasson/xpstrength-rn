@@ -23,7 +23,7 @@ if (!RESET_SECRET || !REFRESH_SECRET || !AUTH_SECRET || !WS_SECRET) {
 
 //Generate Token for Password Resetting, returns token GIVEN TO USER IN EMAIL FOR PASSWORD RESET
 export async function generatePasswordResetToken(user) {
-    if (!user || user.id) {
+    if (!user || !user.id) {
         throw new AppError('Invalid user for password-reset token', 400, 'BAD_DATA');
     }
 
