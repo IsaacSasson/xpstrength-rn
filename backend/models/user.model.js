@@ -143,13 +143,13 @@ const User = sequelize.define(
     }
 );
 
-User.beforeSave("Hash Password", async (user, options) => {
+User.afterValidate("Hash Password", async (user, options) => {
     if (user.changed('password')) {
         user.password = await bcrypt.hash(user.password, parseInt(process.env.SALT_ROUNDS, 10));
     }
 });
 
-User.beforeSave("Validate Images", async (user, options) => {
+User.afterValidate("Validate Images", async (user, options) => {
     if (user.changed('profilePic') && user.profilePic) {
         try {
 

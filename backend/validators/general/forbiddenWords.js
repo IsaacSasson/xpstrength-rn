@@ -9,7 +9,6 @@ const forbiddenWords = Object.freeze([
     "anus",
     "apeshit",
     "arsehole",
-    "ass",
     "asshole",
     "assmunch",
     "auto erotic",

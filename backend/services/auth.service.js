@@ -4,7 +4,7 @@ import { User, Auth } from '../models/index.js';
 import { sequelize } from '../config/db.config.js';
 import AppHistory from '../utils/AddHistory.js'
 import bcrypt from "bcrypt";
-import sendEmail from '../utils/email.js'
+import Email from '../utils/email.js'
 
 import security, { generateRefreshToken, generateAuthToken, verifyRefreshToken, generatePasswordResetToken, verifyResetToken } from '../utils/security.js';
 
@@ -39,6 +39,9 @@ export async function registerUser(userInfo) {
                 user.id,
                 null
             );
+
+            const url = 0
+            await new Email(user, url).sendWelcome();
 
             await action.log(t);
             return user;
@@ -145,25 +148,29 @@ export async function accessToken(token, res) {
 //User gets email of forgotten username
 export async function forgotUsername(email) {
     try {
-        const username = await sequelize.transaction(async t => {
+        await sequelize.transaction(async t => {
             const user = await User.findOne({ where: { email: email } }, { transaction: t })
 
             if (!user || !user.email) {
                 throw new AppError("User does not exist with that email", 400, "BAD_DATA");
             }
 
-            const username = user.username;
-            return username;
+            const action = new AppHistory(
+                "AUTH",
+                `${user.username} requested their username for account with id ${user.id}`,
+                user.id,
+                null
+            );
+
+            await action.log(t);
+
+            const url = 0
+            await new Email(user, url).sendForgotUsername();
+
+            return
         });
 
         // TODO Email the User their username
-        const message = `Your username is ${username}.\nIf you didn't forget your username, please ignore this email!`;
-
-        await sendEmail({
-            email: email,
-            subject: "Your username",
-            message
-        });
 
         return
     } catch (err) {
@@ -174,7 +181,7 @@ export async function forgotUsername(email) {
 //User Forgets their password so they request a new password
 export async function forgotPassword(username, req) {
     try {
-        const { email, user } = await sequelize.transaction(async t => {
+        await sequelize.transaction(async t => {
             const user = await User.findOne({ where: { username: username } }, { transaction: t })
 
             if (!user || !user.email) {
@@ -182,24 +189,23 @@ export async function forgotPassword(username, req) {
             }
 
             const email = user.email;
-            return { email, user };
+
+            //Generate Secret for user
+            const resetToken = await generatePasswordResetToken(user)
+
+
+            const action = new AppHistory(
+                "AUTH",
+                `${user.username} requested to change their password for account with id ${user.id}`,
+                user.id,
+                null
+            );
+
+            await action.log(t);
+
+            const resetURL = `${req.protocol}://${req.get('host')}/api/v1/auth/resetPassword/${resetToken}`;
+            await new Email(user, resetURL).sendForgotPassword();
         });
-
-        //Generate Secret for user
-        console.log(user)
-        const resetToken = await generatePasswordResetToken(user)
-
-        // TODO Send Email to user
-        const resetURL = `${req.protocol}://${req.get('host')}/api/v1/auth/resetPassword/${resetToken}`;
-
-        const message = `Forgot your password? Submit a PATCH request with your new password and passwordConfirm to: ${resetURL}.\nIf you didn't forget your password, please ignore this email!`;
-
-        await sendEmail({
-            email: email,
-            subject: "Your password reset token (valid for 15 min)",
-            message
-        });
-
         return
     } catch (err) {
         throw mapSequelizeError(err)
@@ -212,7 +218,7 @@ export async function resetPassword(resetToken, newPassword) {
     //Check if token valid or not
     let user;
     try {
-        user = verifyResetToken(resetToken);
+        user = await verifyResetToken(resetToken);
     } catch (err) {
         throw new AppError("Password token expired or invalid, please generate a new link.")
     }
@@ -220,7 +226,16 @@ export async function resetPassword(resetToken, newPassword) {
     //Attempt to change password
     try {
         await sequelize.transaction(async t => {
-            await user.update({ password: newPassword })
+            await user.update({ password: newPassword }, { transaction: t })
+
+            const action = new AppHistory(
+                "AUTH",
+                `${user.username} succesfully changed their password for account with id ${user.id}`,
+                user.id,
+                null
+            );
+
+            await action.log(t);
         })
 
         return
