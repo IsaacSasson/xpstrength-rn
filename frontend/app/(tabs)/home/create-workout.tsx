@@ -568,7 +568,7 @@ const EditWorkout = () => {
             <TouchableOpacity
               className="flex-row items-center px-3 py-2 rounded-lg"
               style={{ backgroundColor: primaryColor }}
-              onPress={() => router.push("/(workout)/exercise-list")}
+              onPress={() => router.push("/home/exercise-list")}
             >
               <FontAwesome5 name="plus" size={14} color="#FFF" />
               <Text className="text-white font-pmedium ml-2">Add Exercise</Text>

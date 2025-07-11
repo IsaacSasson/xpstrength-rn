@@ -47,9 +47,9 @@ const TodaysWorkout: React.FC<Props> = ({
 }) => {
   const { primaryColor, secondaryColor, tertiaryColor } = useThemeContext();
 
-  const goToEditWorkout = () => router.push("/edit-workout");
-  const goToCreateWorkout = () => router.push("/create-workout");
-  const goToActiveWorkout = () => router.push("/active-workout");
+  const goToEditWorkout = () => router.push("/home/edit-workout");
+  const goToCreateWorkout = () => router.push("/home/create-workout");
+  const goToActiveWorkout = () => router.push("/home/active-workout");
 
   const data: WorkoutType = workout ?? { exists: false };
   const heading = getHeadingForDate(selectedDate);

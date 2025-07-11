@@ -148,7 +148,7 @@ const WeeklyPlan = () => {
       {/* Top Header Section */}
       <SafeAreaView edges={["top"]} className="bg-primary">
         <View className="px-4 pt-6">
-          <View className="flex-row items-center mb-6">
+          <View className="flex-row items-center justify-between mb-6">
             <Header
               MText="Weekly Workout Plan"
               SText="Your workout schedule for the week"
