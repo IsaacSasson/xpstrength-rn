@@ -1,5 +1,10 @@
 import authService from '../services/auth.service.js'
 import AppError from '../utils/AppError.js';
+import path from "path";
+import { fileURLToPath } from 'url';
+import { verifyResetToken } from '../utils/security.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 //Validate, send
 
@@ -112,11 +117,21 @@ export async function postForgotPassword(req, res, next) {
 }
 
 export async function getResetPassword(req, res, next) {
+
+    const token = req.params.token;
+
     try {
-        return res.status(200)
+        await verifyResetToken(token);
     } catch (err) {
-        next(err);
+        return res
+            .status(400)
+            .render("reset-password-error", {
+                message:
+                    "Your password reset link is invalid or has expired. Please request a new one."
+            })
     }
+
+    res.render("reset-password", { resetToken: token });
 
 }
 
@@ -138,7 +153,6 @@ export async function patchResetPassword(req, res, next) {
     } catch (err) {
         next(err);
     }
-
 }
 
 export default { postRegister, postForgotPassword, patchResetPassword, getAccessToken, postForgotPassword, getResetPassword };

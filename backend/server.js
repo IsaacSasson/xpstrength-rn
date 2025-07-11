@@ -14,10 +14,18 @@ import { verifyWebSocketToken } from './utils/security.js';
 import { getFriendData } from './utils/GetFriendData.js';
 import { AVLTree } from 'avl';
 import { handleClientMessage } from './utils/serverWebSocketManager.js';
+import { fileURLToPath } from "url";
+import path from "path";
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 
 // ----------------- Config
 dotenv.config();
 const app = express();
+
+app.set("views", path.join(__dirname, "views"))
+app.set("view engine", "ejs");
+
 
 //  Deserialziers
 app.use(cookieParser());

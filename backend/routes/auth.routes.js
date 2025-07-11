@@ -13,7 +13,7 @@ authRouter.post("/forgotUsername", postForgotUsername);
 
 authRouter.post("/forgotPassword", postForgotPassword);
 
-authRouter.patch("/resetPassword/:token", patchResetPassword);
+authRouter.patch("/resetPassword/", patchResetPassword);
 
 authRouter.get("/resetPassword/:token", getResetPassword);
 

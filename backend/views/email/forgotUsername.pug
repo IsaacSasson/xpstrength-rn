@@ -1,0 +1,16 @@
+//- views/email/forgot-username.pug
+extends baseEmail
+
+block content
+  p Hi there,
+  p You recently asked us to remind you of your XPStrength username. Here it is:
+  p
+    strong #{name}
+  p You can log in and get back to your workouts here:
+  p
+    a(href=url, target='_blank', rel='noopener noreferrer')
+      | Log in to XPStrength
+  p If you didn’t request this email, just ignore it—no changes have been made to your account.
+  p Cheers,
+    br
+    | The XPStrength Team

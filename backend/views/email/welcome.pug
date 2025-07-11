@@ -1,0 +1,16 @@
+//- welcome.pug — no blank lines or comments above this
+extends baseEmail
+
+block content
+  p Hi #{name},
+  p Welcome to XPStrength—we're thrilled to have you on board! 🎉
+  p Here's a quick link to get started:
+  table.btn.btn-primary(role='presentation', border='0', cellpadding='0', cellspacing='0')
+    tbody
+      tr
+        td(align='left')
+          a(href=url, target='_blank') Upload Your Profile Photo
+  p If you have any questions, just hit reply—I'm here to help.
+  p Warmly,
+    br
+    | XPStrength Team
