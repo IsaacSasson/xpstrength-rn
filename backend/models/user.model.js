@@ -53,13 +53,6 @@ const User = sequelize.define(
       validate: {
         notEmpty: true,
         isStrongPlaintext(value) {
-          if (
-            value.startsWith("$2a$") ||
-            value.startsWith("$2b$") ||
-            value.startsWith("$2y$")
-          ) {
-            return;
-          }
           const re = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*#?&]).{8,}$/;
           if (!re.test(value)) {
             throw new Error(
@@ -192,9 +185,28 @@ const User = sequelize.define(
   }
 );
 
-User.beforeSave("Hash Password", async (user, options) => {
+User.beforeUpdate("Hash Password", async (user, options) => {
   if (user.changed("password")) {
-    console.log(user.password);
+    const password = await bcrypt.hash(
+      user.password,
+      parseInt(process.env.SALT_ROUNDS, 10)
+    );
+    await User.update(
+      { password: password },
+      {
+        where: {
+          id: user.id,
+        },
+        transaction: options.transaction,
+        validate: false,
+        hooks: false,
+      }
+    );
+  }
+});
+
+User.beforeCreate("Hash Password", async (user, options) => {
+  if (user.changed("password")) {
     user.password = await bcrypt.hash(
       user.password,
       parseInt(process.env.SALT_ROUNDS, 10)

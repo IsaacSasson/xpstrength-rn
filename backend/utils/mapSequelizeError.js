@@ -7,9 +7,6 @@ import {
 import AppError from "./AppError.js";
 
 export default function mapSequelizeError(err) {
-  if (process.env.NODE_ENV === "development") {
-    console.error(err);
-  }
   if (err instanceof UniqueConstraintError) {
     const field = Object.keys(err.fields)[0];
     return new AppError(`Duplicate value for “${field}”`, 409, "DUPLICATE");
