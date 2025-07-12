@@ -85,10 +85,15 @@ const FriendProfile = () => {
 
       {/* ---------- header ---------- */}
       <SafeAreaView edges={["top"]} className="bg-primary">
-        <View className="px-4 pt-6 mb-6">
+        <View className="px-4 pt-6">
+          <View className="flex-row items-center justify-between mb-6">
           <Header MText={`${name}'s Profile`} SText="It's Your Friend!" />
+          </View>
         </View>
       </SafeAreaView>
+
+
+
 
       <ScrollView showsVerticalScrollIndicator={false} className="px-4">
         {/* --------------- USER CARD --------------- */}

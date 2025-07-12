@@ -1,3 +1,4 @@
+// Path: /app/(tabs)/ActiveWorkout.tsx
 import React, { useEffect, useRef, useState } from "react";
 import {
   View,
@@ -59,7 +60,6 @@ const DraggableBottomSheet: React.FC<DraggableBottomSheetProps> = ({
   const sheetHeight = height * 0.45;
   const translateY = useRef(new Animated.Value(sheetHeight)).current;
 
-  /* Show / hide */
   useEffect(() => {
     if (visible) {
       translateY.setValue(sheetHeight);
@@ -71,7 +71,6 @@ const DraggableBottomSheet: React.FC<DraggableBottomSheetProps> = ({
     }
   }, [visible]);
 
-  /* Drag logic */
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -90,9 +89,7 @@ const DraggableBottomSheet: React.FC<DraggableBottomSheetProps> = ({
           toValue: shouldClose ? sheetHeight : 0,
           duration: 200,
           useNativeDriver: true,
-        }).start(() => {
-          if (shouldClose) onClose();
-        });
+        }).start(() => shouldClose && onClose());
       },
       onPanResponderTerminationRequest: () => false,
     })
@@ -120,7 +117,6 @@ const DraggableBottomSheet: React.FC<DraggableBottomSheetProps> = ({
           borderColor: primaryColor,
         }}
       >
-        {/* Drag handle */}
         <View
           {...panResponder.panHandlers}
           className="items-center px-4 pt-3 pb-4"
@@ -220,17 +216,16 @@ const ActiveWorkout = () => {
     resetRest();
   };
 
-  /* ───────── Exercises (loaded from JSON) ───────── */
+  /* ───────── Exercises ───────── */
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [selectedExerciseIdx, setSelectedExerciseIdx] = useState<number | null>(
     null
   );
 
   useEffect(() => {
-    /* Use the same data as ExerciseList, grab the first three for now */
     const data = loadExercises()
       .slice(0, 3)
-      .map<Exercise>((ex, idx) => ({
+      .map<Exercise>((ex) => ({
         ...ex,
         sets: [
           { id: 1, reps: 10, lbs: 0 },
@@ -335,9 +330,37 @@ const ActiveWorkout = () => {
   const hideConfirmCancel = () => setConfirmCancelVisible(false);
   const doCancelWorkout = () => router.replace("/home");
 
-  const handleFinish = () => router.replace("/");
+  /* ───────── FINISH WORKOUT ───────── */
+  const handleFinish = () => {
+    /* summaries for finished page */
+    const summaries = exercises.map((ex) => ({
+      id: ex.id,
+      name: ex.name,
+      sets: ex.sets.map((s) => ({ reps: s.reps, lbs: s.lbs })),
+    }));
 
-  /* ───────── Options bottom-sheet state ───────── */
+    const totalVolume = exercises.reduce(
+      (sum, ex) => sum + ex.sets.reduce((acc, s) => acc + s.lbs * s.reps, 0),
+      0
+    );
+    const xpGained = Math.floor(totalVolume / 100);
+
+    router.replace({
+      pathname: "/home/finished-workout",
+      params: {
+        volume: String(totalVolume),
+        elapsed: String(elapsed),
+        xpGained: String(xpGained),
+        level: "12",      // TODO: replace with real user level
+        xp: "2863",       // TODO: replace with real current XP
+        xpNext: "5000",   // TODO: replace with real threshold
+        ach: "[]",
+        ex: JSON.stringify(summaries),
+      },
+    });
+  };
+
+  /* ───────── Options bottom-sheet ───────── */
   const [showOptionsSheet, setShowOptionsSheet] = useState(false);
   const openOptionsSheet = (idx: number) => {
     setSelectedExerciseIdx(idx);
@@ -345,10 +368,9 @@ const ActiveWorkout = () => {
   };
   const closeOptionsSheet = () => setShowOptionsSheet(false);
 
-  /* ───────── Instructions modal ───────── */
+  /* instructions modal */
   const [instructionsModalVisible, setInstructionsModalVisible] = useState(false);
   const [currentInstructions, setCurrentInstructions] = useState("");
-
   const handleInstructions = () => {
     if (selectedExerciseIdx !== null) {
       setCurrentInstructions(exercises[selectedExerciseIdx].instructions);
@@ -356,21 +378,25 @@ const ActiveWorkout = () => {
     }
   };
 
-  /* ───────── Option handlers (placeholders) ───────── */
+  /* option handlers */
   const handleNotes = () => Alert.alert("Notes", "Open notes editor…");
   const handleReplace = () =>
     Alert.alert("Replace Workout", "Replace workout action…");
   const handleDelete = () => {
-  if (selectedExerciseIdx !== null) {
-    setExercises((prev) => prev.filter((_, idx) => idx !== selectedExerciseIdx));
-    setSelectedExerciseIdx(null);
-  }
-  closeOptionsSheet();
-};
+    if (selectedExerciseIdx !== null) {
+      setExercises((prev) => prev.filter((_, idx) => idx !== selectedExerciseIdx));
+      setSelectedExerciseIdx(null);
+    }
+    closeOptionsSheet();
+  };
 
   /* ───────── Animated scroll logic ───────── */
   const scrollX = useRef(new Animated.Value(0)).current;
   const editableBg = "rgba(255,255,255,0.08)";
+
+  /* -------------------------------------------------------------------- */
+  /* ---------------------------   UI  ---------------------------------- */
+  /* -------------------------------------------------------------------- */
 
   return (
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
@@ -613,7 +639,7 @@ const ActiveWorkout = () => {
                   ))}
                 </ScrollView>
 
-                {/* Add / Remove buttons pinned to bottom */}
+                {/* Add / Remove buttons */}
                 <View className="flex-row justify-between">
                   <TouchableOpacity
                     onPress={() => removeSet(exIdx)}
@@ -637,52 +663,50 @@ const ActiveWorkout = () => {
       </Animated.ScrollView>
 
       {/* ───────── Bottom timer bar ───────── */}
-      <SafeAreaView edges={["bottom"]}>
-        <View
-          style={{
-            position: "relative",
-            marginBottom: 10,
-            borderTopWidth: 1,
-            borderTopColor: "#2E2E42",
-            height: 64,
-            justifyContent: "center",
-            alignItems: "center",
-          }}
+      <View
+        style={{
+          position: "relative",
+          marginBottom: 2,
+          borderTopWidth: 1,
+          borderTopColor: "#2E2E42",
+          height: 44,
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        {/* Center clock */}
+        <TouchableOpacity
+          onPress={() => setPickerOpen(true)}
+          className="px-4 py-2 rounded-lg"
+          style={{ backgroundColor: tertiaryColor }}
         >
-          {/* Center clock (opens picker) */}
+          <Text className="text-white font-pmedium">
+            {durMin}:{String(durSec).padStart(2, "0")}
+          </Text>
+        </TouchableOpacity>
+
+        {/* Pause */}
+        <View style={{ position: "absolute", left: 16 }}>
           <TouchableOpacity
-            onPress={() => setPickerOpen(true)}
+            onPress={handlePause}
             className="px-4 py-2 rounded-lg"
             style={{ backgroundColor: tertiaryColor }}
           >
-            <Text className="text-white font-pmedium">
-              {durMin}:{String(durSec).padStart(2, "0")}
-            </Text>
+            <Text className="text-white font-pmedium">Pause</Text>
           </TouchableOpacity>
-
-          {/* Pause (left) */}
-          <View style={{ position: "absolute", left: 16 }}>
-            <TouchableOpacity
-              onPress={handlePause}
-              className="px-4 py-2 rounded-lg"
-              style={{ backgroundColor: tertiaryColor }}
-            >
-              <Text className="text-white font-pmedium">Pause</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Start rest (right) */}
-          <View style={{ position: "absolute", right: 16 }}>
-            <TouchableOpacity
-              onPress={startRest}
-              className="px-3 py-2 rounded-lg"
-              style={{ backgroundColor: primaryColor }}
-            >
-              <Text className="text-white font-pmedium">Start</Text>
-            </TouchableOpacity>
-          </View>
         </View>
-      </SafeAreaView>
+
+        {/* Start rest */}
+        <View style={{ position: "absolute", right: 16 }}>
+          <TouchableOpacity
+            onPress={startRest}
+            className="px-3 py-2 rounded-lg"
+            style={{ backgroundColor: primaryColor }}
+          >
+            <Text className="text-white font-pmedium">Start</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
 
       {/* ───────── Pause modal ───────── */}
       <Modal visible={pauseModalVisible} transparent animationType="fade">
@@ -809,7 +833,7 @@ const ActiveWorkout = () => {
         </View>
       </Modal>
 
-      {/* ───────── Cancel confirmation modal ───────── */}
+      {/* ───────── Confirm-cancel modal ───────── */}
       <Modal visible={confirmCancelVisible} transparent animationType="fade">
         <View className="flex-1 bg-black/50 justify-center items-center">
           <Animated.View
@@ -863,13 +887,20 @@ const ActiveWorkout = () => {
           <View
             style={{
               width: SCREEN_WIDTH * 0.9,
-              height: SCREEN_WIDTH ,
+              height: SCREEN_WIDTH,
               backgroundColor: "#161622",
               padding: 20,
               borderRadius: 20,
             }}
           >
-            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 8,
+              }}
+            >
               <Text className="text-white font-pbold text-xl">
                 Instructions
               </Text>
@@ -885,11 +916,7 @@ const ActiveWorkout = () => {
               </TouchableOpacity>
             </View>
 
-            <ScrollView 
-              showsVerticalScrollIndicator={false}
-            >
-              
-
+            <ScrollView showsVerticalScrollIndicator={false}>
               <Text className="text-gray-100 font-pmedium pr-2 text-base">
                 {currentInstructions}
               </Text>

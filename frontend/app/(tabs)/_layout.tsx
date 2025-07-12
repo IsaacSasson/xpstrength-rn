@@ -9,7 +9,7 @@ import { useThemeContext } from "@/context/ThemeContext";
 export default function TabsLayout() {
   const { primaryColor } = useThemeContext();
   const activeColor      = primaryColor;
-  const tabBarHeight     = 100;
+  const tabBarHeight     = 80;
 
   /* ---------- figure out which tab is active (for TabTrail) ---------- */
   const pathname        = usePathname();
