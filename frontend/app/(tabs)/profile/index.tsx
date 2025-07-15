@@ -116,7 +116,7 @@ const Profile = () => {
               </View>
             </View>
 
-            {/* 3-dot menu (placeholder) */}
+           
             <TouchableOpacity
               className="p-2"
               onPress={() => {
@@ -171,21 +171,7 @@ const Profile = () => {
             </View>
           </View>
         </View>
-
-        {/* ---------- GOAL ---------- */}
-        <View
-          className="rounded-2xl p-5 mb-6"
-          style={{ backgroundColor: tertiaryColor }}
-        >
-          <View className="flex-row items-center">
-            <Text className="text-white font-pmedium text-lg mr-2">
-              Current Goal:
-            </Text>
-            <Text style={{ color: secondaryColor }} className="text-lg">
-              {user.goal}
-            </Text>
-          </View>
-        </View>
+       
 
         {/* ---------- ACHIEVEMENTS ---------- */}
         <Text className="text-white text-xl font-psemibold mb-3 text-center">

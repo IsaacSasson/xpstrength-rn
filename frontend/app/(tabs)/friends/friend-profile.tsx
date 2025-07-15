@@ -1,4 +1,5 @@
-import React from "react";
+// Path: /app/profile/FriendProfile.tsx
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -6,13 +7,15 @@ import {
   StatusBar,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
-import { useThemeContext } from "@/context/ThemeContext";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useThemeContext } from "@/context/ThemeContext";
 import Header from "@/components/Header";
+import DraggableBottomSheet from "@/components/DraggableBottomSheet";
 import pfptest from "@/assets/images/favicon.png";
 
 /* ------------------------------------------------------------------ */
@@ -71,12 +74,22 @@ const FriendProfile = () => {
   }>();
 
   /* ---- derived ---- */
-  const levelNum = Number(level);
-  const xpNum = Number(xp);
-  const xpNext = (levelNum + 1) * 250;
+  const levelNum    = Number(level);
+  const xpNum       = Number(xp);
+  const xpNext      = (levelNum + 1) * 250;
   const workoutsNum = Number(workouts);
-  const oneRmNum = Number(oneRm);
-  const friendsNum = Number(friends);
+  const oneRmNum    = Number(oneRm);
+  const friendsNum  = Number(friends);
+
+  /* ---- options sheet ---- */
+  const [sheetVisible, setSheetVisible] = useState(false);
+
+  const removeFriend = () =>
+    Alert.alert("Remove Friend", `Removed ${name} from friends list.`);
+  const blockFriend = () =>
+    Alert.alert("Block Friend", `Blocked ${name}.`);
+  const reportFriend = () =>
+    Alert.alert("Report Friend", `Reported ${name} to moderators.`);
 
   /* ---------------------------------------------------------------- */
   return (
@@ -87,13 +100,10 @@ const FriendProfile = () => {
       <SafeAreaView edges={["top"]} className="bg-primary">
         <View className="px-4 pt-6">
           <View className="flex-row items-center justify-between mb-6">
-          <Header MText={`${name}'s Profile`} SText="It's Your Friend!" />
+            <Header MText={`${name}'s Profile`} SText="It's Your Friend!" />
           </View>
         </View>
       </SafeAreaView>
-
-
-
 
       <ScrollView showsVerticalScrollIndicator={false} className="px-4">
         {/* --------------- USER CARD --------------- */}
@@ -101,17 +111,13 @@ const FriendProfile = () => {
           className="rounded-2xl p-5 mb-6"
           style={{ backgroundColor: tertiaryColor }}
         >
-          {/* top row → avatar/info + menu dots */}
+          {/* avatar/info + menu */}
           <View className="flex-row justify-between">
             {/* avatar + text */}
             <View className="flex-row">
               <Image
                 source={pfptest}
-                style={{
-                  width: 60,
-                  height: 60,
-                  borderRadius: 30,
-                }}
+                style={{ width: 60, height: 60, borderRadius: 30 }}
               />
               <View className="ml-3">
                 <Text
@@ -131,12 +137,10 @@ const FriendProfile = () => {
               </View>
             </View>
 
-            {/* 3-dot menu */}
+            {/* 3‑dot menu */}
             <TouchableOpacity
               className="p-2"
-              onPress={() => {
-                /* future action sheet */
-              }}
+              onPress={() => setSheetVisible(true)}
             >
               <FontAwesome5 name="ellipsis-h" size={18} color={primaryColor} />
             </TouchableOpacity>
@@ -206,6 +210,64 @@ const FriendProfile = () => {
           </View>
         </View>
       </ScrollView>
+
+      {/* ---------- Options sheet ---------- */}
+      <DraggableBottomSheet
+        visible={sheetVisible}
+        onClose={() => setSheetVisible(false)}
+        primaryColor={primaryColor}
+        /* <<<<<< NEW: make the sheet shorter on this page only >>>>>> */
+        heightRatio={0.4}
+      >
+        {[
+          {
+            label: "Remove Friend",
+            icon: "user-minus",
+            onPress: removeFriend,
+            danger: true,
+          },
+          {
+            label: "Block Friend",
+            icon: "times-circle",
+            onPress: blockFriend,
+            danger: true,
+          },
+          {
+            label: "Report Friend",
+            icon: "flag",
+            onPress: reportFriend,
+            danger: true,
+          },
+        ].map((opt) => (
+          <TouchableOpacity
+            key={opt.label}
+            className="flex-row items-center p-4 mt-2 border-b border-black-200"
+            onPress={() => {
+              opt.onPress();
+              setSheetVisible(false);
+            }}
+          >
+            <FontAwesome5
+              name={opt.icon as any}
+              size={24}
+              color={opt.danger ? "#FF4D4D" : "#FFFFFF"}
+            />
+            <Text
+              className="text-lg font-pmedium ml-3"
+              style={{ color: opt.danger ? "#FF4D4D" : "white" }}
+            >
+              {opt.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+
+        <TouchableOpacity
+          className="bg-black-200 m-4 mt-6 p-4 rounded-xl"
+          onPress={() => setSheetVisible(false)}
+        >
+          <Text className="text-white font-pmedium text-center">Cancel</Text>
+        </TouchableOpacity>
+      </DraggableBottomSheet>
     </View>
   );
 };
