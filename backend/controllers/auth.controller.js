@@ -1,8 +1,8 @@
-import authService from '../services/auth.service.js'
-import AppError from '../utils/AppError.js';
+import authService from "../services/auth.service.js";
+import AppError from "../utils/AppError.js";
 import path from "path";
-import { fileURLToPath } from 'url';
-import { verifyResetToken } from '../utils/security.js';
+import { fileURLToPath } from "url";
+import { verifyResetToken } from "../utils/security.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -10,149 +10,194 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 //allows a user to register an account
 export async function postRegister(req, res, next) {
-    if (!req.body?.data) {
-        return next(new AppError("Missing register payload", 400, "BAD_DATA"));
-    }
+  if (!req.body?.data) {
+    return next(new AppError("Missing register payload", 400, "BAD_DATA"));
+  }
 
-    const data = req.body?.data;
+  const data = req.body?.data;
+  const username = data?.username;
+  const password = data?.password;
 
-    try {
-        const user = await authService.registerUser(data);
-        return res.status(201).json(user);
-    } catch (err) {
-        next(err);
-    }
-};
+  if (!username || !password) {
+    return next(
+      new AppError("Missing username or password payload", 400, "BAD_DATA")
+    );
+  }
+  try {
+    const user = await authService.registerUser(data);
+    const { accessToken, refreshToken } = await authService.loginUser({
+      username,
+      password,
+    });
+
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/api/v1/auth/refresh-token",
+      maxAge: 60 * 24 * 60 * 60 * 1000,
+    });
+
+    return res.status(201).json({
+      data: { user, accessToken },
+      message: "Succesfully Registered User.",
+    });
+  } catch (err) {
+    next(err);
+  }
+}
 
 export async function postLogin(req, res, next) {
+  if (!req.body?.data) {
+    return next(new AppError("Missing login payload", 400, "BAD_DATA"));
+  }
 
-    if (!req.body?.data) {
-        return next(new AppError("Missing login payload", 400, "BAD_DATA"));
-    }
+  const { username, password } = req.body.data;
 
-    const { username, password } = req.body.data;
+  try {
+    const { accessToken, refreshToken } = await authService.loginUser({
+      username,
+      password,
+    });
 
-    try {
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/api/v1/auth/refresh-token",
+      maxAge: 60 * 24 * 60 * 60 * 1000,
+    });
 
-        const { accessToken, refreshToken } = await authService.loginUser({ username, password });
-
-        res.cookie('refreshToken', refreshToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            path: '/api/v1/auth/refresh-token',
-            maxAge: 60 * 24 * 60 * 60 * 1000
-        });
-
-        return res.status(200).json({ data: { accessToken } })
-    } catch (err) {
-        next(err);
-    }
-};
+    return res
+      .status(200)
+      .json({ data: { accessToken }, message: "Succesfully Logged in user" });
+  } catch (err) {
+    next(err);
+  }
+}
 
 //Returns accessToken for user, and resets refresh token
 export async function getAccessToken(req, res, next) {
+  if (!req?.cookies?.refreshToken) {
+    throw new AppError("No refresh token provided", 401, "NO_TOKEN");
+  }
 
-    if (!req?.cookies?.refreshToken) {
-        throw new AppError('No refresh token provided', 401, 'NO_TOKEN');
+  try {
+    const token = req?.cookies?.refreshToken;
+
+    const { accessToken, refreshToken } = await authService.accessToken(
+      token,
+      res
+    );
+
+    if (refreshToken) {
+      res.cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        path: "/api/v1/auth/refresh-token",
+        maxAge: 60 * 24 * 60 * 60 * 1000,
+      });
     }
 
-    try {
-        const token = req?.cookies?.refreshToken;
-
-        const { accessToken, refreshToken } = await authService.accessToken(token, res);
-
-        if (refreshToken) {
-            res.cookie('refreshToken', refreshToken, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'strict',
-                path: '/api/v1/auth/refresh-token',
-                maxAge: 60 * 24 * 60 * 60 * 1000
-            });
-        }
-
-        return res.status(200).json({ data: { accessToken } })
-    } catch (err) {
-        next(err);
-    }
+    return res
+      .status(200)
+      .json({
+        data: { accessToken },
+        message: "Succesfull gave new access token to user",
+      });
+  } catch (err) {
+    next(err);
+  }
 }
 
 export async function postForgotUsername(req, res, next) {
-    if (!req?.body?.data) {
-        return next(new AppError("Missing data payload", 400, "BAD_DATA"));
-    }
+  if (!req?.body?.data) {
+    return next(new AppError("Missing data payload", 400, "BAD_DATA"));
+  }
 
-    const email = req.body.data.email;
+  const email = req.body.data.email;
 
-    if (!email) {
-        return next(new AppError("Missing email paylaod", 400, "BAD_DATA"));
-    }
+  if (!email) {
+    return next(new AppError("Missing email paylaod", 400, "BAD_DATA"));
+  }
 
-    try {
-        await authService.forgotUsername(email);
-        return res.status(200).json({ message: `Username succesfully sent to ${email}` });
-    } catch (err) {
-        next(err);
-    }
+  try {
+    await authService.forgotUsername(email);
+    return res
+      .status(200)
+      .json({ message: `Username succesfully sent to ${email}` });
+  } catch (err) {
+    next(err);
+  }
 }
 
 export async function postForgotPassword(req, res, next) {
-    if (!req?.body?.data) {
-        return next(new AppError("Missing data payload", 400, "BAD_DATA"));
-    }
+  if (!req?.body?.data) {
+    return next(new AppError("Missing data payload", 400, "BAD_DATA"));
+  }
 
-    const username = req.body.data.username;
+  const username = req.body.data.username;
 
-    if (!username) {
-        return next(new AppError("Missing username paylaod", 400, "BAD_DATA"));
-    }
+  if (!username) {
+    return next(new AppError("Missing username paylaod", 400, "BAD_DATA"));
+  }
 
-    try {
-        await authService.forgotPassword(username, req);
-        return res.status(200).json({ message: `Password reset link succesfully sent to ${username}` });
-    } catch (err) {
-        next(err);
-    }
+  try {
+    await authService.forgotPassword(username, req);
+    return res
+      .status(200)
+      .json({ message: `Password reset link succesfully sent to ${username}` });
+  } catch (err) {
+    next(err);
+  }
 }
 
 export async function getResetPassword(req, res, next) {
+  const token = req.params.token;
 
-    const token = req.params.token;
+  try {
+    await verifyResetToken(token);
+  } catch (err) {
+    return res.status(400).render("reset-password-error", {
+      message:
+        "Your password reset link is invalid or has expired. Please request a new one.",
+    });
+  }
 
-    try {
-        await verifyResetToken(token);
-    } catch (err) {
-        return res
-            .status(400)
-            .render("reset-password-error", {
-                message:
-                    "Your password reset link is invalid or has expired. Please request a new one."
-            })
-    }
-
-    res.render("reset-password", { resetToken: token });
-
+  res.render("reset-password", { resetToken: token });
 }
 
 export async function patchResetPassword(req, res, next) {
-    if (!req?.body?.data) {
-        return next(new AppError("Missing data payload", 400, "BAD_DATA"));
-    }
+  if (!req?.body?.data) {
+    return next(new AppError("Missing data payload", 400, "BAD_DATA"));
+  }
 
-    const resetToken = req.body.data.resetToken;
-    const newPassword = req.body.data.newPassword;
+  const resetToken = req.body.data.resetToken;
+  const newPassword = req.body.data.newPassword;
 
-    if (!resetToken || !newPassword) {
-        return next(new AppError("Missing resetToken or password data", 400, "BAD_DATA"));
-    }
+  if (!resetToken || !newPassword) {
+    return next(
+      new AppError("Missing resetToken or password data", 400, "BAD_DATA")
+    );
+  }
 
-    try {
-        await authService.resetPassword(resetToken, newPassword);
-        return res.status(200).json({ message: "Password succesfully changed, try logging in with new password." })
-    } catch (err) {
-        next(err);
-    }
+  try {
+    await authService.resetPassword(resetToken, newPassword);
+    return res.status(200).json({
+      message:
+        "Password succesfully changed, try logging in with new password.",
+    });
+  } catch (err) {
+    next(err);
+  }
 }
 
-export default { postRegister, postForgotPassword, patchResetPassword, getAccessToken, postForgotPassword, getResetPassword };
+export default {
+  postRegister,
+  postForgotPassword,
+  patchResetPassword,
+  getAccessToken,
+  postForgotPassword,
+  getResetPassword,
+};
