@@ -1,8 +1,8 @@
-export async function statsValidator(object) {
+export async function totalStatsValidator(object) {
   if (object === null || typeof object !== "object" || Array.isArray(object)) {
     throw new Error("Stats must be a plain object.");
   }
-  const REQUIRED = ["sets", "reps", "volume", "xp", "level"];
+  const REQUIRED = ["sets", "reps", "volume"];
 
   for (const key of REQUIRED) {
     if (!(key in object)) throw new Error(`Missing property: ${key}`);
