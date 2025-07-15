@@ -37,6 +37,7 @@ app.use(
       "https://your-spa-domain.com",
       `http://localhost:${process.env.PORT}`,
       "http://localhost:8081",
+      "http://localhost:4000",
     ],
     credentials: true,
     optionsSuccessStatus: 200,
