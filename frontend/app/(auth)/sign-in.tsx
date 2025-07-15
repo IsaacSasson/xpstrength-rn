@@ -4,25 +4,23 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import logo from "../../assets/images/logo.png";
 import FormField from "@/components/FormField";
 import CustomButton from "@/components/CustomButton";
-import { Link, useLocalSearchParams, router } from "expo-router";
+import { Link, router } from "expo-router";
 
 import { API_BASE } from "../config";
 import { handleApiError } from '../utils/handleApiError';
 import { saveToken } from "../utils/tokenStore";
 
 const SignIn = () => {
-  const { username: prefillUsername } = useLocalSearchParams<{ username?: string }>();
-
   const [isSubmitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
-    username: prefillUsername ?? '',
+    username: '',
     password: "",
   });
 
 
   const submit = async () => {
     if (!form.username || !form.password) {
-      Alert.alert("Error", "Please fill in all the fields");
+      console.log("Error: Please fill in all the fields");
       return;
     }
 
@@ -91,10 +89,27 @@ const SignIn = () => {
             placeHolder={""}
           />
 
+          {/* Forgot Username/Password Links */}
+          <View className="mt-4">
+            <View className="flex-row items-center justify-center space-x-4">
+              <Link href="/forgot-username">
+                <Text className="text-sm font-pregular text-secondary">
+                  Forgot Username?
+                </Text>
+              </Link>
+              <View className="w-px h-4 bg-gray-600" />
+              <Link href="/forgot-password">
+                <Text className="text-sm font-pregular text-secondary">
+                  Forgot Password?
+                </Text>
+              </Link>
+            </View>
+          </View>
+
           <CustomButton
             title="Sign In"
             handlePress={submit}
-            containerStyles="mt-7"
+            containerStyles="mt-4"
             isLoading={isSubmitting}
           />
 

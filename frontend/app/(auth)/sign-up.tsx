@@ -2,12 +2,13 @@ import { View, ScrollView, Image, Text, Alert } from "react-native";
 import React, { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import logo from "../../assets/images/logo.png";
-import { handleApiError } from '../utils/handleApiError';
 import FormField from "@/components/FormField";
 import CustomButton from "@/components/CustomButton";
 import { Link, router } from "expo-router";
 
 import { API_BASE } from "../config";
+import { handleApiError } from '../utils/handleApiError';
+import { saveToken } from "../utils/tokenStore";
 
 const SignUp = () => {
   const [isSubmitting, setSubmitting] = useState(false);
@@ -40,14 +41,18 @@ const SignUp = () => {
 
       if (!response.ok) {
         const { error } = await handleApiError(response);
-        console.log('Sign up failed:', error ?? 'Request failed');
+        console.log('Sign-up failed:', error ?? 'Request failed');
         return;
       }
 
-      router.push({
-        pathname: '/sign-in',
-        params: { username: form.username.trim() },
-      });
+      // backend now logs the user in right away
+      const { data } = await response.json();
+      if (data?.accessToken) {
+        await saveToken(data.accessToken);   // secure-store, etc.
+      }
+
+      // drop them straight into the main tab stack
+      router.replace('/(tabs)/home');
     } catch (networkErr) {
       console.error('Network error:', networkErr);
       console.log('Network error', 'Check your connection');
