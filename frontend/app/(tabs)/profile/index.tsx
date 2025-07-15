@@ -14,6 +14,8 @@ import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useThemeContext } from "@/context/ThemeContext";
 import TopBar from "@/components/TopBar";
 import pfptest from "@/assets/images/favicon.png";
+import { router } from "expo-router";
+
 
 /* ------------------------------------------------------------------
    Dummy User Data (replace with real state later)
@@ -118,10 +120,10 @@ const Profile = () => {
             <TouchableOpacity
               className="p-2"
               onPress={() => {
-                /* TODO: open settings/action sheet */
+                router.push("/profile/settings");
               }}
             >
-              <FontAwesome5 name="ellipsis-h" size={18} color={primaryColor} />
+              <FontAwesome5 name="cog" size={18} color={primaryColor} />
             </TouchableOpacity>
           </View>
 
