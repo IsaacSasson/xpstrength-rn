@@ -1,13 +1,13 @@
 import { Router } from "express";
 import {
   postLogoutUser,
-  getSocketToken,
+  getWsToken,
 } from "../controllers/network.controller.js";
 
 const networkRouter = Router();
 
 networkRouter.post("/logout", postLogoutUser);
 
-networkRouter.get("/websocket-token", getSocketToken);
+networkRouter.get("/websocket-token", getWsToken);
 
 export default networkRouter;

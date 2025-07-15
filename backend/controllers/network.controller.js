@@ -3,7 +3,7 @@ import AppError from "../utils/AppError.js";
 
 //In future logout disconects them from websocket
 export async function postLogoutUser(req, res, next) {
-  const user = req?.user;
+  const user = req?.user ?? null;
 
   if (!user || !user.id) {
     return next(new AppError("No user data", 400, "BAD_DATA"));
@@ -16,12 +16,22 @@ export async function postLogoutUser(req, res, next) {
   }
 }
 
-export async function getSocketToken(req, res, next) {
+export async function getWsToken(req, res, next) {
+  const user = req?.user ?? null;
+
   try {
-    return;
+    if (!user) {
+      throw new AppError("No user data", 400, "BAD_DATA");
+    }
+
+    const WsToken = await networkService.wsToken(user);
+    return res.status(200).json({
+      data: { WsToken },
+      message: "User succesfully generated web-socket token!",
+    });
   } catch (err) {
     next(err);
   }
 }
 
-export default { postLogoutUser, getSocketToken };
+export default { postLogoutUser, getWsToken };

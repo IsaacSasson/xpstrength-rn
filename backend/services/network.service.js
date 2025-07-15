@@ -3,6 +3,7 @@ import AppError from "../utils/AppError.js";
 import { User, Auth } from "../models/index.js";
 import { sequelize } from "../config/db.config.js";
 import AppHistory from "../utils/AddHistory.js";
+import { generateWebSocketToken } from "../utils/security.js";
 
 //Logs user out and unauthorizes them
 export async function logoutUser(res, userId) {
@@ -37,8 +38,8 @@ export async function logoutUser(res, userId) {
 }
 
 //Gives wsToken
-export async function wsToken(input_information) {
-  return;
+export async function wsToken(user) {
+  return await generateWebSocketToken(user);
 }
 
 export default { logoutUser, wsToken };
