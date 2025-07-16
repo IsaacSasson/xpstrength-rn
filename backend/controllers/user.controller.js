@@ -1,6 +1,5 @@
-import { P } from "pino";
-import userService from "../services/user.service";
-import AppError from "../utils/AppError";
+import userService from "../services/user.service.js";
+import AppError from "../utils/AppError.js";
 
 export async function getProfile(req, res, next) {
   return;

@@ -13,7 +13,7 @@ import {
   patchCustomWorkout,
   deleteCustomWorkout,
   postLogWorkout,
-} from "../controllers/user.controller";
+} from "../controllers/user.controller.js";
 
 const userRouter = Router();
 
