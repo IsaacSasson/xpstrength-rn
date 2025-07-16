@@ -15,6 +15,8 @@ export default class AddHistory {
       case "NETWORK":
         this.message = "NETWORK: " + message + " at " + Date.now();
         break;
+      case "USER":
+        this.message = message;
       default:
         throw new AppError("Unknown ActionType", 500, "INTERNAL-ERROR");
     }
@@ -25,6 +27,7 @@ export default class AddHistory {
       {
         userId: this.userId,
         action: this.message,
+        type: this.type,
       },
       { transaction: t }
     );

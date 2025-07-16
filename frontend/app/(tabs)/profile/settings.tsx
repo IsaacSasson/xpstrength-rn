@@ -1,5 +1,5 @@
 // Path: /app/settings.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,17 +8,19 @@ import {
   StatusBar,
   Image,
   ActivityIndicator,
-  Alert,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import { useThemeContext } from "@/context/ThemeContext";
 import logo from "@/assets/images/logo.png";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { deleteToken, getToken } from "@/utils/tokenStore";
 import { handleApiError } from "@/utils/handleApiError";
 
 const APP_VERSION = "v0.8.3";
+const UNIT_KEY = "unit_preference";
 
 /* ------------------------------------------------------------------ */
 /*                               Row                                  */
@@ -50,8 +52,27 @@ const Row: React.FC<RowProps> = ({ label, icon, onPress }) => {
 /*                              Screen                                */
 /* ------------------------------------------------------------------ */
 const Settings = () => {
-  const { primaryColor } = useThemeContext();
+  const { primaryColor, secondaryColor, tertiaryColor } = useThemeContext();
   const [loadingOut, setLoadingOut] = useState(false);
+
+  /* -------- UNITS -------- */
+  const [unit, setUnit] = useState<"imperial" | "metric">("imperial");
+  const [unitModalVisible, setUnitModalVisible] = useState(false);
+
+  /** Load saved preference on mount */
+  useEffect(() => {
+    (async () => {
+      const saved = await AsyncStorage.getItem(UNIT_KEY);
+      if (saved === "imperial" || saved === "metric") setUnit(saved);
+    })();
+  }, []);
+
+  /** Persist preference and close modal */
+  const chooseUnit = async (u: "imperial" | "metric") => {
+    setUnit(u);
+    await AsyncStorage.setItem(UNIT_KEY, u);
+    setUnitModalVisible(false);
+  };
 
   /* -------- LOG‑OUT -------- */
   const logOut = async () => {
@@ -112,22 +133,22 @@ const Settings = () => {
         <Row
           label="Profile"
           icon="user"
-          onPress={() => router.push("/profile")}
+          onPress={() => router.push("/profile/user-profile")}
         />
         <Row
           label="Account"
           icon="lock"
-          onPress={() => router.push("/profile")}
+          onPress={() => router.push("/profile/account")}
         />
         <Row
-          label="Units"
+          label={`Units (${unit === "imperial" ? "lbs" : "kgs"})`}
           icon="weight-hanging"
-          onPress={() => router.push("/profile")}
+          onPress={() => setUnitModalVisible(true)}
         />
         <Row
           label="Support"
           icon="life-ring"
-          onPress={() => router.push("/profile")}
+          onPress={() => router.push("/profile/support")}
         />
       </ScrollView>
 
@@ -138,7 +159,6 @@ const Settings = () => {
         activeOpacity={0.9}
         className="px-4 py-4 rounded-2xl items-center"
         style={{
-       
           position: "absolute",
           bottom: 8,
           left: 0,
@@ -162,6 +182,66 @@ const Settings = () => {
       >
         {APP_VERSION}
       </Text>
+
+      {/* ----- Unit selection modal ----- */}
+      <Modal
+        visible={unitModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setUnitModalVisible(false)}
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          className="flex-1 items-center justify-center"
+          style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
+          onPress={() => setUnitModalVisible(false)}
+        >
+          <View
+            className="w-11/12 rounded-3xl p-6"
+            style={{ backgroundColor: tertiaryColor }}
+          >
+            <Text className="text-white font-pbold text-lg mb-4">
+              Choose Units
+            </Text>
+
+            {/* Imperial */}
+            <TouchableOpacity
+              onPress={() => chooseUnit("imperial")}
+              activeOpacity={0.8}
+              className="flex-row items-center py-3"
+            >
+              <FontAwesome5
+                name={
+                  unit === "imperial" ? "dot-circle" : "circle"
+                }
+                size={20}
+                color={primaryColor}
+              />
+              <Text className="text-white font-pmedium text-base ml-3">
+                Imperial (lbs)
+              </Text>
+            </TouchableOpacity>
+
+            {/* Metric */}
+            <TouchableOpacity
+              onPress={() => chooseUnit("metric")}
+              activeOpacity={0.8}
+              className="flex-row items-center py-3"
+            >
+              <FontAwesome5
+                name={
+                  unit === "metric" ? "dot-circle" : "circle"
+                }
+                size={20}
+                color={primaryColor}
+              />
+              <Text className="text-white font-pmedium text-base ml-3">
+                Metric (kgs)
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 };

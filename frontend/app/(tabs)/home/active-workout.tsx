@@ -351,9 +351,9 @@ const ActiveWorkout = () => {
         volume: String(totalVolume),
         elapsed: String(elapsed),
         xpGained: String(xpGained),
-        level: "12",      // TODO: replace with real user level
-        xp: "2863",       // TODO: replace with real current XP
-        xpNext: "5000",   // TODO: replace with real threshold
+        level: "12", // TODO: replace with real user level
+        xp: "2863", // TODO: replace with real current XP
+        xpNext: "5000", // TODO: replace with real threshold
         ach: "[]",
         ex: JSON.stringify(summaries),
       },
@@ -369,7 +369,8 @@ const ActiveWorkout = () => {
   const closeOptionsSheet = () => setShowOptionsSheet(false);
 
   /* instructions modal */
-  const [instructionsModalVisible, setInstructionsModalVisible] = useState(false);
+  const [instructionsModalVisible, setInstructionsModalVisible] =
+    useState(false);
   const [currentInstructions, setCurrentInstructions] = useState("");
   const handleInstructions = () => {
     if (selectedExerciseIdx !== null) {
@@ -384,7 +385,9 @@ const ActiveWorkout = () => {
     Alert.alert("Replace Workout", "Replace workout action…");
   const handleDelete = () => {
     if (selectedExerciseIdx !== null) {
-      setExercises((prev) => prev.filter((_, idx) => idx !== selectedExerciseIdx));
+      setExercises((prev) =>
+        prev.filter((_, idx) => idx !== selectedExerciseIdx)
+      );
       setSelectedExerciseIdx(null);
     }
     closeOptionsSheet();
@@ -473,9 +476,21 @@ const ActiveWorkout = () => {
                 transform: [{ scale }],
               }}
             >
+              {/* Glass‑effect card */}
               <View
                 className="rounded-2xl p-4 mt-10"
-                style={{ backgroundColor: tertiaryColor, height: CARD_HEIGHT }}
+                style={{
+                  /* Glassmorphism look */
+                  backgroundColor: tertiaryColor,
+                  borderRadius: 18,
+                  borderWidth: 1,
+                  borderColor: "rgba(255,255,255,0.15)",
+                  shadowColor: primaryColor,
+                  shadowOpacity: 0.2,
+                  shadowRadius: 13,
+                  shadowOffset: { width: 0, height: 4 },
+                  height: CARD_HEIGHT,
+                }}
               >
                 {/* Card header */}
                 <View className="flex-row items-center mb-4">
@@ -499,7 +514,7 @@ const ActiveWorkout = () => {
                 {/* Table header */}
                 <View
                   className="flex-row py-1 mb-2 rounded-lg"
-                  style={{ backgroundColor: "#1B1B2E" }}
+                  style={{ borderColor: secondaryColor, borderWidth: 0.3 }}
                 >
                   <Text
                     style={{ width: COL_WIDTH, marginLeft: 30 }}
@@ -663,45 +678,64 @@ const ActiveWorkout = () => {
       </Animated.ScrollView>
 
       {/* ───────── Bottom timer bar ───────── */}
+      {/* ───────── Bottom bar (oval) ───────── */}
+      {/* ───────── Bottom bar (compact oval) ───────── */}
+      {/* ───────── Bottom bar (centered, equal thirds) ───────── */}
       <View
         style={{
-          position: "relative",
-          marginBottom: 2,
-          borderTopWidth: 1,
-          borderTopColor: "#2E2E42",
-          height: 44,
-          justifyContent: "center",
+          marginBottom: 8,
+          alignSelf: "center",
+          width: 260, // keep your compact pill width
+          backgroundColor: tertiaryColor,
+          borderRadius: 9999,
+          flexDirection: "row",
           alignItems: "center",
+          paddingVertical: 6,
         }}
       >
-        {/* Center clock */}
-        <TouchableOpacity
-          onPress={() => setPickerOpen(true)}
-          className="px-4 py-2 rounded-lg"
-          style={{ backgroundColor: tertiaryColor }}
-        >
-          <Text className="text-white font-pmedium">
-            {durMin}:{String(durSec).padStart(2, "0")}
-          </Text>
-        </TouchableOpacity>
-
         {/* Pause */}
-        <View style={{ position: "absolute", left: 16 }}>
-          <TouchableOpacity
-            onPress={handlePause}
-            className="px-4 py-2 rounded-lg"
-            style={{ backgroundColor: tertiaryColor }}
-          >
+        <View style={{ flex: 1, alignItems: "center" }}>
+          <TouchableOpacity onPress={handlePause}>
             <Text className="text-white font-pmedium">Pause</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Start rest */}
-        <View style={{ position: "absolute", right: 16 }}>
+        {/* Divider */}
+        <View
+          style={{
+            width: 1,
+            height: "60%",
+            backgroundColor: "#2E2E42",
+          }}
+        />
+
+        {/* Clock / picker */}
+        <View style={{ flex: 1, alignItems: "center" }}>
+          <TouchableOpacity onPress={() => setPickerOpen(true)}>
+            <Text className="text-white font-pmedium">
+              {durMin}:{String(durSec).padStart(2, "0")}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Divider */}
+        <View
+          style={{
+            width: 1,
+            height: "60%",
+            backgroundColor: "#2E2E42",
+          }}
+        />
+
+        {/* Start */}
+        <View style={{ flex: 1, alignItems: "center" }}>
           <TouchableOpacity
             onPress={startRest}
-            className="px-3 py-2 rounded-lg"
-            style={{ backgroundColor: primaryColor }}
+            style={{
+              paddingHorizontal: 10,
+              paddingVertical: 6,
+              borderRadius: 8,
+            }}
           >
             <Text className="text-white font-pmedium">Start</Text>
           </TouchableOpacity>
