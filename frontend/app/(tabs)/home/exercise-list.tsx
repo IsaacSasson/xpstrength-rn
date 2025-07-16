@@ -15,7 +15,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useThemeContext } from "@/context/ThemeContext";
-import { loadExercises } from "@/app/utils/loadExercises";
+import { loadExercises } from "@/utils/loadExercises";
 import CustomDropdown, { DropdownOption } from "@/components/CustomDropdown";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Header from "@/components/Header";

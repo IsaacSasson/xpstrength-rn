@@ -19,7 +19,7 @@ import { router } from "expo-router";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { Picker } from "@react-native-picker/picker";
 import { useThemeContext } from "@/context/ThemeContext";
-import { loadExercises, ExerciseData } from "@/app/utils/loadExercises";
+import { loadExercises, ExerciseData } from "@/utils/loadExercises";
 
 /* ───────── Layout constants ───────── */
 const { width: SCREEN_WIDTH } = Dimensions.get("window");

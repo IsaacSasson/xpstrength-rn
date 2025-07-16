@@ -6,9 +6,9 @@ import FormField from "@/components/FormField";
 import CustomButton from "@/components/CustomButton";
 import { Link, router } from "expo-router";
 
-import { API_BASE } from "../config";
-import { handleApiError } from '../utils/handleApiError';
-import { saveToken } from "../utils/tokenStore";
+import { api } from "@/utils/api";
+import { useAuth } from "@/context/AuthProvider";
+import { handleApiError } from "@/utils/handleApiError";
 
 const SignUp = () => {
   const [isSubmitting, setSubmitting] = useState(false);
@@ -17,6 +17,8 @@ const SignUp = () => {
     email: "",
     password: "",
   });
+
+  const { setAccessToken, setUser } = useAuth();
 
   const submit = async () => {
     // simple validation
@@ -27,35 +29,39 @@ const SignUp = () => {
 
     try {
       setSubmitting(true);
-      const response = await fetch(`${API_BASE}/api/v1/auth/register`, {
-        method: "POST",
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          data: {
-            username: form.username.trim(),
-            email: form.email.trim(),
-            password: form.password,
-          },
-        }),
+      
+      // Use the new api utility - AuthProvider handles auth headers automatically
+      const response = await api.post('/api/v1/auth/register', {
+        data: {
+          username: form.username.trim(),
+          email: form.email.trim(),
+          password: form.password,
+        },
       });
 
       if (!response.ok) {
         const { error } = await handleApiError(response);
-        console.log('Sign-up failed:', error ?? 'Request failed');
+        Alert.alert('Sign-up failed', error ?? 'Request failed');
         return;
       }
 
       // backend now logs the user in right away
       const { data } = await response.json();
+      
+      // Update auth context instead of using saveToken
       if (data?.accessToken) {
-        await saveToken(data.accessToken);   // secure-store, etc.
+        setAccessToken(data.accessToken);
+      }
+      
+      if (data?.user) {
+        setUser(data.user);
       }
 
       // drop them straight into the main tab stack
       router.replace('/(tabs)/home');
     } catch (networkErr) {
       console.error('Network error:', networkErr);
-      console.log('Network error', 'Check your connection');
+      Alert.alert('Network error', 'Check your connection');
     } finally {
       setSubmitting(false);
     }
@@ -83,7 +89,6 @@ const SignUp = () => {
             value={form.username}
             handleChangeText={(e) => setForm({ ...form, username: e })}
             otherStyles="mt-10"
-            
             placeHolder={""}
           />
 
@@ -129,4 +134,3 @@ const SignUp = () => {
 };
 
 export default SignUp;
-

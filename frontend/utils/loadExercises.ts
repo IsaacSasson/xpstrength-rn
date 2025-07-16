@@ -1,5 +1,5 @@
 import exercisesData from "@/assets/exercises.json";
-import { exerciseImageMap } from "@/app/utils/exerciseImageMap";
+import { exerciseImageMap } from "@/utils/exerciseImageMap";
 
 /* ───────── Types ───────── */
 export interface ExerciseData {

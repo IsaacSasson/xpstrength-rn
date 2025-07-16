@@ -6,8 +6,8 @@ import FormField from "@/components/FormField";
 import CustomButton from "@/components/CustomButton";
 import { Link, router } from "expo-router";
 
-import { API_BASE } from "../config";
-import { handleApiError } from '../utils/handleApiError';
+import { api } from "@/utils/api";
+import { handleApiError } from "@/utils/handleApiError";
 
 const ForgotPassword = () => {
   const [isSubmitting, setSubmitting] = useState(false);
@@ -21,24 +21,32 @@ const ForgotPassword = () => {
 
     try {
         setSubmitting(true);
-        const res = await fetch(`${API_BASE}/api/v1/auth/forgotPassword`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-            data: { username: username.trim() },
-            }),
+        
+        // Use the new api utility
+        const response = await api.post('/api/v1/auth/forgotPassword', {
+          data: { username: username.trim() },
         });
 
-        if (!res.ok) {
-            const { error } = await handleApiError(res);
-            console.log("Error:", error ?? "Failed to send password reset link. Please try again.");
+        if (!response.ok) {
+            const { error } = await handleApiError(response);
+            Alert.alert("Error", error ?? "Failed to send password reset link. Please try again.");
             return;
         }
 
-        router.push("/sign-in");
-    } catch (e) {
-        console.error("Network error:", e);
-        console.log("Error: Network error. Please check your connection and try again.");
+        // Show success message and then navigate
+        Alert.alert(
+          "Password Reset Sent", 
+          "A password reset link has been sent to your email address.",
+          [
+            { 
+              text: "OK", 
+              onPress: () => router.push("/sign-in") 
+            }
+          ]
+        );
+    } catch (networkErr) {
+        console.error("Network error:", networkErr);
+        Alert.alert("Network Error", "Please check your connection and try again.");
     } finally {
         setSubmitting(false);
     }

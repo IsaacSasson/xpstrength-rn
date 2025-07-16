@@ -1,10 +1,10 @@
-// node ≥ 18
+// node ≥ 18
 import fg from "fast-glob";
 import fs from "node:fs";
 import path from "node:path";
 
 const IMAGE_GLOB = "assets/exerciseImages/**/*.{jpg,jpeg,png}";
-const OUT_FILE = "app/utils/exerciseImageMap.ts";
+const OUT_FILE = "utils/exerciseImageMap.ts";
 
 const files = await fg(IMAGE_GLOB);
 if (files.length === 0) {
@@ -15,9 +15,7 @@ if (files.length === 0) {
 const rows = files
   .map((file) => {
     const key = "/" + file.replace(/\\/g, "/");                 // JSON path
-    const requirePath = path
-      .relative(path.dirname(OUT_FILE), file)
-      .replace(/\\/g, "/");                                     // relative import
+    const requirePath = "@/" + file.replace(/\\/g, "/");       // @/ alias import
     return `  "${key}": require("${requirePath}"),`;
   })
   .join("\n");
@@ -31,3 +29,5 @@ ${rows}
 fs.mkdirSync(path.dirname(OUT_FILE), { recursive: true });
 fs.writeFileSync(OUT_FILE, out);
 console.log(`✅  Wrote ${OUT_FILE}  (${files.length} images)`);
+
+// yarn gen:images

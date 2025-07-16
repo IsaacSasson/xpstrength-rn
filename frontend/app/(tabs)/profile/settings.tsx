@@ -15,9 +15,8 @@ import { router } from "expo-router";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import { useThemeContext } from "@/context/ThemeContext";
 import logo from "@/assets/images/logo.png";
-import { deleteToken, getToken } from "../../utils/tokenStore";
-// import { handleApiError } from "@/utils/handleApiError";
-import { handleApiError } from "../../utils/handleApiError";
+import { deleteToken, getToken } from "@/utils/tokenStore";
+import { handleApiError } from "@/utils/handleApiError";
 
 const APP_VERSION = "v0.8.3";
 
