@@ -31,7 +31,7 @@ export async function postRegister(req, res, next) {
     });
 
     res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
+      httpOnly: false,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
       path: "/api/v1/auth/refresh-token",
@@ -61,7 +61,7 @@ export async function postLogin(req, res, next) {
     });
 
     res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
+      httpOnly: false,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
       path: "/api/v1/auth/refresh-token",
@@ -92,7 +92,7 @@ export async function getAccessToken(req, res, next) {
 
     if (refreshToken) {
       res.cookie("refreshToken", refreshToken, {
-        httpOnly: true,
+        httpOnly: false,
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
         path: "/api/v1/auth/refresh-token",
@@ -100,12 +100,10 @@ export async function getAccessToken(req, res, next) {
       });
     }
 
-    return res
-      .status(200)
-      .json({
-        data: { accessToken },
-        message: "Succesfull gave new access token to user",
-      });
+    return res.status(200).json({
+      data: { accessToken },
+      message: "Succesfull gave new access token to user",
+    });
   } catch (err) {
     next(err);
   }

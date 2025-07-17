@@ -163,7 +163,7 @@ export async function accessToken(token, res) {
   } catch (err) {
     //If the users refresh token fails, in anyway remove it
     res.clearCookie("refreshToken", {
-      httpOnly: true,
+      httpOnly: false,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
       path: "/api/v1/auth/refresh-token",
