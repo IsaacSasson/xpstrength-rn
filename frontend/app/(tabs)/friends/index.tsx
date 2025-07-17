@@ -1,4 +1,3 @@
-// Path: /app/(tabs)/friends.tsx
 import React, { useState } from "react";
 import { View, StatusBar, Text, ScrollView } from "react-native";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
@@ -47,7 +46,10 @@ const Friends = () => {
       : `${getFriendsCount()} Friends`;
 
   /* ----------------------- Friend actions ---------------------- */
-  const handleAcceptRequest = (id: string) => acceptFriendRequest(id);
+  const handleAcceptRequest = (id: string) => {
+    acceptFriendRequest(id);
+  };
+
   const handleDeclineRequest = (id: string) => declineFriendRequest(id);
   const handleCancelRequest = (id: string) => cancelPendingRequest(id);
   const handleRemoveFriend = (id: string) => removeFriend(id);

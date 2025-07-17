@@ -207,16 +207,35 @@ export const useFriends = () => {
   const acceptFriendRequest = (id: string) => {
     const user = requestsData.find((u) => u.id === id);
     if (!user) return false;
+    
+    // Remove from requests
     setRequestsData((d) => d.filter((u) => u.id !== id));
-    setFriendsData((d) => [...d, { ...user, workouts: Math.floor(Math.random() * 30) }]);
+    
+    // Add to friends with updated status and workouts
+    setFriendsData((d) => [...d, { 
+      ...user, 
+      status: "Online",
+      lastActive: "Now",
+      workouts: Math.floor(Math.random() * 30) 
+    }]);
+    
     return true;
   };
-  const declineFriendRequest = (id: string) =>
-    (setRequestsData((d) => d.filter((u) => u.id !== id)), true);
-  const cancelPendingRequest = (id: string) =>
-    (setPendingData((d) => d.filter((u) => u.id !== id)), true);
-  const removeFriend = (id: string) =>
-    (setFriendsData((d) => d.filter((u) => u.id !== id)), true);
+
+  const declineFriendRequest = (id: string) => {
+    setRequestsData((d) => d.filter((u) => u.id !== id));
+    return true;
+  };
+
+  const cancelPendingRequest = (id: string) => {
+    setPendingData((d) => d.filter((u) => u.id !== id));
+    return true;
+  };
+
+  const removeFriend = (id: string) => {
+    setFriendsData((d) => d.filter((u) => u.id !== id));
+    return true;
+  };
 
   /* ------------------ Return --------------------- */
   return {

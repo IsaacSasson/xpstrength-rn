@@ -100,7 +100,7 @@ const FriendProfile = () => {
       <SafeAreaView edges={["top"]} className="bg-primary">
         <View className="px-4 pt-6">
           <View className="flex-row items-center justify-between mb-6">
-            <Header MText={`${name}'s Profile`} SText="It's Your Friend!" />
+            <Header MText={`${name}'s Profile`} SText="" />
           </View>
         </View>
       </SafeAreaView>
