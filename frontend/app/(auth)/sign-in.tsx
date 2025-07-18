@@ -17,7 +17,7 @@ const SignIn = () => {
     password: "",
   });
 
-  const { setAccessToken, setUser } = useAuth();
+  const { setAccessToken, setUser, setRefreshToken } = useAuth();
 
   const submit = async () => {
     if (!form.username || !form.password) {
@@ -47,6 +47,10 @@ const SignIn = () => {
       
       if (data?.accessToken) {
         setAccessToken(data.accessToken);
+      }
+      
+      if (data?.refreshToken) {
+        await setRefreshToken(data.refreshToken);
       }
       
       if (data?.user) {

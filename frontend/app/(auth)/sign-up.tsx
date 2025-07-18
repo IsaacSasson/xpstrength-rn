@@ -18,7 +18,7 @@ const SignUp = () => {
     password: "",
   });
 
-  const { setAccessToken, setUser } = useAuth();
+  const { setAccessToken, setUser, setRefreshToken } = useAuth();
 
   const submit = async () => {
     // simple validation
@@ -51,6 +51,10 @@ const SignUp = () => {
       // Update auth context instead of using saveToken
       if (data?.accessToken) {
         setAccessToken(data.accessToken);
+      }
+      
+      if (data?.refreshToken) {
+        await setRefreshToken(data.refreshToken);
       }
       
       if (data?.user) {

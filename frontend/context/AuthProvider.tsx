@@ -1,6 +1,10 @@
 // Path: /context/AuthContext.tsx
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import * as SecureStore from 'expo-secure-store';
 import { API_BASE_URL } from '../utils/api';
+
+// Constants for SecureStore keys
+const REFRESH_TOKEN_KEY = 'refreshToken';
 
 // Types
 interface User {
@@ -18,8 +22,9 @@ interface AuthContextType {
   isAuthenticated: boolean;
   setUser: (user: User | null) => void;
   setAccessToken: (token: string | null) => void;
+  setRefreshToken: (token: string | null) => Promise<void>;
   logout: () => Promise<void>;
-  clearAuth: () => void;
+  clearAuth: () => Promise<void>;
 }
 
 // Create context
@@ -44,11 +49,9 @@ const createAuthenticatedFetch = () => {
         headers.set('Authorization', `Bearer ${authContext.accessToken}`);
       }
       
-      // Always include credentials for httpOnly cookies
       const requestInit: RequestInit = {
         ...init,
         headers,
-        credentials: 'include',
       };
       
       let response = await originalFetch(input, requestInit);
@@ -58,10 +61,21 @@ const createAuthenticatedFetch = () => {
         try {
           console.log('Token expired, attempting refresh...');
           
-          // Try to refresh the token
+          // Get refresh token from SecureStore
+          const refreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+          
+          if (!refreshToken) {
+            console.log('No refresh token found, logging out...');
+            await authContext.clearAuth();
+            return response;
+          }
+          
+          // Try to refresh the token with custom header
           const refreshResponse = await originalFetch(`${API_BASE_URL}/api/v1/auth/access-token`, {
             method: 'GET',
-            credentials: 'include',
+            headers: {
+              'refreshToken': refreshToken,
+            },
           });
           
           if (refreshResponse.ok) {
@@ -79,11 +93,11 @@ const createAuthenticatedFetch = () => {
           } else {
             // Refresh failed, clear auth and logout
             console.log('Token refresh failed, logging out...');
-            authContext.clearAuth();
+            await authContext.clearAuth();
           }
         } catch (error) {
           console.error('Token refresh error:', error);
-          authContext.clearAuth();
+          await authContext.clearAuth();
         }
       }
       
@@ -126,57 +140,85 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       isAuthenticated,
       setUser,
       setAccessToken,
+      setRefreshToken,
       logout,
       clearAuth,
     };
   }, [user, accessToken, isLoading, isAuthenticated]);
 
+  const setRefreshToken = async (token: string | null): Promise<void> => {
+    try {
+      if (token) {
+        await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, token);
+      } else {
+        await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
+      }
+    } catch (error) {
+      console.error('Error managing refresh token in SecureStore:', error);
+    }
+  };
+
   const initializeAuth = async () => {
     try {
       setIsLoading(true);
       
-      // Try to refresh token on app start (this will work if refresh token exists in httpOnly cookie)
-      const response = await fetch(`${API_BASE_URL}/api/v1/auth/access-token`, {
-        method: 'GET',
-        credentials: 'include',
-      });
+      // Try to get refresh token from SecureStore
+      const refreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+      
+      if (refreshToken) {
+        // Try to refresh token on app start
+        const response = await fetch(`${API_BASE_URL}/api/v1/auth/access-token`, {
+          method: 'GET',
+          headers: {
+            'refreshToken': refreshToken,
+          },
+        });
 
-      if (response.ok) {
-        const result = await response.json();
-        const newToken = result.data.accessToken;
-        setAccessToken(newToken);
-        
-        // If you have a "get current user" endpoint, call it here
-        // For now, we'll assume login/register will set the user
-        console.log('Token refreshed on app start');
+        if (response.ok) {
+          const result = await response.json();
+          const newToken = result.data.accessToken;
+          setAccessToken(newToken);
+          
+          // If you have a "get current user" endpoint, call it here
+          // For now, we'll assume login/register will set the user
+          console.log('Token refreshed on app start');
+        } else {
+          // Refresh token is invalid, clear it
+          await setRefreshToken(null);
+        }
       }
     } catch (error) {
       console.log('No valid session found on startup');
+      await setRefreshToken(null);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const clearAuth = () => {
+  const clearAuth = async (): Promise<void> => {
     setAccessToken(null);
     setUser(null);
+    await setRefreshToken(null);
   };
 
   const logout = async (): Promise<void> => {
     try {
-      // Call logout endpoint to clear refresh token
-      await fetch(`${API_BASE_URL}/api/v1/network/logout`, {
+      // Get refresh token for logout call
+      const refreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+      
+      // Call logout endpoint to invalidate tokens
+      await fetch(`${API_BASE_URL}/api/v1/auth/logout`, {
         method: 'POST',
-        credentials: 'include',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
+          'refreshToken': refreshToken || '',
         },
       });
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
       // Clear local state regardless of API call success
-      clearAuth();
+      await clearAuth();
     }
   };
 
@@ -187,6 +229,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     isAuthenticated,
     setUser,
     setAccessToken,
+    setRefreshToken,
     logout,
     clearAuth,
   };
