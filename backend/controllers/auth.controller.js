@@ -30,16 +30,8 @@ export async function postRegister(req, res, next) {
       password,
     });
 
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      path: "/api/v1/auth/refresh-token",
-      maxAge: 60 * 24 * 60 * 60 * 1000,
-    });
-
     return res.status(201).json({
-      data: { user, accessToken },
+      data: { user, accessToken, refreshToken },
       message: "Succesfully Registered User.",
     });
   } catch (err) {
@@ -60,17 +52,10 @@ export async function postLogin(req, res, next) {
       password,
     });
 
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      path: "/api/v1/auth/refresh-token",
-      maxAge: 60 * 24 * 60 * 60 * 1000,
+    return res.status(200).json({
+      data: { accessToken, refreshToken },
+      message: "Succesfully Logged in user",
     });
-
-    return res
-      .status(200)
-      .json({ data: { accessToken }, message: "Succesfully Logged in user" });
   } catch (err) {
     next(err);
   }
@@ -78,30 +63,19 @@ export async function postLogin(req, res, next) {
 
 //Returns accessToken for user, and resets refresh token
 export async function getAccessToken(req, res, next) {
-  if (!req?.cookies?.refreshToken) {
+  if (!req?.headers?.refreshToken) {
     throw new AppError("No refresh token provided", 401, "NO_TOKEN");
   }
-
   try {
-    const token = req?.cookies?.refreshToken;
+    const token = req?.headers?.refreshToken;
 
     const { accessToken, refreshToken } = await authService.accessToken(
       token,
       res
     );
 
-    if (refreshToken) {
-      res.cookie("refreshToken", refreshToken, {
-        httpOnly: false,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        path: "/api/v1/auth/refresh-token",
-        maxAge: 60 * 24 * 60 * 60 * 1000,
-      });
-    }
-
     return res.status(200).json({
-      data: { accessToken },
+      data: { accessToken, refreshToken },
       message: "Succesfull gave new access token to user",
     });
   } catch (err) {
