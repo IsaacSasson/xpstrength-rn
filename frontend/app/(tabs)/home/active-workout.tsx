@@ -11,13 +11,12 @@ import {
   Animated,
   TextInput,
   Alert,
-  useWindowDimensions,
-  PanResponder,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { Picker } from "@react-native-picker/picker";
+import DraggableBottomSheet from "@/components/DraggableBottomSheet";
 import { useThemeContext } from "@/context/ThemeContext";
 import { loadExercises, ExerciseData } from "@/utils/loadExercises";
 
@@ -40,100 +39,6 @@ interface Set {
 interface Exercise extends ExerciseData {
   sets: Set[];
 }
-
-/* -------------------------------------------------------------------------- */
-/*                        DRAGGABLE BOTTOM-SHEET (generic)                    */
-/* -------------------------------------------------------------------------- */
-interface DraggableBottomSheetProps {
-  visible: boolean;
-  onClose: () => void;
-  children: React.ReactNode;
-  primaryColor: string;
-}
-const DraggableBottomSheet: React.FC<DraggableBottomSheetProps> = ({
-  visible,
-  onClose,
-  children,
-  primaryColor,
-}) => {
-  const { height } = useWindowDimensions();
-  const sheetHeight = height * 0.45;
-  const translateY = useRef(new Animated.Value(sheetHeight)).current;
-
-  useEffect(() => {
-    if (visible) {
-      translateY.setValue(sheetHeight);
-      Animated.timing(translateY, {
-        toValue: 0,
-        duration: 250,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [visible]);
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 5,
-      onPanResponderGrant: () => {
-        translateY.extractOffset();
-        translateY.setValue(0);
-      },
-      onPanResponderMove: (_, g) => {
-        if (g.dy >= 0) translateY.setValue(g.dy);
-      },
-      onPanResponderRelease: (_, g) => {
-        translateY.flattenOffset();
-        const shouldClose = g.dy > sheetHeight * 0.25 || g.vy > 0.8;
-        Animated.timing(translateY, {
-          toValue: shouldClose ? sheetHeight : 0,
-          duration: 200,
-          useNativeDriver: true,
-        }).start(() => shouldClose && onClose());
-      },
-      onPanResponderTerminationRequest: () => false,
-    })
-  ).current;
-
-  if (!visible) return null;
-
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      statusBarTranslucent
-      animationType="none"
-      onRequestClose={onClose}
-    >
-      <View style={{ flex: 1 }} pointerEvents="none" />
-      <Animated.View
-        style={{
-          transform: [{ translateY }],
-          height: sheetHeight,
-          backgroundColor: "#1C1B29",
-          borderTopLeftRadius: 24,
-          borderTopRightRadius: 24,
-          borderTopWidth: 2,
-          borderColor: primaryColor,
-        }}
-      >
-        <View
-          {...panResponder.panHandlers}
-          className="items-center px-4 pt-3 pb-4"
-        >
-          <View className="w-16 h-1 bg-gray-100 rounded-full mb-4" />
-        </View>
-
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 40 }}
-        >
-          {children}
-        </ScrollView>
-      </Animated.View>
-    </Modal>
-  );
-};
 
 /* -------------------------------------------------------------------------- */
 /*                            MAIN COMPONENT                                  */
@@ -163,7 +68,7 @@ const ActiveWorkout = () => {
   const [restRunning, setRestRunning] = useState(false);
   const restRef = useRef<NodeJS.Timeout | null>(null);
 
-  /* ───────── Rest-timer modal ───────── */
+  /* ───────── Rest‑timer modal ───────── */
   const [restModalVisible, setRestModalVisible] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -360,7 +265,7 @@ const ActiveWorkout = () => {
     });
   };
 
-  /* ───────── Options bottom-sheet ───────── */
+  /* ───────── Options bottom‑sheet ───────── */
   const [showOptionsSheet, setShowOptionsSheet] = useState(false);
   const openOptionsSheet = (idx: number) => {
     setSelectedExerciseIdx(idx);
@@ -678,14 +583,11 @@ const ActiveWorkout = () => {
       </Animated.ScrollView>
 
       {/* ───────── Bottom timer bar ───────── */}
-      {/* ───────── Bottom bar (oval) ───────── */}
-      {/* ───────── Bottom bar (compact oval) ───────── */}
-      {/* ───────── Bottom bar (centered, equal thirds) ───────── */}
       <View
         style={{
           marginBottom: 8,
           alignSelf: "center",
-          width: 260, // keep your compact pill width
+          width: 260,
           backgroundColor: tertiaryColor,
           borderRadius: 9999,
           flexDirection: "row",
@@ -959,11 +861,13 @@ const ActiveWorkout = () => {
         </View>
       </Modal>
 
-      {/* ───────── Options bottom-sheet ───────── */}
+      {/* ───────── Options bottom‑sheet (global component) ───────── */}
       <DraggableBottomSheet
         visible={showOptionsSheet}
         onClose={closeOptionsSheet}
         primaryColor={primaryColor}
+        heightRatio={0.45}
+        scrollable
       >
         {[
           {

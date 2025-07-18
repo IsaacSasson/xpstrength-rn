@@ -1,11 +1,18 @@
 import React, { useState } from "react";
-import { View, StatusBar, Text, ScrollView, TouchableOpacity } from "react-native";
+import {
+  View,
+  StatusBar,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+} from "react-native";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import TopBar from "@/components/TopBar";
 import SearchInput from "@/components/SearchInput";
 import Tabs from "@/components/TabList";
 import FriendCard from "@/components/friends/FriendCard";
-import AddFriendModal from "@/components/friends/AddFriendModal";
+import DraggableBottomSheet from "@/components/DraggableBottomSheet";
 import pfptest from "@/assets/images/favicon.png";
 
 import { useThemeContext } from "@/context/ThemeContext";
@@ -32,10 +39,14 @@ const Friends = () => {
   } = useFriends();
 
   const [activeTab, setActiveTab] = useState<"Friends" | "Requests" | "Pending">(
-    "Friends"
+    "Friends",
   );
   const [searchQuery, setSearchQuery] = useState("");
-  const [showAddModal, setShowAddModal] = useState(false);
+
+  /* ------ Add‑friend sheet state ------ */
+  const [showAddSheet, setShowAddSheet] = useState(false);
+  const [username, setUsername] = useState("");
+  const [addErr, setAddErr] = useState<string | null>(null);
 
   /* ------------------------ Tab helpers ------------------------ */
   const handleTabChange = (tab: string) =>
@@ -49,23 +60,28 @@ const Friends = () => {
       : `${getFriendsCount()} Friends`;
 
   /* ----------------------- Friend actions ---------------------- */
-  const handleAcceptRequest = (id: string) => {
-    acceptFriendRequest(id);
-  };
-
+  const handleAcceptRequest = (id: string) => acceptFriendRequest(id);
   const handleDeclineRequest = (id: string) => declineFriendRequest(id);
   const handleCancelRequest = (id: string) => cancelPendingRequest(id);
   const handleRemoveFriend = (id: string) => removeFriend(id);
 
-  const handleSendFriendRequest = async (username: string) => {
-    // If sendFriendRequest doesn't exist in useFriends, you'll need to implement it
-    if (sendFriendRequest) {
-      await sendFriendRequest(username);
-    } else {
-      // Placeholder - implement your friend request logic here
-      console.log("Sending friend request to:", username);
-      // Throw error if the request fails
-      // throw new Error("User not found");
+  /* ------------------ Add friend submit logic ------------------ */
+  const submitAddFriend = async () => {
+    const trimmed = username.trim();
+    if (!trimmed) {
+      setAddErr("Please enter a username.");
+      return;
+    }
+    try {
+      await (sendFriendRequest
+        ? sendFriendRequest(trimmed)
+        : Promise.reject(new Error("sendFriendRequest not implemented")));
+      Alert.alert("Request Sent", `Friend request sent to ${trimmed}.`);
+      setUsername("");
+      setAddErr(null);
+      setShowAddSheet(false);
+    } catch (e: any) {
+      setAddErr(e.message || "Something went wrong. Try again.");
     }
   };
 
@@ -181,9 +197,9 @@ const Friends = () => {
 
       <TopBar title="Your Friends" subtext={getSubtext()} titleTop />
 
-      {/* -------- Search with Add Button -------- */}
-      <View className="px-4 mb-4 flex-row items-center space-x-3">
-        <View className="flex-1">
+      {/* -------- Search Row -------- */}
+      <View className="px-4 mb-4 flex-row items-center">
+        <View className="flex-1 mr-3">
           <SearchInput
             title="Search for friends"
             placeHolder="Search for friends"
@@ -193,8 +209,8 @@ const Friends = () => {
           />
         </View>
         <TouchableOpacity
-          onPress={() => setShowAddModal(true)}
-          className="rounded-xl p-3"
+          onPress={() => setShowAddSheet(true)}
+          className="rounded-xl h-12 w-12 items-center justify-center"
           style={{ backgroundColor: primaryColor }}
         >
           <FontAwesome5 name="user-plus" size={20} color="white" />
@@ -217,12 +233,55 @@ const Friends = () => {
         {renderTabContent()}
       </ScrollView>
 
-      {/* -------- Add Friend Modal -------- */}
-      <AddFriendModal
-        visible={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        onSendRequest={handleSendFriendRequest}
-      />
+      {/* -------- Add Friend Bottom‑Sheet -------- */}
+      <DraggableBottomSheet
+        visible={showAddSheet}
+        onClose={() => {
+          setShowAddSheet(false);
+          setAddErr(null);
+          setUsername("");
+        }}
+        primaryColor={primaryColor}
+        heightRatio={0.45}
+      >
+        <Text className="text-white text-xl font-psemibold text-center mb-4">
+          Add Friend
+        </Text>
+
+        <SearchInput
+          title="Username"
+          placeHolder="Enter username"
+          value={username}
+          handleChangeText={(t) => {
+            setUsername(t);
+            setAddErr(null);
+          }}
+          color={primaryColor}
+        />
+
+        {addErr && (
+          <Text className="text-red-500 text-sm mt-2 text-center">{addErr}</Text>
+        )}
+
+        <TouchableOpacity
+          onPress={submitAddFriend}
+          className="mt-6 p-4 rounded-xl"
+          style={{ backgroundColor: primaryColor }}
+        >
+          <Text className="text-white font-pmedium text-center">Send Request</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => {
+            setShowAddSheet(false);
+            setAddErr(null);
+            setUsername("");
+          }}
+          className="bg-black-200 mt-4 p-4 rounded-xl"
+        >
+          <Text className="text-white text-center font-pmedium">Cancel</Text>
+        </TouchableOpacity>
+      </DraggableBottomSheet>
     </View>
   );
 };

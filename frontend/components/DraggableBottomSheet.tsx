@@ -1,125 +1,165 @@
 // Path: /components/DraggableBottomSheet.tsx
 import React, { useEffect, useRef } from "react";
 import {
-  View,
-  Modal,
   Animated,
-  ScrollView,
+  Dimensions,
+  Keyboard,
+  KeyboardAvoidingView,
+  KeyboardEvent,
+  Modal,
   PanResponder,
-  useWindowDimensions,
+  Platform,
+  ScrollView,
+  TouchableWithoutFeedback,
+  View,
 } from "react-native";
 
 interface Props {
   /** Show / hide the sheet */
   visible: boolean;
-  /** Called after the sheet fully closes */
+  /** Called when the sheet should close (tap‑away or drag down) */
   onClose: () => void;
-  /** Sheet contents */
-  children: React.ReactNode;
-  /** Accent color for the top border */
-  primaryColor: string;
-  /** 0 – 1 of screen height to occupy (default 0.45) */
+  /** Fraction of screen height the sheet should occupy (0 – 1). Default 0.5 */
   heightRatio?: number;
+  /** Accent colour for border / drag‑handle */
+  primaryColor: string;
+  /** Content to render inside the sheet */
+  children: React.ReactNode;
+  /**
+   * Fraction of keyboard height to raise the sheet by when the
+   * keyboard opens (0 – 1). Default 0 – no lift.
+   */
+  keyboardOffsetRatio?: number;
+  /**
+   * If true, the children are wrapped in a ScrollView so long
+   * lists can scroll without pushing the sheet off‑screen.
+   */
+  scrollable?: boolean;
+  /** Sheet background colour. Default “#1A1925” */
+  backgroundColor?: string;
 }
 
 const DraggableBottomSheet: React.FC<Props> = ({
   visible,
   onClose,
-  children,
+  heightRatio = 0.5,
   primaryColor,
-  heightRatio = 0.45,
+  children,
+  keyboardOffsetRatio = 0,
+  scrollable = false,
+  backgroundColor = "#1A1925",
 }) => {
-  const { height } = useWindowDimensions();
-  const sheetHeight = height * heightRatio;
+  /* ───────── Layout constants ───────── */
+  const SCREEN_HEIGHT = Dimensions.get("window").height;
+  const SHEET_HEIGHT = SCREEN_HEIGHT * heightRatio;
 
-  /* -- animated Y for slide‑up / drag‑down -- */
-  const translateY = useRef(new Animated.Value(sheetHeight)).current;
+  /* ───────── Animated value ───────── */
+  const translateY = useRef(new Animated.Value(SHEET_HEIGHT)).current;
 
-  /* show / hide animation */
+  const animateTo = (toValue: number, cb?: () => void) =>
+    Animated.timing(translateY, {
+      toValue,
+      duration: 300,
+      useNativeDriver: true,
+    }).start(cb);
+
+  /* ───────── Open / close ───────── */
   useEffect(() => {
-    if (visible) {
-      translateY.setValue(sheetHeight);
-      Animated.timing(translateY, {
-        toValue: 0,
-        duration: 250,
-        useNativeDriver: true,
-      }).start();
-    }
+    if (visible) animateTo(0);
+    else animateTo(SHEET_HEIGHT);
   }, [visible]);
 
-  /* drag gesture */
+  /* ───────── Drag to close ───────── */
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 5,
-      onPanResponderGrant: () => {
-        translateY.extractOffset();
-        translateY.setValue(0);
-      },
       onPanResponderMove: (_, g) => {
-        if (g.dy >= 0) translateY.setValue(g.dy); // only drag down
+        if (g.dy > 0) translateY.setValue(g.dy);
       },
       onPanResponderRelease: (_, g) => {
-        translateY.flattenOffset();
-        const shouldClose = g.dy > sheetHeight * 0.25 || g.vy > 0.8;
-        Animated.timing(translateY, {
-          toValue: shouldClose ? sheetHeight : 0,
-          duration: 200,
-          useNativeDriver: true,
-        }).start(() => shouldClose && onClose());
+        if (g.dy > SHEET_HEIGHT * 0.35) animateTo(SHEET_HEIGHT, onClose);
+        else animateTo(0);
       },
-      onPanResponderTerminationRequest: () => false,
     })
   ).current;
 
-  if (!visible) return null;
+  /* ───────── Keyboard handling ───────── */
+  const pushUpForKeyboard = (e: KeyboardEvent) =>
+    animateTo(-e.endCoordinates.height * keyboardOffsetRatio);
 
+  useEffect(() => {
+    if (keyboardOffsetRatio === 0) return;
+
+    const showEvt =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvt =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const showSub = Keyboard.addListener(showEvt, pushUpForKeyboard);
+    const hideSub = Keyboard.addListener(hideEvt, () => animateTo(0));
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [keyboardOffsetRatio]);
+
+  /* ───────── Render ───────── */
   return (
     <Modal
-      visible={visible}
       transparent
-      statusBarTranslucent
-      animationType="none"
+      visible={visible}
+      animationType="fade"
       onRequestClose={onClose}
+      statusBarTranslucent
     >
-      {/* dark scrim */}
-      <View style={{ flex: 1 }} pointerEvents="none" />
+      {/* Tap‑away area */}
+      <TouchableWithoutFeedback onPress={onClose}>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)" }} />
+      </TouchableWithoutFeedback>
 
-      {/* sheet */}
-      <Animated.View
-        style={{
-          transform: [{ translateY }],
-          height: sheetHeight,
-          backgroundColor: "#1C1B29",
-          borderTopLeftRadius: 24,
-          borderTopRightRadius: 24,
-          borderTopWidth: 2,
-          borderColor: primaryColor,
-        }}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ justifyContent: "flex-end" }}
       >
-        {/* handle bar */}
-        <View
+        <Animated.View
           {...panResponder.panHandlers}
-          style={{ alignItems: "center", paddingTop: 8, paddingBottom: 12 }}
+          style={{
+            transform: [{ translateY }],
+            backgroundColor,
+            paddingHorizontal: 24,
+            paddingTop: 12,
+            paddingBottom: 32,
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            borderTopColor: primaryColor,
+            borderTopWidth: 2,
+          }}
         >
+          {/* Drag‑handle */}
           <View
             style={{
-              width: 64,
+              alignSelf: "center",
+              width: 40,
               height: 4,
               borderRadius: 2,
-              backgroundColor: "#999",
-              opacity: 0.5,
+              backgroundColor: primaryColor,
+              marginBottom: 12,
             }}
           />
-        </View>
 
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 40 }}
-        >
-          {children}
-        </ScrollView>
-      </Animated.View>
+          {scrollable ? (
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 40 }}
+            >
+              {children}
+            </ScrollView>
+          ) : (
+            children
+          )}
+        </Animated.View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
