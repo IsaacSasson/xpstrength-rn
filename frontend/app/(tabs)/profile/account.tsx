@@ -23,12 +23,11 @@ import { useThemeContext } from "@/context/ThemeContext";
 const Ribbon: React.FC = () => (
   <View
     style={{
-      height: 28,
-     
+      height: 3,
       marginHorizontal: 32,
       borderRadius: 999,
-      marginTop: 28,
-      marginBottom: 36,
+      marginTop: 8,
+      marginBottom: 26,
     }}
   />
 );
@@ -48,6 +47,7 @@ const GlassCard: React.FC<
         width: 4,
         borderRadius: 4,
         backgroundColor: accent,
+
         marginTop: 12,
         marginBottom: 12,
       }}
@@ -61,8 +61,8 @@ const GlassCard: React.FC<
         borderRadius: 18,
         padding: 18,
         shadowColor: accent,
-        shadowOpacity: 0.25,
-        shadowRadius: 8,
+        shadowOpacity: 0.2,
+        shadowRadius: 13,
         shadowOffset: { width: 0, height: 4 },
       }}
     >
@@ -88,7 +88,13 @@ const Field: React.FC<{
   onChangeText: (v: string) => void;
   placeholder?: string;
   keyboardType?: "default" | "numeric" | "email-address";
-}> = ({ label, value, onChangeText, placeholder, keyboardType = "default" }) => (
+}> = ({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  keyboardType = "default",
+}) => (
   <View style={{ marginBottom: 14 }}>
     <Text style={{ color: "#A0A0B2", marginBottom: 6, fontSize: 12 }}>
       {label}
@@ -184,7 +190,10 @@ const Account = () => {
             paddingBottom: 10,
           }}
         >
-          <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 10 }}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={{ marginRight: 10 }}
+          >
             <FontAwesome5 name="arrow-left" size={18} color={primaryColor} />
           </TouchableOpacity>
           <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 20 }}>
@@ -199,9 +208,9 @@ const Account = () => {
         behavior={Platform.select({ ios: "padding" })}
       >
         <ScrollView showsVerticalScrollIndicator={false}>
-
           {/* CHANGE EMAIL ------------------------------------------------ */}
-       
+
+          <Ribbon />
           <GlassCard title="Change Email" accent={primaryColor}>
             <Field
               label="Current Email"
@@ -215,7 +224,7 @@ const Account = () => {
               onChangeText={setNewEmail}
               keyboardType="email-address"
             />
-            
+
             <TouchableOpacity
               onPress={saveEmail}
               disabled={savingEmail}
@@ -227,6 +236,10 @@ const Account = () => {
                 borderRadius: 999,
                 backgroundColor: primaryColor,
                 marginTop: 4,
+                shadowColor: primaryColor,
+                shadowOpacity: 0.2,
+                shadowRadius: 13,
+                shadowOffset: { width: 0, height: 4 },
                 opacity: savingEmail ? 0.8 : 1,
               }}
             >
@@ -241,12 +254,15 @@ const Account = () => {
           {/* RESET ACCOUNT ---------------------------------------------- */}
           <Ribbon />
           <GlassCard title="Reset Account" accent="#FF4C4C">
-            <Text style={{ color: "#FF4C4C", fontWeight: "700", marginBottom: 8 }}>
+            <Text
+              style={{ color: "#FF4C4C", fontWeight: "700", marginBottom: 8 }}
+            >
               THIS ACTION IS IRREVERSIBLE!
             </Text>
             <Text style={{ color: "#DDD", lineHeight: 20, marginBottom: 18 }}>
-              Resetting will delete every recorded workout and stat linked to your account. 
-              You will lose all trophies and badges you have unlocked.
+              Resetting will delete every recorded workout and stat linked to
+              your account. You will lose all trophies and badges you have
+              unlocked.
             </Text>
             <TouchableOpacity
               onPress={() =>
@@ -265,6 +281,10 @@ const Account = () => {
                 borderRadius: 999,
                 borderWidth: 2,
                 borderColor: "#FF4C4C",
+                shadowColor: "#FF4C4C",
+                shadowOpacity: 0.2,
+                shadowRadius: 13,
+                shadowOffset: { width: 0, height: 4 },
                 opacity: processing ? 0.8 : 1,
               }}
             >
@@ -281,11 +301,14 @@ const Account = () => {
           {/* DELETE ACCOUNT --------------------------------------------- */}
           <Ribbon />
           <GlassCard title="Delete Account" accent="#FF0000">
-            <Text style={{ color: "#FF0000", fontWeight: "700", marginBottom: 8 }}>
+            <Text
+              style={{ color: "#FF0000", fontWeight: "700", marginBottom: 8 }}
+            >
               THIS ACTION IS IRREVERSIBLE!
             </Text>
             <Text style={{ color: "#DDD", lineHeight: 20, marginBottom: 18 }}>
-              Deleting your account will permanently erase all data linked to it.
+              Deleting your account will permanently erase all data linked to
+              it.
             </Text>
             <TouchableOpacity
               onPress={() =>
@@ -304,6 +327,10 @@ const Account = () => {
                 borderRadius: 999,
                 borderWidth: 2,
                 borderColor: "#FF0000",
+                shadowColor: "#FF0000",
+                shadowOpacity: 0.2,
+                shadowRadius: 13,
+                shadowOffset: { width: 0, height: 4 },
                 opacity: processing ? 0.8 : 1,
               }}
             >
