@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-import { View, StatusBar, Text, ScrollView } from "react-native";
+import { View, StatusBar, Text, ScrollView, TouchableOpacity } from "react-native";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import TopBar from "@/components/TopBar";
 import SearchInput from "@/components/SearchInput";
 import Tabs from "@/components/TabList";
 import FriendCard from "@/components/friends/FriendCard";
+import AddFriendModal from "@/components/friends/AddFriendModal";
 import pfptest from "@/assets/images/favicon.png";
 
 import { useThemeContext } from "@/context/ThemeContext";
@@ -27,12 +28,14 @@ const Friends = () => {
     declineFriendRequest,
     cancelPendingRequest,
     removeFriend,
+    sendFriendRequest,
   } = useFriends();
 
   const [activeTab, setActiveTab] = useState<"Friends" | "Requests" | "Pending">(
     "Friends"
   );
   const [searchQuery, setSearchQuery] = useState("");
+  const [showAddModal, setShowAddModal] = useState(false);
 
   /* ------------------------ Tab helpers ------------------------ */
   const handleTabChange = (tab: string) =>
@@ -53,6 +56,18 @@ const Friends = () => {
   const handleDeclineRequest = (id: string) => declineFriendRequest(id);
   const handleCancelRequest = (id: string) => cancelPendingRequest(id);
   const handleRemoveFriend = (id: string) => removeFriend(id);
+
+  const handleSendFriendRequest = async (username: string) => {
+    // If sendFriendRequest doesn't exist in useFriends, you'll need to implement it
+    if (sendFriendRequest) {
+      await sendFriendRequest(username);
+    } else {
+      // Placeholder - implement your friend request logic here
+      console.log("Sending friend request to:", username);
+      // Throw error if the request fails
+      // throw new Error("User not found");
+    }
+  };
 
   /* ----------------------- Tab content UI ---------------------- */
   const renderTabContent = () => {
@@ -166,15 +181,24 @@ const Friends = () => {
 
       <TopBar title="Your Friends" subtext={getSubtext()} titleTop />
 
-      {/* -------- Search -------- */}
-      <View className="px-4 mb-4">
-        <SearchInput
-          title="Search for friends"
-          placeHolder="Search for friends"
-          value={searchQuery}
-          handleChangeText={setSearchQuery}
-          color={primaryColor}
-        />
+      {/* -------- Search with Add Button -------- */}
+      <View className="px-4 mb-4 flex-row items-center space-x-3">
+        <View className="flex-1">
+          <SearchInput
+            title="Search for friends"
+            placeHolder="Search for friends"
+            value={searchQuery}
+            handleChangeText={setSearchQuery}
+            color={primaryColor}
+          />
+        </View>
+        <TouchableOpacity
+          onPress={() => setShowAddModal(true)}
+          className="rounded-xl p-3"
+          style={{ backgroundColor: primaryColor }}
+        >
+          <FontAwesome5 name="user-plus" size={20} color="white" />
+        </TouchableOpacity>
       </View>
 
       {/* -------- Tabs -------- */}
@@ -192,6 +216,13 @@ const Friends = () => {
       <ScrollView showsVerticalScrollIndicator={false} className="px-4">
         {renderTabContent()}
       </ScrollView>
+
+      {/* -------- Add Friend Modal -------- */}
+      <AddFriendModal
+        visible={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSendRequest={handleSendFriendRequest}
+      />
     </View>
   );
 };

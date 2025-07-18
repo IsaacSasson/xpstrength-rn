@@ -204,6 +204,60 @@ export const useFriends = () => {
   };
 
   /* -------------- Friend Management -------------- */
+  const sendFriendRequest = async (username: string): Promise<void> => {
+    // Simulate API delay
+    await new Promise((r) => setTimeout(r, 500));
+    
+    // Check if username is empty
+    if (!username.trim()) {
+      throw new Error("Username cannot be empty");
+    }
+    
+    // Check if user already exists in friends
+    const existingFriend = friendsData.find(
+      (u) => u.name.toLowerCase() === username.toLowerCase()
+    );
+    if (existingFriend) {
+      throw new Error("This user is already your friend");
+    }
+    
+    // Check if request already sent
+    const existingPending = pendingData.find(
+      (u) => u.name.toLowerCase() === username.toLowerCase()
+    );
+    if (existingPending) {
+      throw new Error("Friend request already sent to this user");
+    }
+    
+    // Check if request already received from this user
+    const existingRequest = requestsData.find(
+      (u) => u.name.toLowerCase() === username.toLowerCase()
+    );
+    if (existingRequest) {
+      throw new Error("This user has already sent you a friend request");
+    }
+    
+    // Simulate finding the user (in real app, this would be an API call)
+    // For demo, we'll accept any username that isn't already in our lists
+    const newPendingRequest: User = {
+      id: `pending-${Date.now()}`,
+      name: username,
+      level: Math.floor(Math.random() * 40) + 5,
+      xp: Math.floor(Math.random() * 15000) + 1000,
+      joinDate: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      goal: "Get stronger",
+      spotlight: {
+        exercise: ["Squat", "Bench Press", "Deadlift", "Pull-Ups"][Math.floor(Math.random() * 4)],
+        oneRm: Math.floor(Math.random() * 200) + 100
+      },
+      status: "Pending",
+      lastActive: "Now",
+    };
+    
+    // Add to pending requests
+    setPendingData((d) => [...d, newPendingRequest]);
+  };
+
   const acceptFriendRequest = (id: string) => {
     const user = requestsData.find((u) => u.id === id);
     if (!user) return false;
@@ -251,6 +305,7 @@ export const useFriends = () => {
     /* search */
     searchUsers,
     /* actions */
+    sendFriendRequest,
     acceptFriendRequest,
     declineFriendRequest,
     cancelPendingRequest,
