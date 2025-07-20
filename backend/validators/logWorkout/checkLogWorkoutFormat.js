@@ -8,7 +8,8 @@ export async function checkLogWorkoutFormat(value) {
         exercise: 'number',
         reps: 'number',
         sets: 'number',
-        cooldown: 'number'
+        cooldown: 'number',
+        weight: 'number'
     };
 
     value.forEach((obj, idx) => {

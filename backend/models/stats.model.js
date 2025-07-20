@@ -26,7 +26,7 @@ const Stats = sequelize.define(
     total: {
       type: DataTypes.JSON,
       allowNull: false,
-      defaultValue: { sets: 0, reps: 0, volume: 0 },
+      defaultValue: { sets: 0, reps: 0, volume: 0, weight: 0 },
       validate: {
         totalStatsValidator,
       },
@@ -34,7 +34,7 @@ const Stats = sequelize.define(
     chest: {
       type: DataTypes.JSON,
       allowNull: false,
-      defaultValue: { sets: 0, reps: 0, volume: 0, xp: 0, level: 0 },
+      defaultValue: { sets: 0, reps: 0, volume: 0, weight: 0, xp: 0, level: 0 },
       validate: {
         statsValidator,
       },
@@ -42,7 +42,7 @@ const Stats = sequelize.define(
     core: {
       type: DataTypes.JSON,
       allowNull: false,
-      defaultValue: { sets: 0, reps: 0, volume: 0, xp: 0, level: 0 },
+      defaultValue: { sets: 0, reps: 0, weight: 0, volume: 0, xp: 0, level: 0 },
       validate: {
         statsValidator,
       },
@@ -50,7 +50,7 @@ const Stats = sequelize.define(
     back: {
       type: DataTypes.JSON,
       allowNull: false,
-      defaultValue: { sets: 0, reps: 0, volume: 0, xp: 0, level: 0 },
+      defaultValue: { sets: 0, reps: 0, weight: 0, volume: 0, xp: 0, level: 0 },
       validate: {
         statsValidator,
       },
@@ -58,7 +58,7 @@ const Stats = sequelize.define(
     shoulders: {
       type: DataTypes.JSON,
       allowNull: false,
-      defaultValue: { sets: 0, reps: 0, volume: 0, xp: 0, level: 0 },
+      defaultValue: { sets: 0, reps: 0, weight: 0, volume: 0, xp: 0, level: 0 },
       validate: {
         statsValidator,
       },
@@ -66,7 +66,7 @@ const Stats = sequelize.define(
     triceps: {
       type: DataTypes.JSON,
       allowNull: false,
-      defaultValue: { sets: 0, reps: 0, volume: 0, xp: 0, level: 0 },
+      defaultValue: { sets: 0, reps: 0, weight: 0, volume: 0, xp: 0, level: 0 },
       validate: {
         statsValidator,
       },
@@ -74,7 +74,7 @@ const Stats = sequelize.define(
     biceps: {
       type: DataTypes.JSON,
       allowNull: false,
-      defaultValue: { sets: 0, reps: 0, volume: 0, xp: 0, level: 0 },
+      defaultValue: { sets: 0, reps: 0, weight: 0, volume: 0, xp: 0, level: 0 },
       validate: {
         statsValidator,
       },
@@ -82,7 +82,7 @@ const Stats = sequelize.define(
     legs: {
       type: DataTypes.JSON,
       allowNull: false,
-      defaultValue: { sets: 0, reps: 0, volume: 0, xp: 0, level: 0 },
+      defaultValue: { sets: 0, reps: 0, weight: 0, volume: 0, xp: 0, level: 0 },
       validate: {
         statsValidator,
       },

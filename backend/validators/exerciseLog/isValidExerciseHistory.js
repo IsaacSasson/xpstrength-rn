@@ -9,7 +9,8 @@ export async function isValidExerciseHistory(value) {
     const REQUIRED = {
         sets: "number",
         reps: "number",
-        notes: "string"
+        notes: "string",
+        weight: "string"
     }
     for (const [id, log] of Object.entries(value)) {
         if (!Number.isInteger(Number(id))) {
