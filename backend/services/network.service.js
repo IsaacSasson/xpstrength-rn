@@ -9,12 +9,7 @@ import { generateWebSocketToken } from "../utils/security.js";
 export async function logoutUser(res, userId) {
   try {
     //Remove refresh token
-    res.clearCookie("refreshToken", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      path: "/api/v1/auth/refresh-token",
-    });
+
     await sequelize.transaction(async (t) => {
       //Unauthorize them
       await Auth.unauthorize(userId, t);
