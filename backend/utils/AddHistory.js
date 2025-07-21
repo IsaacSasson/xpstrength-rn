@@ -17,6 +17,7 @@ export default class AddHistory {
         break;
       case "USER":
         this.message = message;
+        break;
       default:
         throw new AppError("Unknown ActionType", 500, "INTERNAL-ERROR");
     }

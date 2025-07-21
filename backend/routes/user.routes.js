@@ -18,40 +18,40 @@ import {
 const userRouter = Router();
 
 //Get your user profile Data
-userRouter.get("/profile", getProfile);
+//userRouter.get("/profile", getProfile);
 
 //Update your user profile Data
-userRouter.patch("/update-profile", patchProfile);
+//userRouter.patch("/update-profile", patchProfile);
 
 //Delete your user Account
-userRouter.delete("/delete-account", deleteAccount);
+//userRouter.delete("/delete-account", deleteAccount);
 
 //Get all your history ("Only of type USER, FRIEND, MILESTONE, or STATS")
-userRouter.get("/history", getHistory);
+//userRouter.get("/history", getHistory);
 
 //Get your history ("Only of type USER, FRIEND, MILESTONE, or STATS") paginated by page and pageSize
-userRouter.get("/history/:page/:pageSize", getHistoryPaginated);
+//userRouter.get("/history/:page/:pageSize", getHistoryPaginated);
 
 //Get your weekly workout plan
-userRouter.get("/workout-plan", getWorkoutPlan);
+//userRouter.get("/workout-plan", getWorkoutPlan);
 
 //Update your weekly workout plan
-userRouter.patch("/workout-plan", patchWorkoutPlan);
+//userRouter.patch("/workout-plan", patchWorkoutPlan);
 
 //Get all custom workouts
-userRouter.get("custom-workout", getCustomWorkout);
+//userRouter.get("custom-workout", getCustomWorkout);
 
 //Create a new custom workout
-userRouter.post("custom-workout", postCustomWorkout);
+//userRouter.post("custom-workout", postCustomWorkout);
 
 //Update a previously made custom workout
-userRouter.patch("custom-workout", patchCustomWorkout);
+//userRouter.patch("custom-workout", patchCustomWorkout);
 
 //Delete a custom workout saved
-userRouter.delete("custom-workout", deleteCustomWorkout);
+//userRouter.delete("custom-workout", deleteCustomWorkout);
 
 //User Logs a completed workout
-userRouter.post("log-workout", postLogWorkout);
+userRouter.post("/log-workout", postLogWorkout);
 
 //User edits a previously completed workout
 //userRouter.patch("log-workout");

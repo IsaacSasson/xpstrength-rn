@@ -46,7 +46,23 @@ export async function deleteCustomWorkout(req, res, next) {
 }
 
 export async function postLogWorkout(req, res, next) {
-  return;
+  try {
+    const user = req?.user;
+    const workoutLog = req?.body?.data?.log;
+
+    if (!user || !workoutLog) {
+      throw new AppError("WorkoutLog Data Malformed", 400, "BAD_DATA");
+    }
+
+    const events = await userService.logWorkout(user, workoutLog);
+
+    return res.status(201).json({
+      data: { events },
+      message: "User workout succesfully logged!",
+    });
+  } catch (err) {
+    next(err);
+  }
 }
 
 export default {

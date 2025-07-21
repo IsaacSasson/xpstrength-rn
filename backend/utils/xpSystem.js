@@ -1,8 +1,8 @@
-import { User, WorkoutLog, PersonalBest, Stats } from "../models";
+import { User, WorkoutLog, PersonalBest, Stats } from "../models/index.js";
 import AddHistory from "./AddHistory.js";
 import { sequelize } from "../config/db.config.js";
 import AddEvent from "./AddEvent.js";
-import exerciseJson from "../../shared/exercises.json" assert { type: "json" };
+import exerciseJson from "../../shared/exercises.json" with { type: "json" };
 import AppError from "./AppError.js";
 
 const userLevelUpRewards = { coins: 100 };
@@ -17,7 +17,7 @@ const muscleLevelUpRewards = {
   shoulders: 500,
 };
 
-const personalBestsRewards = { xp: 250 };
+const personalBestsRewards = { pb: 100, firstTime: 20 };
 
 const baseUser = 120;
 const under30 = 0.9;
@@ -191,13 +191,16 @@ export async function addXpFromNewPB(
 ) {
   const exerciseId = Number(exerciseLog.exercise);
   const weight = exerciseLog.weight;
-  const cmp = pb[exerciseId] ?? null;
+  const personalBests = pb.personalBests
+  const cmp = personalBests[exerciseId] ?? null;
 
-  const reward = personalBestsRewards.xp;
+  const firstTimeReward = personalBestsRewards.firstTime;
+  const pbReward = personalBestsRewards.pb;
 
   if (cmp === null) {
     await sequelize.transaction(async (t) => {
-      pb[exerciseId] = workoutId;
+      personalBests[exerciseId] = workoutId;
+      pb.personalBests = personalBests
       await pb.save({ transaction: t });
 
       const newEvent = new AddEvent(
@@ -205,7 +208,7 @@ export async function addXpFromNewPB(
         "firstTimeCompletingExercise",
         null,
         workoutId,
-        { exerciseId, log: exerciseLog, rewards: { userXp: reward * 0.5 } }
+        { exerciseId, log: exerciseLog, rewards: { userXp: firstTimeReward } }
       );
 
       const history = new AddHistory(
@@ -218,7 +221,7 @@ export async function addXpFromNewPB(
       const event = await newEvent.forward(t);
       events.push(event);
     });
-    return reward * 0.5;
+    return firstTimeReward;
   }
 
   const cmpWorkoutLog = await WorkoutLog.findOne({
@@ -244,7 +247,7 @@ export async function addXpFromNewPB(
           exerciseId,
           log: exerciseLog,
           oldLog: cmpExerciseLog,
-          rewards: { userXp: reward },
+          rewards: { userXp: pbReward },
         }
       );
 
@@ -258,7 +261,7 @@ export async function addXpFromNewPB(
       const event = await newEvent.forward(t);
       events.push(event);
     });
-    return reward;
+    return pbReward;
   } else {
     return 0;
   }

@@ -10,6 +10,7 @@ export async function isValidExerciseHistory(value) {
         sets: "number",
         reps: "number",
         notes: "string",
+        cooldown: 'number',
         weight: "string"
     }
     for (const [id, log] of Object.entries(value)) {
