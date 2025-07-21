@@ -2,11 +2,10 @@ import { User, WorkoutLog, PersonalBest, Stats } from "../models";
 import AddHistory from "./AddHistory.js";
 import { sequelize } from "../config/db.config.js";
 import AddEvent from "./AddEvent.js";
-import exerciseJson from '../../shared/exercises.json' with {type: "json"};
+import exerciseJson from "../../shared/exercises.json" assert { type: "json" };
+import AppError from "./AppError.js";
 
-const userLevelUpRewards = {
-  coins: 100,
-};
+const userLevelUpRewards = { coins: 100 };
 
 const muscleLevelUpRewards = {
   chest: 300,
@@ -15,25 +14,26 @@ const muscleLevelUpRewards = {
   core: 300,
   biceps: 400,
   triceps: 400,
-  shoulders: 500
-}
+  shoulders: 500,
+};
+
+const personalBestsRewards = { xp: 250 };
 
 const baseUser = 120;
-
 const under30 = 0.9;
 const under60 = 1;
 const under90 = 1.2;
 const max = 1.5;
 
 /**
- * Muscle Level Ups, PR's, and BASE XP
  * @param {import("../models").User} user
  * @param {import("../models").WorkoutLog} workout
  */
 export async function workoutAddXP(user, workout) {
   const userId = user.id;
   const length = workout.length;
-  const baseMultipliyer =
+  const workoutId = workout.id;
+  const baseMultiplier =
     length > 90 * 60
       ? max
       : length > 60 * 60
@@ -41,20 +41,36 @@ export async function workoutAddXP(user, workout) {
       : length > 30 * 60
       ? under60
       : under30;
-  const baseXP = baseUser * baseMultipliyer;
+  const baseXP = baseUser * baseMultiplier;
 
   const exercises = workout.exercises;
-
   const userStats = await Stats.findOne({ where: { userId } });
+  if (!userStats)
+    throw new AppError("STATS not found for user", 400, "BAD_DATA");
+
   const userPB = await PersonalBest.findOne({ where: { userId } });
+  if (!userPB)
+    throw new AppError("PB records not found for user", 400, "BAD_DATA");
+
   let muscleLevelUpXP = 0;
   let pbLevelUpXP = 0;
-
   let events = [];
 
   for (const exerciseLog of exercises) {
-    muscleLevelUpXP += await addXpToCoreMuscle(exerciseLog, userStats, userId, events, workout.id);
-    pbLevelUpXP += await addXpFromNewPB(exerciseLog, pb, events);
+    muscleLevelUpXP += await addXpToCoreMuscle(
+      exerciseLog,
+      userStats,
+      userId,
+      events,
+      workoutId
+    );
+    pbLevelUpXP += await addXpFromNewPB(
+      exerciseLog,
+      userPB,
+      events,
+      workoutId,
+      userId
+    );
   }
 
   const newXp = baseXP + pbLevelUpXP + muscleLevelUpXP;
@@ -64,32 +80,25 @@ export async function workoutAddXP(user, workout) {
   let newLevel = oldLevel;
   let userCoins = user.totalCoins;
 
-  //Keep Leveling Up User if Need Be
   await sequelize.transaction(async (t) => {
-    while (totalXp < (await totalXpForUserLevel(newLevel + 1))) {
+    while (totalXp >= (await totalXpForUserLevel(newLevel + 1))) {
       newLevel += 1;
       userCoins += userLevelUpRewards.coins;
 
-      //Event that user Leveled Up Here
-      const event = new AddEvent(
-        (userId = userId),
-        (type = "userLevelUp"),
-        (actordId = null),
-        (resourceId = workout.id),
-        (payload = { newLevel: newLevel, rewards: userLevelUpRewards })
-      );
-
-      events.push(event);
+      const newEvent = new AddEvent(userId, "userLevelUp", null, workoutId, {
+        newLevel,
+        rewards: userLevelUpRewards,
+      });
 
       const history = new AddHistory(
-        (type = "USER"),
-        (message = `User succesfully level'ed up to level ${newLevel}`),
-        (userId = userId),
-        (actorId = null)
+        "USER",
+        `User successfully leveled up to level ${newLevel}`,
+        userId,
+        null
       );
-
       await history.log(t);
-      await event.forward(t);
+      const event = await newEvent.forward(t);
+      events.push(event);
     }
 
     user.xp = totalXp;
@@ -101,116 +110,202 @@ export async function workoutAddXP(user, workout) {
   return events;
 }
 
-export async function addXpToCoreMuscle(exerciseLog, stats, userId, events, workoutId) {
+export async function addXpToCoreMuscle(
+  exerciseLog,
+  stats,
+  userId,
+  events,
+  workoutId
+) {
   const reps = exerciseLog.reps;
   const sets = exerciseLog.sets;
   const weight = exerciseLog.weight;
-  const id = exerciseLog.exercise;
+  const cooldown = exerciseLog.cooldown;
+  const exerciseId = Number(exerciseLog.exercise);
+
+  if (
+    !Number.isInteger(exerciseId) ||
+    exerciseId < 0 ||
+    exerciseId >= exerciseJson.length
+  ) {
+    throw new AppError("Invalid exercise ID", 400, "BAD_DATA");
+  }
 
   const volume = reps * sets * weight;
+  const scaledVolume = Math.max(volume * (60 / cooldown), volume);
 
-  const muscleCategory = exerciseJson[parseInt(id)].muscleCategory.toLowerCase()
+  const muscleCategory = exerciseJson[exerciseId].muscleCategory.toLowerCase();
+  const oldXp = stats[muscleCategory].xp;
+  const oldLevel = stats[muscleCategory].level;
+  const totalXp = oldXp + Math.round(scaledVolume);
 
-  const oldXp = stats.muscleCategory.xp;
-  const oldLevel = stats.muscleCategory.level;
-  const totalXp = stats.muscleCategory.xp + Math.round(Math.max((volume * (60 / exerciseLog.cooldown), volume)))
   let newLevel = oldLevel;
   let userXp = 0;
 
-   await sequelize.transaction(async (t) => {
-    while (totalXp < (await totalXpForMuscleLevel(newLevel + 1))) {
+  await sequelize.transaction(async (t) => {
+    while (totalXp >= (await totalXpForMuscleLevel(newLevel + 1))) {
       newLevel += 1;
-      userXp += Math.round(muscleLevelUpRewards.muscleCategory * (newLevel / 15));
-
-      //Event that muscle Leveled Up Here
-      const event = new AddEvent(
-        (userId = userId),
-        (type = "muscleLevelUp"),
-        (actordId = null),
-        (resourceId = workoutId),
-        (payload = { newLevel: newLevel, type: muscleCategory, rewards: { userXP: Math.round(muscleLevelUpRewards.muscleCategory * (newLevel / 15))} })
+      const reward = Math.round(
+        muscleLevelUpRewards[muscleCategory] * (newLevel / 15)
       );
+      userXp += reward;
 
-      events.push(event);
+      const newEvent = new AddEvent(userId, "muscleLevelUp", null, workoutId, {
+        newLevel,
+        type: muscleCategory,
+        rewards: { userXP: reward },
+      });
 
       const history = new AddHistory(
-        (type = "USER"),
-        (message = `User succesfully level'ed up their muscleCategory level of ${muscleCategory} to ${newLevel}`),
-        (userId = userId),
-        (actorId = null)
+        "USER",
+        `User successfully leveled up ${muscleCategory} to level ${newLevel}`,
+        userId,
+        null
       );
-
       await history.log(t);
-      await event.forward(t);
+      const event = await newEvent.forward(t);
+      events.push(event);
     }
 
-  stats.muscleCategory.xp = totalXp;
-  stats.muscleCategory.level = newLevel;
-  stats.muscleCategory += volume;
-  stats.muscleCategory.weight += weight;
-  stats.muscleCategory.reps += reps;
-  stats.total.sets += sets;
-  stats.total.reps += reps;
-  stats.total.weight += weight;
+    stats[muscleCategory].xp = totalXp;
+    stats[muscleCategory].level = newLevel;
+    stats[muscleCategory].volume += volume;
+    stats[muscleCategory].weight += weight;
+    stats[muscleCategory].reps += reps;
+    stats.total.sets += sets;
+    stats.total.reps += reps;
+    stats.total.weight += weight;
 
-  await stats.save( {transaction: t});
-  
-  })
+    await stats.save({ transaction: t });
+  });
 
   return userXp;
-};
+}
 
-export async function addXpFromNewPB(exerciseLog, pb) {}
+export async function addXpFromNewPB(
+  exerciseLog,
+  pb,
+  events,
+  workoutId,
+  userId
+) {
+  const exerciseId = Number(exerciseLog.exercise);
+  const weight = exerciseLog.weight;
+  const cmp = pb[exerciseId] ?? null;
 
-//TODO later for milestone adding xp
+  const reward = personalBestsRewards.xp;
+
+  if (cmp === null) {
+    await sequelize.transaction(async (t) => {
+      pb[exerciseId] = workoutId;
+      await pb.save({ transaction: t });
+
+      const newEvent = new AddEvent(
+        userId,
+        "firstTimeCompletingExercise",
+        null,
+        workoutId,
+        { exerciseId, log: exerciseLog, rewards: { userXp: reward * 0.5 } }
+      );
+
+      const history = new AddHistory(
+        "USER",
+        `User completed exercise for the first time (ID ${exerciseId})`,
+        userId,
+        null
+      );
+      await history.log(t);
+      const event = await newEvent.forward(t);
+      events.push(event);
+    });
+    return reward * 0.5;
+  }
+
+  const cmpWorkoutLog = await WorkoutLog.findOne({
+    where: { id: cmp, userId },
+  });
+  const cmpExerciseLog = cmpWorkoutLog?.exercises[exerciseId];
+
+  if (!cmpExerciseLog) {
+    throw new AppError("Unknown workoutLog stored in PB", 400, "BAD_DATA");
+  }
+
+  if (cmpExerciseLog.weight < weight) {
+    await sequelize.transaction(async (t) => {
+      pb[exerciseId] = workoutId;
+      await pb.save({ transaction: t });
+
+      const newEvent = new AddEvent(
+        userId,
+        "newPersonalBest",
+        null,
+        workoutId,
+        {
+          exerciseId,
+          log: exerciseLog,
+          oldLog: cmpExerciseLog,
+          rewards: { userXp: reward },
+        }
+      );
+
+      const history = new AddHistory(
+        "USER",
+        `User achieved a new personal best for exercise ID ${exerciseId}`,
+        userId,
+        null
+      );
+      await history.log(t);
+      const event = await newEvent.forward(t);
+      events.push(event);
+    });
+    return reward;
+  } else {
+    return 0;
+  }
+}
+
 export async function milestoneAddXP(user, milestone) {
   return;
 }
 
-export async function userXpDelta(level) {
-  const B = 100; // base XP
-  const G = 1.1; // exponential growth factor
-  const A = 0.6; // early‐level boost amplitude
-  const C = 0.1; // boost decay rate
-  const CAP = 7200; // asymptotic max ΔXP
-  const K = 7200; // “half‐saturation” constant
+export async function steakAddXP(user) {
+  return;
+}
 
-  // 1) compute old boosted‐raw value
+export async function userXpDelta(level) {
+  const B = 100;
+  const G = 1.1;
+  const A = 0.6;
+  const C = 0.1;
+  const CAP = 7200;
+  const K = 7200;
+
   const boost = 1 + A * Math.exp(-C * (level - 1));
   const raw = B * Math.pow(G, level - 1) * boost;
 
-  // 2) saturate via:  f(raw) = CAP * raw / (raw + K)
   return Math.floor((raw * CAP) / (raw + K));
 }
 
 export async function muscleXpDelta(M) {
-  // Clamp M into [1, 1000]
   const level = Math.min(Math.max(Math.floor(M), 1), 1000);
+  const a = 2000;
+  const E = 0.25;
+  const B2 = 120;
+  const H = 1.17;
+  const Km = 20000;
+  const CAP2 = 20000;
 
-  // Internal tuning constants:
-  const a = 2000; // linear slope
-  const E = 0.25; // blend-rate (linear → exponential)
-  const B = 120; // exponential base at M=1
-  const H = 1.17; // exponential growth factor
-  const Km = 20000; // half‑saturation constant
-  const CAP = 20000; // asymptotic ceiling
-
-  // 1) raw blend: linear component + exponential component
   const linPart = a * level * Math.exp(-E * (level - 1));
-  const expPart = B * Math.pow(H, level - 1) * (1 - Math.exp(-E * (level - 1)));
+  const expPart =
+    B2 * Math.pow(H, level - 1) * (1 - Math.exp(-E * (level - 1)));
   const raw = linPart + expPart;
-
-  // 2) Michaelis–Menten saturation into [0, CAP]
-  const delta = (CAP * raw) / (raw + Km);
-
-  return Math.floor(delta);
+  return Math.floor((CAP2 * raw) / (raw + Km));
 }
 
 export async function totalXpForUserLevel(level) {
   let total = 0;
   for (let L = 1; L <= level; L++) {
-    let x = await userXpDelta(L);
-    total += x;
+    total += await userXpDelta(L);
   }
   return total;
 }
@@ -218,8 +313,7 @@ export async function totalXpForUserLevel(level) {
 export async function totalXpForMuscleLevel(level) {
   let total = 0;
   for (let L = 1; L <= level; L++) {
-    let x = await muscleXpDelta(L);
-    total += x;
+    total += await muscleXpDelta(L);
   }
   return total;
 }

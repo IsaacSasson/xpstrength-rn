@@ -7,5 +7,7 @@
   "friend-removed",
   "userLevelUp",
   "muscleLevelUp",
-  "milestoneComplete"
+  "milestoneComplete",
+  "newPersonalBest",
+  "firstTimeCompletingExercise"
 ]
