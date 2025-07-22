@@ -109,7 +109,7 @@ const SignIn = () => {
                   Forgot Username?
                 </Text>
               </Link>
-              <View className="w-px h-4 bg-gray-600" />
+              <View className="w-px mx-auto" />
               <Link href="/forgot-password">
                 <Text className="text-sm font-pregular text-secondary">
                   Forgot Password?

@@ -37,6 +37,8 @@ interface Props {
   scrollable?: boolean;
   /** Sheet background colour. Default “#1A1925” */
   backgroundColor?: string;
+  /** Height (px) of the draggable header area. Default 32 */
+  dragZoneHeight?: number;
 }
 
 const DraggableBottomSheet: React.FC<Props> = ({
@@ -48,6 +50,7 @@ const DraggableBottomSheet: React.FC<Props> = ({
   keyboardOffsetRatio = 0,
   scrollable = false,
   backgroundColor = "#1A1925",
+  dragZoneHeight = 32,
 }) => {
   /* ───────── Layout constants ───────── */
   const SCREEN_HEIGHT = Dimensions.get("window").height;
@@ -63,22 +66,42 @@ const DraggableBottomSheet: React.FC<Props> = ({
       useNativeDriver: true,
     }).start(cb);
 
+  /* Track value at drag start so we can offset correctly (esp. after keyboard push) */
+  const dragStartVal = useRef(0);
+
+  const getCurrentVal = () =>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (translateY as any).__getValue
+      ? // RN's private getter; fine for this internal use.
+        (translateY as any).__getValue()
+      : // fallback
+        0;
+
   /* ───────── Open / close ───────── */
   useEffect(() => {
     if (visible) animateTo(0);
     else animateTo(SHEET_HEIGHT);
   }, [visible]);
 
-  /* ───────── Drag to close ───────── */
+  /* ───────── Drag to close (header only) ───────── */
   const panResponder = useRef(
     PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 5,
+      onPanResponderGrant: () => {
+        dragStartVal.current = getCurrentVal();
+      },
       onPanResponderMove: (_, g) => {
-        if (g.dy > 0) translateY.setValue(g.dy);
+        // Only allow dragging downward (positive dy)
+        if (g.dy > 0) translateY.setValue(dragStartVal.current + g.dy);
       },
       onPanResponderRelease: (_, g) => {
-        if (g.dy > SHEET_HEIGHT * 0.35) animateTo(SHEET_HEIGHT, onClose);
-        else animateTo(0);
+        const finalVal = dragStartVal.current + g.dy;
+        if (finalVal > SHEET_HEIGHT * 0.35) {
+          animateTo(SHEET_HEIGHT, onClose);
+        } else {
+          animateTo(0);
+        }
       },
     })
   ).current;
@@ -115,7 +138,7 @@ const DraggableBottomSheet: React.FC<Props> = ({
     >
       {/* Tap‑away area */}
       <TouchableWithoutFeedback onPress={onClose}>
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)" }} />
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0)" }} />
       </TouchableWithoutFeedback>
 
       <KeyboardAvoidingView
@@ -123,12 +146,11 @@ const DraggableBottomSheet: React.FC<Props> = ({
         style={{ justifyContent: "flex-end" }}
       >
         <Animated.View
-          {...panResponder.panHandlers}
           style={{
             transform: [{ translateY }],
             backgroundColor,
             paddingHorizontal: 24,
-            paddingTop: 12,
+            paddingTop: 0, // we'll give padding in header/content separately
             paddingBottom: 32,
             borderTopLeftRadius: 24,
             borderTopRightRadius: 24,
@@ -136,18 +158,29 @@ const DraggableBottomSheet: React.FC<Props> = ({
             borderTopWidth: 2,
           }}
         >
-          {/* Drag‑handle */}
+          {/* ───── Draggable Header (ONLY this part takes pan handlers) ───── */}
           <View
+            {...panResponder.panHandlers}
             style={{
-              alignSelf: "center",
-              width: 40,
-              height: 4,
-              borderRadius: 2,
-              backgroundColor: primaryColor,
+              height: dragZoneHeight,
+              justifyContent: "center",
+              alignItems: "center",
+              paddingTop: 12,
               marginBottom: 12,
             }}
-          />
+          >
+            {/* Drag‑handle */}
+            <View
+              style={{
+                width: 40,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: primaryColor,
+              }}
+            />
+          </View>
 
+          {/* Content */}
           {scrollable ? (
             <ScrollView
               showsVerticalScrollIndicator={false}

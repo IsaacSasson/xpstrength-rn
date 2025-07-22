@@ -6,16 +6,31 @@ import {
   StatusBar,
   ScrollView,
   TouchableOpacity,
-  Alert,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, router } from "expo-router";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import { useThemeContext } from "@/context/ThemeContext";
-import type { PastWorkout } from "./workout-history"; // re-use type
+import type { PastWorkout } from "./workout-history"; // reuse your type
+import pfptest from "@/assets/images/favicon.png";
+import Header from "@/components/Header";
 
-/* -------------- Helpers -------------- */
+/* ------------------------------------------------------------------ */
+/*                               Helpers                               */
+/* ------------------------------------------------------------------ */
+interface SetSummary {
+  reps: number;
+  lbs: number;
+  isPR?: boolean;
+}
+interface ExerciseDetailed {
+  id?: string;
+  name: string;
+  sets: SetSummary[];
+}
+
 const decodeWorkoutParam = (raw: unknown): PastWorkout | null => {
   if (typeof raw !== "string") return null;
   try {
@@ -43,7 +58,65 @@ const formatDate = (iso: string) =>
     year: "numeric",
   });
 
-/* -------------- Component -------------- */
+const formatTimeFromSeconds = (sec: number) =>
+  `${Math.floor(sec / 60)}m ${sec % 60}s`;
+
+/* -------- progress bar (same as FinishedWorkout) -------- */
+const ProgressBar: React.FC<{
+  progress: number;
+  total: number;
+  color: string;
+}> = ({ progress, total, color }) => {
+  const ratio = Math.min(progress / (total || 1), 1);
+  return (
+    <View className="h-3 w-full bg-black-200 rounded-full overflow-hidden">
+      <View
+        className="h-full"
+        style={{ width: `${ratio * 100}%`, backgroundColor: color }}
+      />
+    </View>
+  );
+};
+
+/* -------- utility to normalize exercises -------- */
+const normalizeExercises = (exs: any[]): ExerciseDetailed[] => {
+  return exs.map((ex, i) => {
+    // If ex.sets is already an array of objects -> good
+    if (Array.isArray(ex.sets) && typeof ex.sets[0] === "object") {
+      return ex as ExerciseDetailed;
+    }
+
+    // Otherwise, assume summary form { name, sets: number, reps: number, lbs? }
+    const count = Number(ex.sets) || 0;
+    const repsEach = Number(ex.reps) || 0;
+    const lbsEach = Number(ex.lbs) || 0;
+
+    return {
+      id: String(i),
+      name: ex.name ?? `Exercise ${i + 1}`,
+      sets: Array.from({ length: count }).map(() => ({
+        reps: repsEach,
+        lbs: lbsEach,
+      })),
+    };
+  });
+};
+
+const calcTotals = (exs: ExerciseDetailed[]) => {
+  let sets = 0;
+  let volume = 0;
+  exs.forEach((ex) => {
+    ex.sets.forEach((s) => {
+      sets += 1;
+      volume += (s.lbs || 0) * (s.reps || 0);
+    });
+  });
+  return { sets, volume };
+};
+
+/* ------------------------------------------------------------------ */
+/*                             Main Screen                             */
+/* ------------------------------------------------------------------ */
 const WorkoutDetails: React.FC = () => {
   const { primaryColor, secondaryColor, tertiaryColor } = useThemeContext();
   const params = useLocalSearchParams<{ workout?: string }>();
@@ -52,7 +125,14 @@ const WorkoutDetails: React.FC = () => {
 
   if (!workout) {
     return (
-      <View style={{ flex: 1, backgroundColor: "#0F0E1A", justifyContent: "center", alignItems: "center" }}>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: "#0F0E1A",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
         <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
         <Text className="text-white font-pmedium mb-4">
           Workout data not found.
@@ -68,120 +148,124 @@ const WorkoutDetails: React.FC = () => {
     );
   }
 
-  const totalSets = workout.exercises.reduce((sum, ex) => sum + ex.sets, 0);
+  // Normalize exercise shape to match FinishedWorkout style
+  const detailedExercises = normalizeExercises(workout.exercises);
+  const { sets: totalSets, volume: totalVolume } =
+    calcTotals(detailedExercises);
+
+  // Try to parse duration like "12m 30s" back to seconds if possible
+  const durationMatch = workout.duration.match(/(\d+)m\s*(\d+)s/i);
+  const durationSeconds = durationMatch
+    ? Number(durationMatch[1]) * 60 + Number(durationMatch[2])
+    : NaN;
 
   return (
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
       <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
 
-      {/* Top SafeArea / Header */}
+      {/* Header (keep back button) */}
       <SafeAreaView edges={["top"]} className="bg-primary">
-        <View className="px-4 pt-6 pb-4 flex-row items-center justify-between">
-          {/* Back */}
-          <TouchableOpacity
-            onPress={() => router.back()}
-            className="p-2 rounded-full"
-            style={{ backgroundColor: primaryColor }}
-            accessibilityLabel="Go back"
-          >
-            <FontAwesome5 name="chevron-left" size={14} color="#FFFFFF" />
-          </TouchableOpacity>
-
-          <Text className="text-white font-psemibold text-lg flex-1 text-center ml-2 mr-2">
-            {workout.name}
-          </Text>
-
-          {/* Spacer for symmetry */}
-          <View style={{ width: 32 }} />
+        <View className="px-4 pt-6">
+          <View className="flex-row items-center mb-6">
+            <Header MText={workout.name} SText="" />
+          </View>
         </View>
       </SafeAreaView>
 
-      {/* Content */}
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        className="px-4 pb-8"
-        contentContainerStyle={{ paddingBottom: 40 }}
-      >
-        {/* Meta */}
-        <View className="mt-6 mb-4 items-start">
-          <Text
-            className="font-pmedium text-gray-100 mb-2"
-            style={{ color: secondaryColor }}
-          >
-            {formatDate(workout.date)}
-          </Text>
-
-          <View
-            className="px-3 py-1 rounded-lg"
-            style={{ backgroundColor: primaryColor }}
-          >
-            <Text className="text-white font-pmedium text-sm">
-              {workout.duration}
-            </Text>
-          </View>
-        </View>
-
-        {/* Divider */}
+      <ScrollView showsVerticalScrollIndicator={false} className="px-4 pb-8">
+        {/* ---------- Summary Card (mirrors FinishedWorkout) ---------- */}
         <View
-          style={{
-            height: 1,
-            width: "100%",
-            backgroundColor: tertiaryColor,
-            opacity: 0.4,
-            marginBottom: 16,
-          }}
-        />
-
-        {/* Exercises */}
-        <View>
-          <Text className="text-white font-psemibold text-base mb-4">
-            Exercises
-          </Text>
-
-          {workout.exercises.map((ex, idx) => (
-            <View
-              key={`${workout.id}_ex_${idx}`}
-              className="flex-row items-center mb-4"
-            >
-              <MaterialCommunityIcons
-                name="checkbox-blank-circle-outline"
-                size={16}
-                color={primaryColor}
-              />
-              <Text className="text-white font-pmedium ml-3">{ex.name}</Text>
-              <Text className="text-gray-100 ml-auto">
-                {ex.sets} × {ex.reps}
+          className="rounded-2xl p-5 mt-2 mb-6"
+          style={{ backgroundColor: tertiaryColor }}
+        >
+          <View className="flex-row items-center mb-4">
+            <Image
+              source={pfptest}
+              style={{
+                width: 50,
+                height: 50,
+                borderRadius: 25,
+                marginRight: 12,
+              }}
+            />
+            <View>
+              <Text
+                className="text-white font-psemibold text-lg"
+                style={{ color: primaryColor }}
+              >
+                Workout Summary
+              </Text>
+              <Text className="text-gray-100 text-xs">
+                {formatDate(workout.date)}
               </Text>
             </View>
-          ))}
+          </View>
+
+          {/* quick stats (3 columns like FinishedWorkout) */}
+          <View className="flex-row justify-between">
+            <View className="items-center flex-1">
+              <MaterialCommunityIcons
+                name="weight-lifter"
+                size={22}
+                color={primaryColor}
+              />
+              <Text className="text-white mt-1 font-pmedium">
+                {totalVolume.toLocaleString()} lbs
+              </Text>
+              <Text className="text-gray-100 text-xs">Total Volume</Text>
+            </View>
+
+            <View className="items-center flex-1">
+              <FontAwesome5 name="stopwatch" size={20} color={primaryColor} />
+              <Text className="text-white mt-1 font-pmedium">
+                {Number.isNaN(durationSeconds)
+                  ? workout.duration
+                  : formatTimeFromSeconds(durationSeconds)}
+              </Text>
+              <Text className="text-gray-100 text-xs">Time</Text>
+            </View>
+
+            <View className="items-center flex-1">
+              <FontAwesome5 name="dumbbell" size={20} color={primaryColor} />
+              <Text className="text-white mt-1 font-pmedium">{totalSets}</Text>
+              <Text className="text-gray-100 text-xs">Total Sets</Text>
+            </View>
+          </View>
         </View>
 
-        {/* Summary */}
-        <View className="mt-8">
-          <Text className="text-white font-psemibold text-base mb-2">
-            Summary
-          </Text>
-          <View className="flex-row items-center mb-2">
-            <Text className="text-gray-100 font-pmedium">Total Sets:</Text>
-            <Text className="text-white font-psemibold ml-2">{totalSets}</Text>
-          </View>
-          <View className="flex-row items-center mb-2">
-            <Text className="text-gray-100 font-pmedium">Exercises:</Text>
-            <Text className="text-white font-psemibold ml-2">
-              {workout.exercises.length}
-            </Text>
-          </View>
-        </View>
+        {/* ---------- Exercise Breakdown ---------- */}
+        <Text className="text-white font-psemibold text-lg mb-3">
+          Exercise Breakdown
+        </Text>
 
-        {/* Future actions placeholder */}
-        <View className="mt-10">
-          <Text
-            className="text-gray-100 text-xs opacity-60"
-            style={{ textAlign: "center" }}
+        {detailedExercises.map((ex, i) => (
+          <View
+            key={`${workout.id}_ex_${i}`}
+            className="rounded-2xl p-4 mb-4"
+            style={{ backgroundColor: tertiaryColor }}
           >
-            (Add export / duplicate / re-run workout actions here.)
-          </Text>
-        </View>
+            <Text
+              className="font-pbold text-center text-xl mb-4"
+              style={{ color: secondaryColor }}
+            >
+              {ex.name}
+            </Text>
+
+            {ex.sets.map((set, idx) => (
+              <View
+                key={idx}
+                className="flex-row justify-between py-1 border-b border-black-200 last:border-0"
+              >
+                <Text className="text-gray-100">Set {idx + 1}</Text>
+                <Text className="text-gray-100">{set.reps} reps</Text>
+                <Text className="text-gray-100">{set.lbs} lbs</Text>
+                {set.isPR && (
+                  <FontAwesome5 name="trophy" size={14} color={primaryColor} />
+                )}
+              </View>
+            ))}
+          </View>
+        ))}
       </ScrollView>
     </View>
   );

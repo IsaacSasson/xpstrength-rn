@@ -100,7 +100,7 @@ const FinishedWorkout = () => {
       <ScrollView showsVerticalScrollIndicator={false} className="px-4 pb-4">
         {/* ---------- Summary Card ---------- */}
         <View
-          className="rounded-2xl p-5 mt-6 mb-6"
+          className="rounded-2xl p-5 mt-20 mb-6"
           style={{ backgroundColor: tertiaryColor }}
         >
           <View className="flex-row items-center mb-4">
@@ -249,20 +249,16 @@ const FinishedWorkout = () => {
         ))}
 
         {/* ---------- Footer Buttons ---------- */}
-        <View className="mb-10 mt-4 flex-row justify-between">
-          <TouchableOpacity
-            onPress={() => router.push("/home")} // placeholder
-            className="flex-1 mr-2 py-4 rounded-xl items-center"
-            style={{ backgroundColor: tertiaryColor }}
-          >
-            <Text className="text-white font-pbold text-lg">1.25x</Text>
-            <Text className="text-gray-100 text-xs">Watch an ad</Text>
-          </TouchableOpacity>
-
+        <View className="mb-10 mx-28 mt-4 flex-row justify-between">
           <TouchableOpacity
             onPress={() => router.replace("/home")}
-            className="flex-1 ml-2 py-4 rounded-xl items-center"
-            style={{ backgroundColor: primaryColor }}
+            className="flex-1 mx-50 ml-2 py-4 rounded-xl items-center"
+            style={{ backgroundColor: primaryColor, shadowColor: primaryColor,
+                  shadowOpacity: 0.4,
+                  shadowRadius: 13,
+                  shadowOffset: { width: 0, height: 4 },
+
+            }}
           >
             <Text className="text-white font-pbold text-lg">Continue</Text>
           </TouchableOpacity>
