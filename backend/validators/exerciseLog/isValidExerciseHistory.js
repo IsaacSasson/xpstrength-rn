@@ -11,7 +11,7 @@ export async function isValidExerciseHistory(value) {
         reps: "number",
         notes: "string",
         cooldown: 'number',
-        weight: "string"
+        weight: "number"
     }
     for (const [id, log] of Object.entries(value)) {
         if (!Number.isInteger(Number(id))) {

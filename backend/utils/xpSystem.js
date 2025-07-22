@@ -8,16 +8,26 @@ import AppError from "./AppError.js";
 const userLevelUpRewards = { coins: 100 };
 
 const muscleLevelUpRewards = {
-  chest: 300,
-  legs: 350,
-  back: 250,
-  core: 300,
-  biceps: 400,
-  triceps: 400,
-  shoulders: 500,
+  chest: 30,
+  legs: 35,
+  back: 25,
+  core: 30,
+  biceps: 40,
+  triceps: 40,
+  shoulders: 50,
 };
 
-const personalBestsRewards = { pb: 100, firstTime: 20 };
+
+const muscleXPScaler = {
+  chest: 0.1,
+  legs: 0.1,
+  back: 0.1,
+  core: 0.3,
+  biceps: 0.3,
+  triceps: 0.3,
+  shoulders: 0.3,
+};
+const personalBestsRewards = { pb: 200, firstTime: 25 };
 
 const baseUser = 120;
 const under30 = 0.9;
@@ -55,15 +65,21 @@ export async function workoutAddXP(user, workout) {
   let muscleLevelUpXP = 0;
   let pbLevelUpXP = 0;
   let events = [];
+  let xpPerCategory = {};
 
   for (const exerciseLog of exercises) {
-    muscleLevelUpXP += await addXpToCoreMuscle(
+    const {userXp, xpGainedPerCategory} = await addXpToCoreMuscle(
       exerciseLog,
       userStats,
       userId,
       events,
-      workoutId
+      workoutId,
+      xpPerCategory
     );
+
+    xpPerCategory = xpGainedPerCategory;
+    muscleLevelUpXP += userXp;
+
     pbLevelUpXP += await addXpFromNewPB(
       exerciseLog,
       userPB,
@@ -107,7 +123,7 @@ export async function workoutAddXP(user, workout) {
     await user.save({ transaction: t });
   });
 
-  return events;
+  return {events, newXp, xpPerCategory};
 }
 
 export async function addXpToCoreMuscle(
@@ -115,7 +131,8 @@ export async function addXpToCoreMuscle(
   stats,
   userId,
   events,
-  workoutId
+  workoutId,
+  xpGainedPerCategory
 ) {
   const reps = exerciseLog.reps;
   const sets = exerciseLog.sets;
@@ -132,9 +149,16 @@ export async function addXpToCoreMuscle(
   }
 
   const volume = reps * sets * weight;
-  const scaledVolume = Math.max(volume * (60 / cooldown), volume);
-
   const muscleCategory = exerciseJson[exerciseId].muscleCategory.toLowerCase();
+  
+  //The max XP they can get for a workout is their volume but we decrease the amount by how long they rest
+  //If someone benches 245 for 5 reps and 5 sets but they take a 5 min break we divide by that volume
+  //We also scale it based on how big that muscle group is so it doesnt grow disproportianly compared to the weight
+  const scaledVolume = Math.max(volume * (60 / cooldown), volume) * muscleXPScaler[muscleCategory]
+
+  //Return to the user xp gained per muscle category from the exercise
+  xpGainedPerCategory = { ...xpGainedPerCategory, [exerciseId]: {[muscleCategory]: scaledVolume}}
+
   const oldXp = stats[muscleCategory].xp;
   const oldLevel = stats[muscleCategory].level;
   const totalXp = oldXp + Math.round(scaledVolume);
@@ -176,10 +200,12 @@ export async function addXpToCoreMuscle(
     stats.total.reps += reps;
     stats.total.weight += weight;
 
+    stats.changed(muscleCategory, true);
+    stats.changed('total', true);
     await stats.save({ transaction: t });
   });
 
-  return userXp;
+  return {userXp, xpGainedPerCategory};
 }
 
 export async function addXpFromNewPB(
@@ -200,7 +226,7 @@ export async function addXpFromNewPB(
   if (cmp === null) {
     await sequelize.transaction(async (t) => {
       personalBests[exerciseId] = workoutId;
-      pb.personalBests = personalBests
+      pb.changed("personalBests", true);
       await pb.save({ transaction: t });
 
       const newEvent = new AddEvent(
@@ -227,7 +253,14 @@ export async function addXpFromNewPB(
   const cmpWorkoutLog = await WorkoutLog.findOne({
     where: { id: cmp, userId },
   });
-  const cmpExerciseLog = cmpWorkoutLog?.exercises[exerciseId];
+
+
+  const cmpExerciseLog = cmpWorkoutLog?.exercises.reduce( (acc, obj)=> {
+    if(Number(obj.exercise) === exerciseId) {
+      acc = obj
+    }
+    return acc;
+  }, null)
 
   if (!cmpExerciseLog) {
     throw new AppError("Unknown workoutLog stored in PB", 400, "BAD_DATA");
@@ -236,6 +269,7 @@ export async function addXpFromNewPB(
   if (cmpExerciseLog.weight < weight) {
     await sequelize.transaction(async (t) => {
       pb[exerciseId] = workoutId;
+      pb.changed("personalBests", true);
       await pb.save({ transaction: t });
 
       const newEvent = new AddEvent(

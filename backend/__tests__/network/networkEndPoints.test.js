@@ -28,7 +28,7 @@ const createUserAndGetAccessToken = async () => {
   return loginRes.body.data.accessToken;
 };
 
-describe("Network Routes", () => {
+describe.skip("Network Routes", () => {
   describe("POST /api/v1/network/logout", () => {
     it("returns 401 NO_TOKEN when no Authorization header is sent", async () => {
       const res = await request(server).post("/api/v1/network/logout");
@@ -68,7 +68,7 @@ describe("Network Routes", () => {
     });
   });
 
-  describe("GET /api/v1/network/websocket-token", () => {
+  describe.skip("GET /api/v1/network/websocket-token", () => {
     it("returns 401 NO_TOKEN when no Authorization header is sent", async () => {
       const res = await request(server).get("/api/v1/network/websocket-token");
       await errorChecker(

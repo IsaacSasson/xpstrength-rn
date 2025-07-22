@@ -54,7 +54,7 @@ export async function assertDatabaseConnected() {
     if (isTest) {
       await sequelize.sync({ force: true });
     } else if (isDev) {
-      await sequelize.sync({ alter: true });
+      await sequelize.sync();
     } else if (isProd) {
       await sequelize.sync();
     }

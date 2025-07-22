@@ -48,14 +48,14 @@ export async function deleteCustomWorkout(input_data) {
 //Updates previous exerciseHistory, logs the workout, and addsXP sending back events to frontend for updates
 export async function logWorkout(user, workout) {
   try {
-    const newWorkoutLog = await sequelize.transaction(async (t) => {
-      const newExerciseLog = [];
-      const prevExerciseLog = await ExerciseLog.findOne({
+    const newWorkout = await sequelize.transaction(async (t) => {
+      const newWorkoutLog = [];
+      const prevExerciseHistory = await ExerciseLog.findOne({
         where: { userId: user.id },
         transaction: t,
       });
 
-      if (prevExerciseLog == null) {
+      if (prevExerciseHistory == null) {
         throw new AppError("No exercise-history found", 400);
       }
       let exerciseId = null;
@@ -65,14 +65,14 @@ export async function logWorkout(user, workout) {
       let exerciseSets = null;
       let exerciseCooldown = null;
 
-      const workoutLogs = workout.exercises;
+      const exerciseLogs = workout.exercises;
       const workoutLength = workout.length;
 
-      if (!workoutLogs || workoutLength == null) {
+      if (!exerciseLogs || workoutLength == null) {
         throw new AppError("INVALID WORKOUT DATA", 400, "BAD_DATA");
       }
 
-      for (const exerciseLog of workoutLogs) {
+      for (const exerciseLog of exerciseLogs) {
         exerciseId = exerciseLog.id;
         exerciseWeight = exerciseLog.weight;
         exerciseNotes = exerciseLog.notes;
@@ -106,16 +106,19 @@ export async function logWorkout(user, workout) {
           exercise: exerciseId,
         };
 
-        prevExerciseLog.exerciseHistory[exerciseId] = newHistory;
-        newExerciseLog.push(newLog);
+        prevExerciseHistory.exerciseHistory = {
+          ...prevExerciseHistory.exerciseHistory,
+          [exerciseId]: newHistory,
+        };
+        newWorkoutLog.push(newLog);
       }
 
-      await prevExerciseLog.save({ transaction: t });
+      await prevExerciseHistory.save({ transaction: t });
 
       const newWorkout = await WorkoutLog.create(
         {
           length: workoutLength,
-          exercises: newExerciseLog,
+          exercises: newWorkoutLog,
           userId: user.id,
         },
         { transaction: t }
@@ -132,9 +135,12 @@ export async function logWorkout(user, workout) {
       return newWorkout;
     });
 
-    const newEvents = await workoutAddXP(user, newWorkoutLog);
+    const { events, newXp, xpPerCategory } = await workoutAddXP(
+      user,
+      newWorkout
+    );
 
-    return newEvents;
+    return { events, newXp, xpPerCategory };
   } catch (err) {
     throw mapSequelizeError(err);
   }
