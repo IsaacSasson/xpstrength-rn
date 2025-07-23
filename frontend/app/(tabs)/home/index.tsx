@@ -14,7 +14,7 @@ const dateKey = (d: Date) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate
 const midnight = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; })();
 
 export default function Home() {
-  const { primaryColor, tertiaryColor } = useThemeContext();
+  const { primaryColor, secondaryColor, tertiaryColor } = useThemeContext();
 
   /* ---- stack-internal navigation (relative paths) ---- */
   const goToCreateWorkout   = () => router.push("/home/create-workout");
@@ -81,7 +81,12 @@ export default function Home() {
         <TodaysWorkout workout={workoutForDate} allowCreate={!isPastEmpty} selectedDate={selectedDate} />
 
         {/* quick actions */}
-        <Text className="text-white text-xl font-psemibold mb-4">Quick Actions</Text>
+        <View className="flex-row items-center justify-between mb-4">
+          <Text className="text-white text-xl font-psemibold">Quick Actions</Text>
+          <TouchableOpacity className="mr-2" onPress={() => { /* Add your onPress logic here */ }}>
+            <FontAwesome5 name="ellipsis-v" size={20} color={primaryColor} />
+          </TouchableOpacity>
+        </View>
         <View className="flex-row flex-wrap mb-8">
           <QuickActions
             title="Create New Workout" icon="dumbbell" iconType="material"
