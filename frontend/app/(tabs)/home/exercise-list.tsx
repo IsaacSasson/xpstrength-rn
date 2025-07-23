@@ -211,6 +211,17 @@ const ExerciseList = () => {
     return [{ label: placeholder, value: "" }, ...getUniqueValues(field)];
   };
 
+  const handleImageClick = (exerciseId: string, event: any) => {
+  // Prevent the parent TouchableOpacity from being triggered
+  event.stopPropagation();
+  
+  // Navigate to exercise detail page
+  router.push({
+    pathname: "/home/exercise-detail",
+    params: { id: exerciseId }
+  });
+};
+
   return (
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
       <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
@@ -367,94 +378,100 @@ const ExerciseList = () => {
         ) : (
           <View>
             {paginatedExercises.map((exercise) => {
-              const images = exercise.images;
-              const isSelected = selectedExercises.includes(exercise.id);
-              return (
+            const images = exercise.images;
+            const isSelected = selectedExercises.includes(exercise.id);
+            return (
+              <TouchableOpacity
+                key={exercise.id}
+                className={`flex-row p-3 rounded-lg mb-3`}
+                style={{
+                  backgroundColor: isSelected
+                    ? `${primaryColor}20`
+                    : tertiaryColor,
+                  borderWidth: isSelected ? 1 : 0,
+                  borderColor: isSelected ? primaryColor : "transparent",
+                }}
+                onPress={() => handleExerciseClick(exercise.id)}
+                activeOpacity={0.7}
+              >
+                {/* Make the image container clickable separately */}
                 <TouchableOpacity
-                  key={exercise.id}
-                  className={`flex-row p-3 rounded-lg mb-3`}
-                  style={{
-                    backgroundColor: isSelected
-                      ? `${primaryColor}20`
-                      : tertiaryColor,
-                    borderWidth: isSelected ? 1 : 0,
-                    borderColor: isSelected ? primaryColor : "transparent",
-                  }}
-                  onPress={() => handleExerciseClick(exercise.id)}
-                  activeOpacity={0.7}
+                  style={styles.imageContainer}
+                  onPress={(event) => handleImageClick(exercise.id, event)}
+                  activeOpacity={0.8}
                 >
-                  <View style={styles.imageContainer}>
-                    {images.length > 0 ? (
-                      <>
+                  {images.length > 0 ? (
+                    <>
+                      <Image
+                        source={images[0]}
+                        style={[
+                          styles.exerciseImage,
+                          { opacity: imageIndex === 0 ? 1 : 0 },
+                        ]}
+                        resizeMode="cover"
+                      />
+                      {images.length > 1 && (
                         <Image
-                          source={images[0]}
+                          source={images[1]}
                           style={[
                             styles.exerciseImage,
-                            { opacity: imageIndex === 0 ? 1 : 0 },
+                            { opacity: imageIndex === 1 ? 1 : 0 },
                           ]}
                           resizeMode="cover"
                         />
-                        {images.length > 1 && (
-                          <Image
-                            source={images[1]}
-                            style={[
-                              styles.exerciseImage,
-                              { opacity: imageIndex === 1 ? 1 : 0 },
-                            ]}
-                            resizeMode="cover"
-                          />
-                        )}
-                      </>
-                    ) : (
-                      <View className="w-full h-full rounded-lg bg-black-200 items-center justify-center">
-                        <MaterialCommunityIcons
-                          name="dumbbell"
-                          size={30}
-                          color="#7b7b8b"
-                        />
-                      </View>
-                    )}
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-white font-semibold text-lg">
-                      {exercise.name}
-                    </Text>
-                    <Text
-                      style={{ color: primaryColor }}
-                      className="text-sm mt-1"
-                    >
-                      <Text className="font-semibold">Target Muscle:</Text>{" "}
-                      <Text className="text-gray-100">
-                        {exercise.primaryMuscles}
-                      </Text>
-                    </Text>
-                    {exercise.secondaryMuscles && (
-                      <Text style={{ color: primaryColor }} className="text-sm">
-                        <Text className="font-semibold">Secondary:</Text>{" "}
-                        <Text className="text-gray-100">
-                          {exercise.secondaryMuscles}
-                        </Text>
-                      </Text>
-                    )}
-                  </View>
-                  <View className="justify-center">
-                    <View
-                      className={`w-5 h-5 rounded-full border-2 items-center justify-center`}
-                      style={{
-                        borderColor: primaryColor,
-                        backgroundColor: isSelected
-                          ? primaryColor
-                          : "transparent",
-                      }}
-                    >
-                      {isSelected && (
-                        <FontAwesome5 name="check" size={10} color="white" />
                       )}
+                    </>
+                  ) : (
+                    <View className="w-full h-full rounded-lg bg-black-200 items-center justify-center">
+                      <MaterialCommunityIcons
+                        name="dumbbell"
+                        size={30}
+                        color="#7b7b8b"
+                      />
                     </View>
-                  </View>
+                  )}
                 </TouchableOpacity>
-              );
-            })}
+                
+                <View className="flex-1">
+                  <Text className="text-white font-semibold text-lg">
+                    {exercise.name}
+                  </Text>
+                  <Text
+                    style={{ color: primaryColor }}
+                    className="text-sm mt-1"
+                  >
+                    <Text className="font-semibold">Target Muscle:</Text>{" "}
+                    <Text className="text-gray-100">
+                      {exercise.primaryMuscles}
+                    </Text>
+                  </Text>
+                  {exercise.secondaryMuscles && (
+                    <Text style={{ color: primaryColor }} className="text-sm">
+                      <Text className="font-semibold">Secondary:</Text>{" "}
+                      <Text className="text-gray-100">
+                        {exercise.secondaryMuscles}
+                      </Text>
+                    </Text>
+                  )}
+                </View>
+                <View className="justify-center">
+                  <View
+                    className={`w-5 h-5 rounded-full border-2 items-center justify-center`}
+                    style={{
+                      borderColor: primaryColor,
+                      backgroundColor: isSelected
+                        ? primaryColor
+                        : "transparent",
+                    }}
+                  >
+                    {isSelected && (
+                      <FontAwesome5 name="check" size={10} color="white" />
+                    )}
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
           </View>
         )}
       </ScrollView>
@@ -529,7 +546,7 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
     borderRadius: 8,
-  },
+  }
 });
 
 export default ExerciseList;
