@@ -131,6 +131,9 @@ export async function logWorkout(user, workout) {
         null
       );
       await history.log(t);
+      user.totalWorkouts += 1;
+      user.totalTimeWorkedOut += workoutLength;
+      await user.save({ transaction: t });
 
       return newWorkout;
     });
