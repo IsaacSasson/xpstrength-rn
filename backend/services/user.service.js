@@ -5,8 +5,15 @@ import { sequelize } from "../config/db.config.js";
 import AppHistory from "../utils/AddHistory.js";
 import { workoutAddXP } from "../utils/xpSystem.js";
 
-export async function getProfileData(input_data) {
-  return;
+export async function getProfileData(user) {
+  try {
+    const { password, createdAt, updatedAt, ...safeUser } =
+      user.get?.({ plain: true }) || user;
+
+    return safeUser;
+  } catch (err) {
+    throw mapSequelizeError(err);
+  }
 }
 
 export async function setProfileData(input_data) {

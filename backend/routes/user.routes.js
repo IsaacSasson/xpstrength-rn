@@ -18,7 +18,7 @@ import {
 const userRouter = Router();
 
 //Get your user profile Data
-//userRouter.get("/profile", getProfile);
+userRouter.get("/profile", getProfile);
 
 //Update your user profile Data
 //userRouter.patch("/update-profile", patchProfile);

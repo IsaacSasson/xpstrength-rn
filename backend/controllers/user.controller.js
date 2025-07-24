@@ -2,7 +2,21 @@ import userService from "../services/user.service.js";
 import AppError from "../utils/AppError.js";
 
 export async function getProfile(req, res, next) {
-  return;
+  const user = req?.user ?? null;
+  try {
+    if (!user) {
+      throw new AppError("No user DATA", 400, "BAD_DATA");
+    }
+    const cleanedData = await userService.getProfileData(user);
+    return res.status(200).json({
+      data: {
+        profileData: cleanedData,
+      },
+      message: "User Profile succesfully recieved!",
+    });
+  } catch (err) {
+    next(err);
+  }
 }
 
 export async function patchProfile(req, res, next) {
