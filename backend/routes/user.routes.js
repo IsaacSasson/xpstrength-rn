@@ -48,7 +48,7 @@ userRouter.post("/custom-workout", postCustomWorkout);
 userRouter.put("/custom-workout", putCustomWorkout);
 
 //Delete a custom workout saved
-//userRouter.delete("custom-workout", deleteCustomWorkout);
+userRouter.delete("/custom-workout", deleteCustomWorkout);
 
 //User Logs a completed workout
 userRouter.post("/log-workout", postLogWorkout);

@@ -203,8 +203,70 @@ export async function updateCustomWorkout(id, newExercises, newName, user) {
   }
 }
 
-export async function deleteCustomWorkout(input_data) {
-  return;
+//Delete a customWorkout
+export async function deleteCustomWorkout(id, user) {
+  try {
+    return await sequelize.transaction(async (t) => {
+      const userId = user?.id;
+      if (user == null || userId == null) {
+        throw new AppError("Unknown user or userId", 400, "BAD_DATA");
+      }
+
+      const oldCustomWorkout = await CustomWorkout.findOne({
+        where: { userId, id },
+        transaction: t,
+      });
+
+      if (!oldCustomWorkout) {
+        throw new AppError(
+          `Could not find customWorkout with id ${id} belonging to user`,
+          400,
+          "BAD_DATA"
+        );
+      }
+
+      await oldCustomWorkout.destroy();
+
+      const oldWorkoutPlan = await WorkoutPlan.findOne({
+        where: { userId },
+        transaction: t,
+      });
+
+      if (!oldWorkoutPlan) {
+        throw new AppError(
+          `Could not find workoutPlan for user`,
+          500,
+          "Database Error"
+        );
+      }
+
+      const oldPlan = oldWorkoutPlan.plan;
+
+      const newPlan = oldPlan.reduce((acc, customWorkoutId) => {
+        if (customWorkoutId == id) {
+          acc.push(-1);
+        } else {
+          acc.push(customWorkoutId);
+        }
+        return acc;
+      }, []);
+
+      oldWorkoutPlan.plan = newPlan;
+      const newWorkoutPlan = await oldWorkoutPlan.save({ transaction: t });
+
+      const history = new AppHistory(
+        "USER",
+        `User successfully deleted their customWorkout with id of ${id}`,
+        userId,
+        null
+      );
+      await history.log(t);
+
+      return newWorkoutPlan;
+    });
+  } catch (err) {
+    throw mapSequelizeError(err);
+  }
 }
 
 //Updates previous exerciseHistory, logs the workout, and addsXP sending back events to frontend for updates

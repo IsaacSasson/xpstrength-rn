@@ -148,7 +148,22 @@ export async function putCustomWorkout(req, res, next) {
 }
 
 export async function deleteCustomWorkout(req, res, next) {
-  return;
+  const user = req?.user ?? null;
+  const id = req?.body?.data?.id ?? null;
+  try {
+    if (!user || !id) {
+      throw new AppError("Malformed CustomWorkout Data", 400, "BAD_DATA");
+    }
+    const newPlan = await userService.deleteCustomWorkout(id, user);
+    return res.status(201).json({
+      data: {
+        newPlan: newPlan,
+      },
+      message: `Successfully deleted custom workout with id ${id} and returned new workoutPlan after customWorkout deleted.`,
+    });
+  } catch (err) {
+    next(err);
+  }
 }
 
 export async function postLogWorkout(req, res, next) {
