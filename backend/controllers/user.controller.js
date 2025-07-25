@@ -43,12 +43,32 @@ export async function patchWorkoutPlan(req, res, next) {
   return;
 }
 
-export async function getCustomWorkout(req, res, next) {
+export async function getCustomWorkouts(req, res, next) {
   return;
 }
 
 export async function postCustomWorkout(req, res, next) {
-  return;
+  const user = req?.user ?? null;
+  const customWorkout = req?.body?.exercises ?? null;
+  const name = req?.body?.name ?? null;
+  try {
+    if (!user || !customWorkout || !name) {
+      throw new AppError("Malformed CustomWorkout Data", 400, "BAD_DATA");
+    }
+    const newCustomWorkout = await userService.createCustomWorkout(
+      customWorkout,
+      name,
+      user
+    );
+    return res.status(201).json({
+      data: {
+        newCustomWorkout: newCustomWorkout,
+      },
+      message: "New CustomWorkout sucessfully created!",
+    });
+  } catch (err) {
+    next(err);
+  }
 }
 
 export async function patchCustomWorkout(req, res, next) {
@@ -94,7 +114,7 @@ export default {
   getHistoryPaginated,
   getWorkoutPlan,
   patchWorkoutPlan,
-  getCustomWorkout,
+  getCustomWorkouts,
   postCustomWorkout,
   patchCustomWorkout,
   deleteCustomWorkout,

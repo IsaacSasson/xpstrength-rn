@@ -1,6 +1,11 @@
 import mapSequelizeError from "../utils/mapSequelizeError.js";
 import AppError from "../utils/AppError.js";
-import { User, WorkoutLog, ExerciseLog } from "../models/index.js";
+import {
+  User,
+  WorkoutLog,
+  ExerciseLog,
+  CustomWorkout,
+} from "../models/index.js";
 import { sequelize } from "../config/db.config.js";
 import AppHistory from "../utils/AddHistory.js";
 import { workoutAddXP } from "../utils/xpSystem.js";
@@ -40,8 +45,35 @@ export async function customWorkouts(input_data) {
   return;
 }
 
-export async function createCustomWorkout(input_data) {
-  return;
+export async function createCustomWorkout(customWorkout, name, user) {
+  try {
+    return await sequelize.transaction(async (t) => {
+      const userId = user?.id;
+      if (user == null || userId == null) {
+        throw new AppError("Unknown user or userId", 400, "BAD_DATA");
+      }
+      const newCustomWorkout = await CustomWorkout.create(
+        {
+          userId: userId,
+          name: name,
+          exercises: customWorkout,
+        },
+        { transaction: t }
+      );
+
+      const history = new AppHistory(
+        "USER",
+        `User successfully created a new customWorkout with name of ${newCustomWorkout.name}`,
+        userId,
+        null
+      );
+      await history.log(t);
+
+      return newCustomWorkout;
+    });
+  } catch (err) {
+    throw mapSequelizeError(err);
+  }
 }
 
 export async function setCustomWorkouts(input_data) {

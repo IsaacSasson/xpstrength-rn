@@ -8,7 +8,7 @@ import {
   getHistoryPaginated,
   getWorkoutPlan,
   patchWorkoutPlan,
-  getCustomWorkout,
+  getCustomWorkouts,
   postCustomWorkout,
   patchCustomWorkout,
   deleteCustomWorkout,
@@ -39,10 +39,10 @@ userRouter.get("/profile", getProfile);
 //userRouter.patch("/workout-plan", patchWorkoutPlan);
 
 //Get all custom workouts
-//userRouter.get("custom-workout", getCustomWorkout);
+userRouter.get("/custom-workouts", getCustomWorkouts);
 
 //Create a new custom workout
-//userRouter.post("custom-workout", postCustomWorkout);
+userRouter.post("/custom-workout", postCustomWorkout);
 
 //Update a previously made custom workout
 //userRouter.patch("custom-workout", patchCustomWorkout);

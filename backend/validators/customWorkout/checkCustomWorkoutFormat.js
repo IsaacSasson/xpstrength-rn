@@ -9,7 +9,7 @@ export async function checkCustomWorkoutFormat(value) {
         reps: 'number',
         sets: 'number',
         cooldown: 'number',
-        weight: "string"
+        weight: "number"
     };
 
     value.forEach((obj, idx) => {
