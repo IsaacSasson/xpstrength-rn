@@ -35,12 +35,35 @@ const ExerciseDetail = () => {
 
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Load the specific exercise by ID
-    const exercises = loadExercises();
-    const foundExercise = exercises.find((ex: Exercise) => ex.id === exerciseId);
-    setExercise(foundExercise || null);
+    try {
+      const exercises = loadExercises();
+      const foundExercise = exercises.find((ex: Exercise) => ex.id === exerciseId);
+      
+      if (foundExercise) {
+        setExercise(foundExercise);
+      } else {
+        // Try to find by name as fallback (in case IDs don't match exactly)
+        const exerciseByName = exercises.find((ex: Exercise) => 
+          ex.name.toLowerCase().replace(/\s+/g, '-') === exerciseId.toLowerCase() ||
+          ex.name.toLowerCase() === exerciseId.toLowerCase()
+        );
+        
+        if (exerciseByName) {
+          setExercise(exerciseByName);
+        } else {
+          setExercise(null);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading exercise:", error);
+      setExercise(null);
+    } finally {
+      setLoading(false);
+    }
   }, [exerciseId]);
 
   useEffect(() => {
@@ -66,6 +89,21 @@ const ExerciseDetail = () => {
       .map(sentence => sentence.trim());
   };
 
+  if (loading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
+        <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
+        <SafeAreaView edges={["top"]} className="bg-primary">
+          <View className="px-4 pt-6 pb-4">
+            <View className="flex-row items-center mb-4">
+              <Text className="text-white font-psemibold text-xl">Loading...</Text>
+            </View>
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
+
   if (!exercise) {
     return (
       <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
@@ -73,10 +111,29 @@ const ExerciseDetail = () => {
         <SafeAreaView edges={["top"]} className="bg-primary">
           <View className="px-4 pt-6 pb-4">
             <View className="flex-row items-center mb-4">
-              <Text className="text-white font-psemibold text-xl">Exercise Not Found</Text>
+              <Header
+                MText="Exercise Not Found"
+                SText={`Could not find exercise with ID: ${exerciseId}`}
+              />
             </View>
           </View>
         </SafeAreaView>
+        <View className="flex-1 px-4 pt-6 items-center justify-center">
+          <MaterialCommunityIcons
+            name="dumbbell"
+            size={80}
+            color={primaryColor}
+          />
+          <Text className="text-white font-psemibold text-xl mt-4 text-center">
+            Exercise Not Found
+          </Text>
+          <Text className="text-gray-100 text-center mt-2">
+            The exercise you're looking for could not be found in the database.
+          </Text>
+          <Text className="text-gray-100 text-center mt-1 text-sm">
+            Exercise ID: {exerciseId}
+          </Text>
+        </View>
       </View>
     );
   }
