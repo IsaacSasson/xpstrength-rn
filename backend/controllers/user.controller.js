@@ -39,9 +39,7 @@ export async function getWorkoutPlan(req, res, next) {
   return;
 }
 
-export async function patchWorkoutPlan(req, res, next) {
-  return;
-}
+export async function patchWorkoutPlan(req, res, next) {}
 
 export async function getCustomWorkouts(req, res, next) {
   return;
@@ -49,8 +47,8 @@ export async function getCustomWorkouts(req, res, next) {
 
 export async function postCustomWorkout(req, res, next) {
   const user = req?.user ?? null;
-  const customWorkout = req?.body?.exercises ?? null;
-  const name = req?.body?.name ?? null;
+  const customWorkout = req?.body?.data?.exercises ?? null;
+  const name = req?.body?.data?.name ?? null;
   try {
     if (!user || !customWorkout || !name) {
       throw new AppError("Malformed CustomWorkout Data", 400, "BAD_DATA");
@@ -71,8 +69,30 @@ export async function postCustomWorkout(req, res, next) {
   }
 }
 
-export async function patchCustomWorkout(req, res, next) {
-  return;
+export async function putCustomWorkout(req, res, next) {
+  const user = req?.user ?? null;
+  const customWorkout = req?.body?.data?.exercises ?? null;
+  const name = req?.body?.data?.name ?? null;
+  const id = req?.body?.data?.id ?? null;
+  try {
+    if (!user || !customWorkout || !name || !id) {
+      throw new AppError("Malformed CustomWorkout Data", 400, "BAD_DATA");
+    }
+    const updatedCustomWorkout = await userService.updateCustomWorkout(
+      id,
+      customWorkout,
+      name,
+      user
+    );
+    return res.status(201).json({
+      data: {
+        updatedCustomWorkout: updatedCustomWorkout,
+      },
+      message: `Successfully updated custom workout with id ${id}`,
+    });
+  } catch (err) {
+    next(err);
+  }
 }
 
 export async function deleteCustomWorkout(req, res, next) {
@@ -116,7 +136,7 @@ export default {
   patchWorkoutPlan,
   getCustomWorkouts,
   postCustomWorkout,
-  patchCustomWorkout,
+  putCustomWorkout,
   deleteCustomWorkout,
   postLogWorkout,
 };

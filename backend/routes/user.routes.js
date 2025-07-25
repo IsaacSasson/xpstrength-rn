@@ -10,9 +10,9 @@ import {
   patchWorkoutPlan,
   getCustomWorkouts,
   postCustomWorkout,
-  patchCustomWorkout,
   deleteCustomWorkout,
   postLogWorkout,
+  putCustomWorkout,
 } from "../controllers/user.controller.js";
 
 const userRouter = Router();
@@ -45,7 +45,7 @@ userRouter.get("/custom-workouts", getCustomWorkouts);
 userRouter.post("/custom-workout", postCustomWorkout);
 
 //Update a previously made custom workout
-//userRouter.patch("custom-workout", patchCustomWorkout);
+userRouter.put("/custom-workout", putCustomWorkout);
 
 //Delete a custom workout saved
 //userRouter.delete("custom-workout", deleteCustomWorkout);

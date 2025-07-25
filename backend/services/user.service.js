@@ -41,7 +41,7 @@ export async function setWorkoutPlan(input_data) {
   return;
 }
 
-export async function customWorkouts(input_data) {
+export async function getCustomWorkouts(input_data) {
   return;
 }
 
@@ -76,8 +76,48 @@ export async function createCustomWorkout(customWorkout, name, user) {
   }
 }
 
-export async function setCustomWorkouts(input_data) {
-  return;
+export async function updateCustomWorkout(id, newExercises, newName, user) {
+  try {
+    return await sequelize.transaction(async (t) => {
+      const userId = user?.id;
+      if (user == null || userId == null) {
+        throw new AppError("Unknown user or userId", 400, "BAD_DATA");
+      }
+
+      const oldCustomWorkout = await CustomWorkout.findOne({
+        where: { userId, id },
+        transaction: t,
+      });
+
+      if (!oldCustomWorkout) {
+        throw new AppError(
+          `Could not find customWorkout with id ${id} belonging to user`,
+          400,
+          "BAD_DATA"
+        );
+      }
+
+      oldCustomWorkout.exercises = newExercises;
+      oldCustomWorkout.name = newName;
+      oldCustomWorkout.changed("exercises", true);
+      oldCustomWorkout.changed("name", true);
+      const updateCustomWorkout = await oldCustomWorkout.save({
+        transaction: t,
+      });
+
+      const history = new AppHistory(
+        "USER",
+        `User successfully created a updated customWorkout with id of ${updateCustomWorkout.id}`,
+        userId,
+        null
+      );
+      await history.log(t);
+
+      return updateCustomWorkout;
+    });
+  } catch (err) {
+    throw mapSequelizeError(err);
+  }
 }
 
 export async function deleteCustomWorkout(input_data) {
@@ -195,9 +235,9 @@ export default {
   getHistory,
   workoutPlan,
   setWorkoutPlan,
-  customWorkouts,
+  getCustomWorkouts,
   createCustomWorkout,
-  setCustomWorkouts,
+  updateCustomWorkout,
   deleteCustomWorkout,
   logWorkout,
 };
