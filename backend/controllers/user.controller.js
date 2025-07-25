@@ -36,7 +36,23 @@ export async function getHistoryPaginated(req, res, next) {
 }
 
 export async function getWorkoutPlan(req, res, next) {
-  return;
+  const user = req?.user ?? null;
+
+  try {
+    if (!user) {
+      throw new AppError("Malfored user ID", 400, "BAD_DATA");
+    }
+
+    const weeklyPlan = await userService.getWorkoutPlan(user);
+    return res.status(200).json({
+      data: {
+        weeklyPlan: weeklyPlan,
+      },
+      message: "User succesfully their custom workout plans!",
+    });
+  } catch (err) {
+    next(err);
+  }
 }
 
 export async function patchWorkoutPlan(req, res, next) {}

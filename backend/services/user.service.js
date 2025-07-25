@@ -5,6 +5,7 @@ import {
   WorkoutLog,
   ExerciseLog,
   CustomWorkout,
+  WorkoutPlan,
 } from "../models/index.js";
 import { sequelize } from "../config/db.config.js";
 import AppHistory from "../utils/AddHistory.js";
@@ -33,8 +34,33 @@ export async function getHistory(input_data, paginated = false) {
   return;
 }
 
-export async function workoutPlan(input_data) {
-  return;
+export async function getWorkoutPlan(user) {
+  try {
+    return await sequelize.transaction(async (t) => {
+      const userId = user?.id;
+      if (!user || userId == null) {
+        throw new AppError("Unknown user or userId", 400, "BAD_DATA");
+      }
+
+      const workoutPlan = await WorkoutPlan.findOne({
+        where: { userId: userId },
+        transaction: t,
+      });
+
+      if (!workoutPlan) {
+        throw new AppError(
+          "No workoutPlan found for user!",
+          500,
+          "database-error"
+        );
+      }
+
+      //No Need TO Log
+      return workoutPlan;
+    });
+  } catch (err) {
+    throw mapSequelizeError(err);
+  }
 }
 
 export async function setWorkoutPlan(input_data) {
@@ -55,7 +81,7 @@ export async function getCustomWorkouts(user) {
       });
 
       if (!customWorkouts) {
-        throw new AppError("No custom workouts found for user!");
+        throw new AppError("No custom workouts found for user!", 400, "");
       }
 
       //No Need TO Log
@@ -254,7 +280,7 @@ export default {
   setProfileData,
   deleteAccount,
   getHistory,
-  workoutPlan,
+  getWorkoutPlan,
   setWorkoutPlan,
   getCustomWorkouts,
   createCustomWorkout,

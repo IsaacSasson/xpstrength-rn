@@ -33,7 +33,7 @@ userRouter.get("/profile", getProfile);
 //userRouter.get("/history/:page/:pageSize", getHistoryPaginated);
 
 //Get your weekly workout plan
-//userRouter.get("/workout-plan", getWorkoutPlan);
+userRouter.get("/workout-plan", getWorkoutPlan);
 
 //Update your weekly workout plan
 //userRouter.patch("/workout-plan", patchWorkoutPlan);
@@ -55,8 +55,5 @@ userRouter.post("/log-workout", postLogWorkout);
 
 //User edits a previously completed workout
 //userRouter.patch("log-workout");
-
-//User deletes a previously logged workout
-//userRouter.delete("log-workout");
 
 export default userRouter;
