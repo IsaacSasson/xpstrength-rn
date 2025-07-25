@@ -55,7 +55,26 @@ export async function getWorkoutPlan(req, res, next) {
   }
 }
 
-export async function patchWorkoutPlan(req, res, next) {}
+export async function putWorkoutPlan(req, res, next) {
+  const user = req?.user ?? null;
+  const newPlan = req?.body?.data?.newPlan ?? null;
+
+  try {
+    if (!user || !newPlan) {
+      throw new AppError("Malfored data payload", 400, "BAD_DATA");
+    }
+
+    const weeklyPlan = await userService.setWorkoutPlan(user, newPlan);
+    return res.status(200).json({
+      data: {
+        weeklyPlan: weeklyPlan,
+      },
+      message: "User succesfully updated their custom workout plans!",
+    });
+  } catch (err) {
+    next(err);
+  }
+}
 
 export async function getCustomWorkouts(req, res, next) {
   const user = req?.user ?? null;
@@ -166,7 +185,7 @@ export default {
   getHistory,
   getHistoryPaginated,
   getWorkoutPlan,
-  patchWorkoutPlan,
+  putWorkoutPlan,
   getCustomWorkouts,
   postCustomWorkout,
   putCustomWorkout,

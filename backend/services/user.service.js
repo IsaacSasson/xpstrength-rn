@@ -63,8 +63,44 @@ export async function getWorkoutPlan(user) {
   }
 }
 
-export async function setWorkoutPlan(input_data) {
-  return;
+export async function setWorkoutPlan(user, newPlan) {
+  try {
+    return await sequelize.transaction(async (t) => {
+      const userId = user?.id;
+      if (!user || userId == null) {
+        throw new AppError("Unknown user or userId", 400, "BAD_DATA");
+      }
+
+      const workoutPlan = await WorkoutPlan.findOne({
+        where: { userId: userId },
+        transaction: t,
+      });
+
+      if (!workoutPlan) {
+        throw new AppError(
+          "No workoutPlan found for user!",
+          500,
+          "database-error"
+        );
+      }
+
+      workoutPlan.plan = newPlan;
+      const newWorkoutPlan = await workoutPlan.save({ transaction: t });
+
+      const history = new AppHistory(
+        "USER",
+        `User successfully updated their workoutPlan`,
+        userId,
+        null
+      );
+      await history.log(t);
+
+      return newWorkoutPlan;
+    });
+  } catch (err) {
+    console.log("Testing is caught?");
+    throw mapSequelizeError(err);
+  }
 }
 
 export async function getCustomWorkouts(user) {
@@ -154,7 +190,7 @@ export async function updateCustomWorkout(id, newExercises, newName, user) {
 
       const history = new AppHistory(
         "USER",
-        `User successfully created a updated customWorkout with id of ${updateCustomWorkout.id}`,
+        `User successfully updated their customWorkout with id of ${updateCustomWorkout.id}`,
         userId,
         null
       );
