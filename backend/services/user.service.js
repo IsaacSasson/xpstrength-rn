@@ -41,8 +41,29 @@ export async function setWorkoutPlan(input_data) {
   return;
 }
 
-export async function getCustomWorkouts(input_data) {
-  return;
+export async function getCustomWorkouts(user) {
+  try {
+    return await sequelize.transaction(async (t) => {
+      const userId = user?.id;
+      if (!user || userId == null) {
+        throw new AppError("Unknown user or userId", 400, "BAD_DATA");
+      }
+
+      const customWorkouts = await CustomWorkout.findAll({
+        where: { userId: userId },
+        transaction: t,
+      });
+
+      if (!customWorkouts) {
+        throw new AppError("No custom workouts found for user!");
+      }
+
+      //No Need TO Log
+      return customWorkouts;
+    });
+  } catch (err) {
+    throw mapSequelizeError(err);
+  }
 }
 
 export async function createCustomWorkout(customWorkout, name, user) {

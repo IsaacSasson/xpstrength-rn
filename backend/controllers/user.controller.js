@@ -42,7 +42,24 @@ export async function getWorkoutPlan(req, res, next) {
 export async function patchWorkoutPlan(req, res, next) {}
 
 export async function getCustomWorkouts(req, res, next) {
-  return;
+  const user = req?.user ?? null;
+
+  try {
+    if (!user) {
+      throw new AppError("Malfored user ID", 400, "BAD_DATA");
+    }
+
+    const customWorkouts = await userService.getCustomWorkouts(user);
+
+    return res.status(200).json({
+      data: {
+        customWorkouts: customWorkouts,
+      },
+      message: "User succesfully retrieved all their custom workouts!",
+    });
+  } catch (err) {
+    next(err);
+  }
 }
 
 export async function postCustomWorkout(req, res, next) {
