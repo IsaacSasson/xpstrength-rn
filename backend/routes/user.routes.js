@@ -7,18 +7,18 @@ import {
   getHistory,
   getHistoryPaginated,
   getWorkoutPlan,
-  patchWorkoutPlan,
-  getCustomWorkout,
+  putWorkoutPlan,
+  getCustomWorkouts,
   postCustomWorkout,
-  patchCustomWorkout,
   deleteCustomWorkout,
   postLogWorkout,
+  putCustomWorkout,
 } from "../controllers/user.controller.js";
 
 const userRouter = Router();
 
 //Get your user profile Data
-//userRouter.get("/profile", getProfile);
+userRouter.get("/profile", getProfile);
 
 //Update your user profile Data
 //userRouter.patch("/update-profile", patchProfile);
@@ -33,30 +33,27 @@ const userRouter = Router();
 //userRouter.get("/history/:page/:pageSize", getHistoryPaginated);
 
 //Get your weekly workout plan
-//userRouter.get("/workout-plan", getWorkoutPlan);
+userRouter.get("/workout-plan", getWorkoutPlan);
 
 //Update your weekly workout plan
-//userRouter.patch("/workout-plan", patchWorkoutPlan);
+userRouter.put("/workout-plan", putWorkoutPlan);
 
 //Get all custom workouts
-//userRouter.get("custom-workout", getCustomWorkout);
+userRouter.get("/custom-workouts", getCustomWorkouts);
 
 //Create a new custom workout
-//userRouter.post("custom-workout", postCustomWorkout);
+userRouter.post("/custom-workout", postCustomWorkout);
 
 //Update a previously made custom workout
-//userRouter.patch("custom-workout", patchCustomWorkout);
+userRouter.put("/custom-workout", putCustomWorkout);
 
 //Delete a custom workout saved
-//userRouter.delete("custom-workout", deleteCustomWorkout);
+userRouter.delete("/custom-workout", deleteCustomWorkout);
 
 //User Logs a completed workout
 userRouter.post("/log-workout", postLogWorkout);
 
 //User edits a previously completed workout
 //userRouter.patch("log-workout");
-
-//User deletes a previously logged workout
-//userRouter.delete("log-workout");
 
 export default userRouter;
