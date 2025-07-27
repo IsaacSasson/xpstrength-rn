@@ -10,6 +10,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
@@ -17,6 +18,9 @@ import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useThemeContext } from "@/context/ThemeContext";
 import { getTempExercises } from "@/utils/exerciseBuffer";
+import { loadExercises } from "@/utils/loadExercises";
+import { workoutApi, transformExerciseFromAPI } from "@/services/workoutApi";
+import { validateWorkoutForSave, getDetailedValidationMessage } from "@/utils/workoutValidation";
 import Header from "@/components/Header";
 import DraggableBottomSheet from "@/components/DraggableBottomSheet";
 import ExerciseCard, { Exercise } from "@/components/home/ExerciseCard";
@@ -31,91 +35,26 @@ interface Workout {
   exercises: Exercise[];
 }
 
-interface WorkoutRecord {
-  [key: string]: Workout;
-}
-
-const workoutsByDay: WorkoutRecord = {
-  Monday: {
-    name: "Push Day",
-    days: ["Monday"],
-    exercises: [
-      { 
-        id: "101", 
-        name: "Bench Press", 
-        sets: [
-          { reps: "8", weight: "185 lbs" },
-          { reps: "8", weight: "185 lbs" },
-          { reps: "10", weight: "175 lbs" },
-          { reps: "10", weight: "175 lbs" }
-        ],
-        notes: "Focus on controlled movement",
-        originalExerciseId: "bench-press" // Add original IDs for existing exercises
-      },
-      { 
-        id: "102", 
-        name: "Shoulder Press", 
-        sets: [
-          { reps: "10", weight: "135 lbs" },
-          { reps: "12", weight: "125 lbs" },
-          { reps: "12", weight: "125 lbs" }
-        ],
-        notes: "",
-        originalExerciseId: "shoulder-press"
-      },
-      { 
-        id: "103", 
-        name: "Incline DB Press", 
-        sets: [
-          { reps: "10", weight: "65 lbs" },
-          { reps: "12", weight: "60 lbs" },
-          { reps: "12", weight: "60 lbs" }
-        ],
-        notes: "",
-        originalExerciseId: "incline-dumbbell-press"
-      },
-    ],
-  },
-  Tuesday: {
-    name: "Pull Day",
-    days: ["Tuesday"],
-    exercises: [
-      { 
-        id: "201", 
-        name: "Deadlifts", 
-        sets: [
-          { reps: "6", weight: "225 lbs" },
-          { reps: "6", weight: "225 lbs" },
-          { reps: "8", weight: "205 lbs" },
-          { reps: "8", weight: "205 lbs" }
-        ],
-        notes: "Keep back straight, engage core",
-        originalExerciseId: "deadlift"
-      },
-      { 
-        id: "202", 
-        name: "Pull-ups", 
-        sets: [
-          { reps: "8", weight: "Bodyweight" },
-          { reps: "10", weight: "Bodyweight" },
-          { reps: "8", weight: "Bodyweight" }
-        ],
-        notes: "",
-        originalExerciseId: "pullups"
-      },
-    ],
-  },
-};
-
 const daysOfWeek = [
   "Monday",
-  "Tuesday",
+  "Tuesday", 
   "Wednesday",
   "Thursday",
   "Friday",
   "Saturday",
   "Sunday",
 ];
+
+// Map day names to indices for the workout plan array
+const dayToIndex: { [key: string]: number } = {
+  "Sunday": 0,
+  "Monday": 1,
+  "Tuesday": 2,
+  "Wednesday": 3,
+  "Thursday": 4,
+  "Friday": 5,
+  "Saturday": 6,
+};
 
 /* -------------------------------------------------------------------------- */
 /*                           WORKOUT EDITOR PROPS                            */
@@ -138,13 +77,58 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
     exercises: [],
   });
   const [showDayPicker, setShowDayPicker] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [existingWorkoutId, setExistingWorkoutId] = useState<number | null>(null);
+  const [currentWorkoutPlan, setCurrentWorkoutPlan] = useState<number[]>([-1, -1, -1, -1, -1, -1, -1]);
 
-  /* --------------------------- Load existing workout -------------------------- */
+  /* --------------------------- Load existing workout and plan data -------------------------- */
   useEffect(() => {
-    if (dayParam && workoutsByDay[dayParam] && mode === "edit") {
-      setWorkout({ ...workoutsByDay[dayParam] });
-    }
-  }, [dayParam, mode]);
+    const loadWorkoutData = async () => {
+      if (mode === "edit" && dayParam) {
+        setIsLoading(true);
+        try {
+          // Get current workout plan to find which workout is assigned to this day
+          const planResult = await workoutApi.getWorkoutPlan();
+          if (planResult.success && planResult.plan) {
+            setCurrentWorkoutPlan(planResult.plan);
+            const dayIndex = dayToIndex[dayParam];
+            const workoutId = planResult.plan[dayIndex];
+            
+            if (workoutId && workoutId !== -1) {
+              setExistingWorkoutId(workoutId);
+              
+              // Get all custom workouts to find the one for this day
+              const workoutsResult = await workoutApi.getCustomWorkouts();
+              if (workoutsResult.success && workoutsResult.workouts) {
+                const existingWorkout = workoutsResult.workouts.find(w => w.id === workoutId);
+                if (existingWorkout) {
+                  // Transform API exercises to component format
+                  const exerciseDatabase = loadExercises();
+                  const transformedExercises = existingWorkout.exercises.map(ex => 
+                    transformExerciseFromAPI(ex, exerciseDatabase)
+                  );
+                  
+                  setWorkout({
+                    name: existingWorkout.name,
+                    days: [dayParam], // Start with the current day, user can modify
+                    exercises: transformedExercises,
+                  });
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error loading workout data:', error);
+          Alert.alert('Error', 'Failed to load workout data');
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadWorkoutData();
+  }, [mode, dayParam]);
 
   /* --------------------------- Check for buffered exercises when component comes into focus -------------------------- */
   useFocusEffect(
@@ -177,7 +161,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
       originalExerciseId: ex.id, // Store the original exercise ID for navigation
     }));
 
-    // Add to existing exercises (the component instance already has them in state)
+    // Add to existing exercises
     setWorkout(prev => ({
       ...prev,
       exercises: [...prev.exercises, ...newExercises]
@@ -222,21 +206,94 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
     return sel.join(", ");
   };
 
-  const handleSave = () => {
-    if (!workout.name.trim()) {
-      Alert.alert("Error", "Please enter a workout name");
-      return;
+  const updateWorkoutPlan = async (workoutId: number, selectedDays: string[]) => {
+    try {
+      console.log('Updating workout plan with ID:', workoutId, 'for days:', selectedDays);
+      console.log('Current workout plan before update:', currentWorkoutPlan);
+      
+      // Create new plan based on current plan
+      const newPlan = [...currentWorkoutPlan];
+      
+      // Clear any existing assignments of this workout ID
+      for (let i = 0; i < newPlan.length; i++) {
+        if (newPlan[i] === workoutId) {
+          newPlan[i] = -1;
+        }
+      }
+      
+      // Set the workout for selected days
+      selectedDays.forEach(day => {
+        const dayIndex = dayToIndex[day];
+        if (dayIndex !== undefined) {
+          console.log(`Setting workout ${workoutId} for ${day} (index ${dayIndex})`);
+          newPlan[dayIndex] = workoutId;
+        }
+      });
+
+      console.log('New workout plan to send:', newPlan);
+
+      const result = await workoutApi.updateWorkoutPlan(newPlan);
+      if (result.success) {
+        setCurrentWorkoutPlan(newPlan);
+        return true;
+      } else {
+        throw new Error(result.error || 'Failed to update workout plan');
+      }
+    } catch (error) {
+      console.error('Error updating workout plan:', error);
+      throw error;
     }
-    if (!workout.exercises.length) {
-      Alert.alert("Error", "Add at least one exercise");
-      return;
-    }
+  };
+
+  const handleSave = async () => {
+    // Validate workout data
+    const validation = validateWorkoutForSave(workout);
     
-    // TODO: persist to backend
-    const action = mode === "create" ? "created" : "updated";
-    Alert.alert("Success", `Workout ${action} successfully!`, [
-      { text: "OK", onPress: () => router.back() },
-    ]);
+    if (!validation.isValid) {
+      Alert.alert("Validation Error", getDetailedValidationMessage(validation));
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      let workoutId: number;
+      let result;
+
+      if (mode === "create") {
+        // Create new workout
+        result = await workoutApi.createCustomWorkout(workout.name, workout.exercises);
+        if (!result.success || !result.workout) {
+          throw new Error(result.error || 'Failed to create workout');
+        }
+        workoutId = result.workout.id;
+      } else {
+        // Update existing workout
+        if (!existingWorkoutId) {
+          throw new Error('No existing workout ID found for editing');
+        }
+        result = await workoutApi.updateCustomWorkout(existingWorkoutId, workout.name, workout.exercises);
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to update workout');
+        }
+        workoutId = existingWorkoutId;
+      }
+
+      // Update workout plan if days are selected
+      if (workout.days.length > 0) {
+        await updateWorkoutPlan(workoutId, workout.days);
+      }
+
+      const action = mode === "create" ? "created" : "updated";
+      Alert.alert("Success", `Workout ${action} successfully!`, [
+        { text: "OK", onPress: () => router.back() },
+      ]);
+
+    } catch (error) {
+      console.error('Save workout error:', error);
+      Alert.alert("Error", error instanceof Error ? error.message : "Failed to save workout");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const navigateToExerciseList = () => {
@@ -248,6 +305,16 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
       }
     });
   };
+
+  /* ------------------------------- Loading State ------------------------------- */
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: "#0F0E1A", justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color={primaryColor} />
+        <Text style={{ color: "white", marginTop: 16, fontSize: 16 }}>Loading workout...</Text>
+      </View>
+    );
+  }
 
   /* ------------------------------- UI ------------------------------- */
   return (
@@ -268,10 +335,17 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
 
             <TouchableOpacity
               onPress={handleSave}
-              className="px-4 py-2 rounded-lg"
-              style={{ backgroundColor: primaryColor }}
+              className="px-4 py-2 rounded-lg flex-row items-center"
+              style={{ 
+                backgroundColor: isSaving ? primaryColor + "50" : primaryColor,
+                opacity: isSaving ? 0.7 : 1 
+              }}
+              disabled={isSaving}
             >
-              <Text className="text-white font-pmedium">Save</Text>
+              {isSaving && <ActivityIndicator size="small" color="white" style={{ marginRight: 8 }} />}
+              <Text className="text-white font-pmedium">
+                {isSaving ? "Saving..." : "Save"}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -305,6 +379,9 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
             <Text className="text-white font-pmedium">{displayDays()}</Text>
             <FontAwesome5 name="chevron-down" size={16} color="#CDCDE0" />
           </TouchableOpacity>
+          <Text className="text-gray-100 text-xs mt-2">
+            Select which days this workout will be scheduled in your weekly plan
+          </Text>
         </View>
 
         {/* Exercises Section */}

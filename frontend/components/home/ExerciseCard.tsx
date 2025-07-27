@@ -605,11 +605,23 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
               <FontAwesome5 name="chevron-right" size={14} color="#FF4D4D" />
             </TouchableOpacity>
 
-            {/* Notes Section */}
+ {/* Notes Section */}
             <View>
-              <Text style={{ color: "#CDCDE0", fontSize: 16, fontWeight: "500", marginBottom: 12 }}>
-                Exercise Notes
-              </Text>
+              <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
+                <Text style={{ color: "#CDCDE0", fontSize: 16, fontWeight: "500", flex: 1 }}>
+                  Exercise Notes
+                </Text>
+                <View style={{
+                  backgroundColor: "#FFA50020",
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: 6,
+                }}>
+                  <Text style={{ color: "#FFA500", fontSize: 10, fontWeight: "500" }}>
+                    SESSION ONLY
+                  </Text>
+                </View>
+              </View>
               <View
                 style={{
                   backgroundColor: tertiaryColor,
@@ -636,7 +648,7 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
                 />
               </View>
               <Text style={{ color: "#7b7b8b", fontSize: 12, marginTop: 8 }}>
-                These notes will appear at the top of your exercise card when expanded.
+                ⚠️ Notes are for this session only and won't be saved to your workout template.
               </Text>
             </View>
           </ScrollView>
