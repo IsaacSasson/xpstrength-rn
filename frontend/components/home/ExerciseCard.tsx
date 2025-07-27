@@ -43,7 +43,7 @@ interface ExerciseCardProps {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                             Expandable Section                            */
+/*                             Expandable Section                              */
 /* -------------------------------------------------------------------------- */
 const ExpandableSection: React.FC<{
   isExpanded: boolean;
@@ -54,32 +54,30 @@ const ExpandableSection: React.FC<{
 
   const onMeasure = (event: LayoutChangeEvent) => {
     const { height } = event.nativeEvent.layout;
-    if (height > 0) {
-      setContentHeight(height);
-    }
+    if (height > 0) setContentHeight(height);
   };
 
   useEffect(() => {
     if (contentHeight > 0) {
       Animated.timing(animation, {
         toValue: isExpanded ? contentHeight : 0,
-        duration: isExpanded ? 300 : 0, // Instant closing
+        duration: isExpanded ? 300 : 0,
         useNativeDriver: false,
       }).start();
     }
   }, [isExpanded, contentHeight]);
 
   return (
-    <Animated.View style={{ height: isExpanded ? undefined : animation, overflow: 'hidden' }}>
-      <View onLayout={onMeasure}>
-        {children}
-      </View>
+    <Animated.View
+      style={{ height: isExpanded ? undefined : animation, overflow: "hidden" }}
+    >
+      <View onLayout={onMeasure}>{children}</View>
     </Animated.View>
   );
 };
 
 /* -------------------------------------------------------------------------- */
-/*                              Exercise Card                                */
+/*                              Exercise Card                                  */
 /* -------------------------------------------------------------------------- */
 const ExerciseCard: React.FC<ExerciseCardProps> = ({
   exercise,
@@ -92,21 +90,20 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
   const [showOptionsModal, setShowOptionsModal] = useState(false);
   const [imageIndex, setImageIndex] = useState(0);
   const [exerciseImages, setExerciseImages] = useState<number[]>([]);
-  
   const scaleAnimation = useRef(new Animated.Value(1)).current;
 
-  // Load exercise images
   useEffect(() => {
     if (exercise.originalExerciseId) {
       const exercises = loadExercises();
-      const originalExercise = exercises.find((ex: any) => ex.id === exercise.originalExerciseId);
+      const originalExercise = exercises.find(
+        (ex: any) => ex.id === exercise.originalExerciseId
+      );
       if (originalExercise && originalExercise.images) {
         setExerciseImages(originalExercise.images);
       }
     }
   }, [exercise.originalExerciseId]);
 
-  // Image flickering effect
   useEffect(() => {
     if (exerciseImages.length > 1) {
       const interval = setInterval(() => {
@@ -124,7 +121,7 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
   const handleRemove = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     Alert.alert(
-      "Remove Exercise", 
+      "Remove Exercise",
       `Remove "${exercise.name}" from your workout?`,
       [
         { text: "Cancel", style: "cancel" },
@@ -141,7 +138,11 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
     );
   };
 
-  const handleSetUpdate = (setIndex: number, field: keyof ExerciseSet, value: string) => {
+  const handleSetUpdate = (
+    setIndex: number,
+    field: keyof ExerciseSet,
+    value: string
+  ) => {
     const newSets = [...exercise.sets];
     newSets[setIndex] = { ...newSets[setIndex], [field]: value };
     onUpdate(exercise.id, "sets", newSets);
@@ -158,7 +159,6 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
       Alert.alert("Cannot Remove", "Exercise must have at least one set.");
       return;
     }
-    
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const newSets = exercise.sets.filter((_, index) => index !== setIndex);
     onUpdate(exercise.id, "sets", newSets);
@@ -173,15 +173,19 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
     setShowOptionsModal(true);
   };
 
+  // 👉 Navigate and request a bottom scroll on the detail page
   const handleViewInstructions = () => {
     if (exercise.originalExerciseId) {
       setShowOptionsModal(false);
       router.push({
         pathname: "/home/exercise-detail",
-        params: { id: exercise.originalExerciseId }
+        params: { id: exercise.originalExerciseId, scrollTo: "bottom" },
       });
     } else {
-      Alert.alert("No Instructions", "Exercise instructions are not available for this exercise.");
+      Alert.alert(
+        "No Instructions",
+        "Exercise instructions are not available for this exercise."
+      );
     }
   };
 
@@ -194,11 +198,9 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
     }).start();
   };
 
-  // Calculate stats for display
   const getStatsDisplay = () => {
-    const repsArray = exercise.sets.map(set => parseInt(set.reps) || 0);
-    const weightsArray = exercise.sets.map(set => {
-      // Extract numbers from weight string (handles "135 lbs", "135", etc.)
+    const repsArray = exercise.sets.map((set) => parseInt(set.reps) || 0);
+    const weightsArray = exercise.sets.map((set) => {
       const match = set.weight.match(/(\d+(?:\.\d+)?)/);
       return match ? parseFloat(match[1]) : 0;
     });
@@ -208,8 +210,10 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
     const minWeight = Math.min(...weightsArray);
     const maxWeight = Math.max(...weightsArray);
 
-    const repsDisplay = minReps === maxReps ? `${minReps}` : `${minReps}-${maxReps}`;
-    const weightDisplay = minWeight === maxWeight ? `${minWeight}` : `${minWeight}-${maxWeight}`;
+    const repsDisplay =
+      minReps === maxReps ? `${minReps}` : `${minReps}-${maxReps}`;
+    const weightDisplay =
+      minWeight === maxWeight ? `${minWeight}` : `${minWeight}-${maxWeight}`;
 
     return `${exercise.sets.length} sets • ${repsDisplay} reps • ${weightDisplay} lbs`;
   };
@@ -217,10 +221,7 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
   return (
     <>
       <Animated.View
-        style={{
-          transform: [{ scale: scaleAnimation }],
-          marginBottom: 16,
-        }}
+        style={{ transform: [{ scale: scaleAnimation }], marginBottom: 16 }}
       >
         <View
           style={{
@@ -251,8 +252,8 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
                 height: 56,
                 borderRadius: 28,
                 marginRight: 12,
-                overflow: 'hidden',
-                backgroundColor: '#232533',
+                overflow: "hidden",
+                backgroundColor: "#232533",
               }}
             >
               {exerciseImages.length > 0 ? (
@@ -260,9 +261,9 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
                   <Image
                     source={exerciseImages[0]}
                     style={{
-                      position: 'absolute',
-                      width: '100%',
-                      height: '100%',
+                      position: "absolute",
+                      width: "100%",
+                      height: "100%",
                       opacity: imageIndex === 0 ? 1 : 0,
                     }}
                     resizeMode="cover"
@@ -271,9 +272,9 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
                     <Image
                       source={exerciseImages[1]}
                       style={{
-                        position: 'absolute',
-                        width: '100%',
-                        height: '100%',
+                        position: "absolute",
+                        width: "100%",
+                        height: "100%",
                         opacity: imageIndex === 1 ? 1 : 0,
                       }}
                       resizeMode="cover"
@@ -281,18 +282,18 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
                   )}
                 </>
               ) : (
-                <View style={{
-                  width: '100%',
-                  height: '100%',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: primaryColor,
-                }}>
-                  <Text style={{
-                    color: "white",
-                    fontSize: 16,
-                    fontWeight: "bold",
-                  }}>
+                <View
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: primaryColor,
+                  }}
+                >
+                  <Text
+                    style={{ color: "white", fontSize: 16, fontWeight: "bold" }}
+                  >
                     {index + 1}
                   </Text>
                 </View>
@@ -312,8 +313,6 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
               >
                 {exercise.name}
               </Text>
-              
-              {/* Quick Stats */}
               <Text style={{ color: "#CDCDE0", fontSize: 14 }}>
                 {getStatsDisplay()}
               </Text>
@@ -361,7 +360,6 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
           {/* Expandable Details */}
           <ExpandableSection isExpanded={isExpanded}>
             <View style={{ padding: 16, paddingTop: 0 }}>
-              {/* Separator Line */}
               <View
                 style={{
                   height: 1,
@@ -370,10 +368,9 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
                 }}
               />
 
-              {/* Sets - No scroll limit, let it scale */}
               <View style={{ gap: 12 }}>
                 {exercise.sets.map((set, setIndex) => (
-                  <View 
+                  <View
                     key={setIndex}
                     style={{
                       flexDirection: "row",
@@ -384,7 +381,7 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
                       gap: 12,
                     }}
                   >
-                    {/* Nicer set numbering */}
+                    {/* Numbering */}
                     <View
                       style={{
                         width: 32,
@@ -397,11 +394,17 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
                         borderColor: primaryColor + "40",
                       }}
                     >
-                      <Text style={{ color: primaryColor, fontSize: 12, fontWeight: "600" }}>
+                      <Text
+                        style={{
+                          color: primaryColor,
+                          fontSize: 12,
+                          fontWeight: "600",
+                        }}
+                      >
                         {setIndex + 1}
                       </Text>
                     </View>
-                    
+
                     <View style={{ flex: 1, flexDirection: "row", gap: 8 }}>
                       <View style={{ flex: 1 }}>
                         <TextInput
@@ -418,17 +421,24 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
                           placeholderTextColor="#7b7b8b"
                           value={set.reps}
                           onChangeText={(text) => {
-                            const numericValue = text.replace(/[^0-9]/g, '');
+                            const numericValue = text.replace(/[^0-9]/g, "");
                             handleSetUpdate(setIndex, "reps", numericValue);
                           }}
                           keyboardType="numeric"
                           selectTextOnFocus
                         />
-                        <Text style={{ color: "#7b7b8b", fontSize: 12, textAlign: "center", marginTop: 2 }}>
+                        <Text
+                          style={{
+                            color: "#7b7b8b",
+                            fontSize: 12,
+                            textAlign: "center",
+                            marginTop: 2,
+                          }}
+                        >
                           reps
                         </Text>
                       </View>
-                      
+
                       <View style={{ flex: 1.5 }}>
                         <TextInput
                           style={{
@@ -442,15 +452,26 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
                           }}
                           placeholder="0"
                           placeholderTextColor="#7b7b8b"
-                          value={set.weight.replace(/[^0-9\.]/g, '')}
+                          value={set.weight.replace(/[^0-9\.]/g, "")}
                           onChangeText={(text) => {
-                            const numericValue = text.replace(/[^0-9\.]/g, '');
-                            handleSetUpdate(setIndex, "weight", numericValue ? `${numericValue} lbs` : "0 lbs");
+                            const numericValue = text.replace(/[^0-9\.]/g, "");
+                            handleSetUpdate(
+                              setIndex,
+                              "weight",
+                              numericValue ? `${numericValue} lbs` : "0 lbs"
+                            );
                           }}
                           keyboardType="numeric"
                           selectTextOnFocus
                         />
-                        <Text style={{ color: "#7b7b8b", fontSize: 12, textAlign: "center", marginTop: 2 }}>
+                        <Text
+                          style={{
+                            color: "#7b7b8b",
+                            fontSize: 12,
+                            textAlign: "center",
+                            marginTop: 2,
+                          }}
+                        >
                           weight (lbs)
                         </Text>
                       </View>
@@ -475,7 +496,6 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
                   </View>
                 ))}
 
-                {/* Add Set Button */}
                 <TouchableOpacity
                   onPress={handleAddSet}
                   style={{
@@ -492,7 +512,14 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
                   activeOpacity={0.7}
                 >
                   <FontAwesome5 name="plus" size={14} color={primaryColor} />
-                  <Text style={{ color: primaryColor, fontSize: 14, fontWeight: "500", marginLeft: 8 }}>
+                  <Text
+                    style={{
+                      color: primaryColor,
+                      fontSize: 14,
+                      fontWeight: "500",
+                      marginLeft: 8,
+                    }}
+                  >
                     Add Set
                   </Text>
                 </TouchableOpacity>
@@ -500,9 +527,14 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
             </View>
           </ExpandableSection>
 
-          {/* Notes Section - Always Visible */}
           {exercise.notes && (
-            <View style={{ paddingHorizontal: 16, paddingBottom: 16, paddingTop: 0 }}>
+            <View
+              style={{
+                paddingHorizontal: 16,
+                paddingBottom: 16,
+                paddingTop: 0,
+              }}
+            >
               <View
                 style={{
                   backgroundColor: primaryColor + "10",
@@ -512,13 +544,32 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
                   borderLeftColor: primaryColor,
                 }}
               >
-                <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 4 }}>
-                  <FontAwesome5 name="sticky-note" size={12} color={primaryColor} />
-                  <Text style={{ color: primaryColor, fontSize: 12, fontWeight: "500", marginLeft: 6 }}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginBottom: 4,
+                  }}
+                >
+                  <FontAwesome5
+                    name="sticky-note"
+                    size={12}
+                    color={primaryColor}
+                  />
+                  <Text
+                    style={{
+                      color: primaryColor,
+                      fontSize: 12,
+                      fontWeight: "500",
+                      marginLeft: 6,
+                    }}
+                  >
                     Notes
                   </Text>
                 </View>
-                <Text style={{ color: "#CDCDE0", fontSize: 14, lineHeight: 18 }}>
+                <Text
+                  style={{ color: "#CDCDE0", fontSize: 14, lineHeight: 18 }}
+                >
                   {exercise.notes}
                 </Text>
               </View>
@@ -535,17 +586,18 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
         onRequestClose={() => setShowOptionsModal(false)}
       >
         <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
-          {/* Modal Header */}
-          <View style={{ 
-            flexDirection: "row", 
-            alignItems: "center", 
-            justifyContent: "space-between",
-            padding: 16,
-            paddingTop: 60,
-            backgroundColor: tertiaryColor,
-            borderBottomWidth: 1,
-            borderBottomColor: "#232533"
-          }}>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: 16,
+              paddingTop: 60,
+              backgroundColor: tertiaryColor,
+              borderBottomWidth: 1,
+              borderBottomColor: "#232533",
+            }}
+          >
             <Text style={{ color: "white", fontSize: 18, fontWeight: "600" }}>
               {exercise.name}
             </Text>
@@ -565,7 +617,6 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
           </View>
 
           <ScrollView style={{ flex: 1, padding: 16 }}>
-            {/* View Instructions Button */}
             <TouchableOpacity
               onPress={handleViewInstructions}
               style={{
@@ -578,14 +629,25 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
               }}
               activeOpacity={0.7}
             >
-              <MaterialCommunityIcons name="information" size={20} color={primaryColor} />
-              <Text style={{ color: "white", fontSize: 16, fontWeight: "500", marginLeft: 12, flex: 1 }}>
+              <MaterialCommunityIcons
+                name="information"
+                size={20}
+                color={primaryColor}
+              />
+              <Text
+                style={{
+                  color: "white",
+                  fontSize: 16,
+                  fontWeight: "500",
+                  marginLeft: 12,
+                  flex: 1,
+                }}
+              >
                 View Exercise Instructions
               </Text>
               <FontAwesome5 name="chevron-right" size={14} color="#CDCDE0" />
             </TouchableOpacity>
 
-            {/* Delete Exercise Button */}
             <TouchableOpacity
               onPress={handleRemove}
               style={{
@@ -599,25 +661,54 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
               activeOpacity={0.7}
             >
               <FontAwesome5 name="trash" size={16} color="#FF4D4D" />
-              <Text style={{ color: "#FF4D4D", fontSize: 16, fontWeight: "500", marginLeft: 12, flex: 1 }}>
+              <Text
+                style={{
+                  color: "#FF4D4D",
+                  fontSize: 16,
+                  fontWeight: "500",
+                  marginLeft: 12,
+                  flex: 1,
+                }}
+              >
                 Remove Exercise
               </Text>
               <FontAwesome5 name="chevron-right" size={14} color="#FF4D4D" />
             </TouchableOpacity>
 
- {/* Notes Section */}
+            {/* Notes Section */}
             <View>
-              <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
-                <Text style={{ color: "#CDCDE0", fontSize: 16, fontWeight: "500", flex: 1 }}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  marginBottom: 12,
+                }}
+              >
+                <Text
+                  style={{
+                    color: "#CDCDE0",
+                    fontSize: 16,
+                    fontWeight: "500",
+                    flex: 1,
+                  }}
+                >
                   Exercise Notes
                 </Text>
-                <View style={{
-                  backgroundColor: "#FFA50020",
-                  paddingHorizontal: 8,
-                  paddingVertical: 4,
-                  borderRadius: 6,
-                }}>
-                  <Text style={{ color: "#FFA500", fontSize: 10, fontWeight: "500" }}>
+                <View
+                  style={{
+                    backgroundColor: "#FFA50020",
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderRadius: 6,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: "#FFA500",
+                      fontSize: 10,
+                      fontWeight: "500",
+                    }}
+                  >
                     SESSION ONLY
                   </Text>
                 </View>
@@ -648,7 +739,8 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
                 />
               </View>
               <Text style={{ color: "#7b7b8b", fontSize: 12, marginTop: 8 }}>
-                ⚠️ Notes are for this session only and won't be saved to your workout template.
+                ⚠️ Notes are for this session only and won't be saved to your
+                workout template.
               </Text>
             </View>
           </ScrollView>
