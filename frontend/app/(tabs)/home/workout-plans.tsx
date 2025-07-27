@@ -1,5 +1,5 @@
 // Path: /app/(tabs)/home/workout-plans.tsx
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,83 +7,80 @@ import {
   TouchableOpacity,
   StatusBar,
   Alert,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useThemeContext } from "@/context/ThemeContext";
+import { useWorkouts } from "@/context/WorkoutContext";
 import Header from "@/components/Header";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-/* ----------------------------- Types & Mock ----------------------------- */
+/* ----------------------------- Types ----------------------------- */
 type Exercise = { name: string; sets: number; reps?: string };
 type Session = { id: string; title: string; exercises: Exercise[] };
 
-// Single-session “daily” workout plans
+// Single-session "daily" workout plans
 export type WorkoutPlan = {
   id: string;
   name: string;           // e.g., "Push Day", "Legs Strength"
   sessions: Session[];    // exactly one session per plan for now
 };
 
-const MOCK_PLANS: WorkoutPlan[] = [
-  {
-    id: "p_push",
-    name: "Push Day",
-    sessions: [
-      {
-        id: "s_main",
-        title: "Main Session",
-        exercises: [
-          { name: "Barbell Bench Press", sets: 5, reps: "5" },
-          { name: "Incline DB Press", sets: 4, reps: "8–10" },
-          { name: "Overhead Press", sets: 3, reps: "8–10" },
-          { name: "Cable Fly", sets: 3, reps: "12–15" },
-          { name: "Triceps Pushdown", sets: 3, reps: "12–15" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "p_pull",
-    name: "Pull Day",
-    sessions: [
-      {
-        id: "s_main",
-        title: "Main Session",
-        exercises: [
-          { name: "Conventional Deadlift", sets: 3, reps: "3–5" },
-          { name: "Barbell Row", sets: 4, reps: "6–8" },
-          { name: "Lat Pulldown", sets: 3, reps: "10–12" },
-          { name: "Face Pull", sets: 3, reps: "12–15" },
-          { name: "DB Curl", sets: 3, reps: "10–12" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "p_legs",
-    name: "Legs Day",
-    sessions: [
-      {
-        id: "s_main",
-        title: "Main Session",
-        exercises: [
-          { name: "Back Squat", sets: 5, reps: "5" },
-          { name: "Romanian Deadlift", sets: 3, reps: "6–8" },
-          { name: "Leg Press", sets: 4, reps: "10–12" },
-          { name: "Hamstring Curl", sets: 3, reps: "12–15" },
-          { name: "Calf Raise", sets: 3, reps: "12–15" },
-        ],
-      },
-    ],
-  },
-];
-
 /* -------------------------------- Screen -------------------------------- */
 const WorkoutPlans = () => {
   const { primaryColor, tertiaryColor } = useThemeContext();
-  const [plans, setPlans] = useState<WorkoutPlan[]>(MOCK_PLANS);
+  const { 
+    customWorkouts, 
+    exerciseDatabase, 
+    isLoading, 
+    isRefreshing,
+    error, 
+    refreshData, 
+    deleteWorkout,
+    clearError 
+  } = useWorkouts();
+
+  // Refresh data when screen comes into focus (after creating/editing a workout)
+  useFocusEffect(
+    useCallback(() => {
+      if (!isLoading) {
+        refreshData();
+      }
+    }, [refreshData, isLoading])
+  );
+
+  // Transform API data to UI format
+  const plans: WorkoutPlan[] = useMemo(() => {
+    return customWorkouts.map(workout => {
+      // Transform exercises from API format to UI format
+      const exercises: Exercise[] = workout.exercises.map((ex: any) => {
+        // Find exercise name from database
+        const exerciseDetails = exerciseDatabase.find(e => e.id === ex.exercise.toString());
+        const exerciseName = exerciseDetails?.name || `Exercise ${ex.exercise}`;
+        
+        return {
+          name: exerciseName,
+          sets: ex.sets,
+          reps: ex.reps.toString(),
+        };
+      });
+
+      return {
+        id: workout.id.toString(),
+        name: workout.name,
+        sessions: [
+          {
+            id: "main",
+            title: "Main Session",
+            exercises,
+          }
+        ],
+      };
+    });
+  }, [customWorkouts, exerciseDatabase]);
 
   // Totals per plan (single-session)
   const totals = useMemo(
@@ -101,24 +98,144 @@ const WorkoutPlans = () => {
   );
 
   const openPlan = (plan: WorkoutPlan) => {
-    // detail page suggestion
-    router.push({ pathname: "/home/active-workout", params: { id: plan.id } });
+    // Navigate to edit workout
+    router.push({
+      pathname: "/home/edit-workout",
+      params: { workoutId: plan.id }
+    });
   };
 
   const createPlan = () => {
     router.push("/home/create-workout");
   };
 
-  const removePlan = (id: string) => {
-    Alert.alert("Delete workout?", "This will remove the workout permanently.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => setPlans((prev) => prev.filter((p) => p.id !== id)),
-      },
-    ]);
+  const removePlan = async (id: string) => {
+    const plan = plans.find(p => p.id === id);
+    const planName = plan?.name || 'this workout';
+    
+    Alert.alert(
+      "Delete workout?", 
+      `This will remove "${planName}" permanently and from your weekly schedule.`, 
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const result = await deleteWorkout(parseInt(id));
+              if (result.success) {
+                Alert.alert("Success", "Workout deleted successfully");
+              } else {
+                Alert.alert("Error", result.error || "Failed to delete workout");
+              }
+            } catch (error) {
+              console.error('Error deleting workout:', error);
+              Alert.alert("Error", "Failed to delete workout");
+            }
+          },
+        },
+      ]
+    );
   };
+
+  const handleRetry = () => {
+    clearError();
+    refreshData();
+  };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
+        <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
+        
+        <SafeAreaView edges={["top"]} className="bg-primary">
+          <View className="px-4 pt-6">
+            <View className="flex-row items-center justify-between mb-4">
+              <Header MText="Workouts" SText="Loading your workouts..." />
+              <TouchableOpacity
+                onPress={createPlan}
+                activeOpacity={0.85}
+                style={{
+                  backgroundColor: primaryColor,
+                  paddingVertical: 10,
+                  paddingHorizontal: 14,
+                  borderRadius: 12,
+                  flexDirection: "row",
+                  alignItems: "center",
+                }}
+              >
+                <FontAwesome5 name="plus" size={14} color="#FFF" />
+                <Text className="text-white font-psemibold ml-2">Create</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </SafeAreaView>
+
+        <View className="flex-1 justify-center items-center">
+          <ActivityIndicator size="large" color={primaryColor} />
+          <Text className="text-white font-pmedium mt-4">Loading workouts...</Text>
+        </View>
+      </View>
+    );
+  }
+
+  // Error state
+  if (error && !isRefreshing) {
+    return (
+      <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
+        <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
+        
+        <SafeAreaView edges={["top"]} className="bg-primary">
+          <View className="px-4 pt-6">
+            <View className="flex-row items-center justify-between mb-4">
+              <Header MText="Workouts" SText="Error loading workouts" />
+              <TouchableOpacity
+                onPress={createPlan}
+                activeOpacity={0.85}
+                style={{
+                  backgroundColor: primaryColor,
+                  paddingVertical: 10,
+                  paddingHorizontal: 14,
+                  borderRadius: 12,
+                  flexDirection: "row",
+                  alignItems: "center",
+                }}
+              >
+                <FontAwesome5 name="plus" size={14} color="#FFF" />
+                <Text className="text-white font-psemibold ml-2">Create</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </SafeAreaView>
+
+        <View className="flex-1 justify-center items-center px-4">
+          <View
+            className="rounded-2xl p-6 w-full max-w-sm"
+            style={{ backgroundColor: tertiaryColor }}
+          >
+            <FontAwesome5 name="exclamation-triangle" size={40} color="#ff6b6b" style={{ alignSelf: 'center', marginBottom: 16 }} />
+            <Text className="text-white font-pmedium text-center text-lg mb-2">
+              Something went wrong
+            </Text>
+            <Text className="text-gray-100 text-center mb-4">
+              {error}
+            </Text>
+            <TouchableOpacity
+              onPress={handleRetry}
+              className="py-3 px-6 rounded-lg"
+              style={{ backgroundColor: primaryColor }}
+            >
+              <Text className="text-white font-pmedium text-center">
+                Try Again
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
@@ -148,12 +265,32 @@ const WorkoutPlans = () => {
         </View>
       </SafeAreaView>
 
-      <ScrollView className="px-4" showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        className="px-4" 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={refreshData}
+            tintColor={primaryColor}
+            colors={[primaryColor]}
+          />
+        }
+      >
         {plans.length === 0 ? (
           <View className="mt-10 items-center">
-            <MaterialCommunityIcons name="notebook-outline" size={36} color="#888" />
-            <Text className="text-white/80 mt-3">No workouts yet.</Text>
-            <Text className="text-white/60 mt-1">Tap “Create” to get started.</Text>
+            <MaterialCommunityIcons name="notebook-outline" size={48} color="#888" />
+            <Text className="text-white/80 mt-4 text-lg font-pmedium">No workouts yet</Text>
+            <Text className="text-white/60 mt-2 text-center">
+              Create your first workout to get started with your fitness journey.
+            </Text>
+            <TouchableOpacity
+              onPress={createPlan}
+              className="mt-6 py-3 px-6 rounded-lg"
+              style={{ backgroundColor: primaryColor }}
+            >
+              <Text className="text-white font-pmedium">Create First Workout</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           plans.map((plan) => {

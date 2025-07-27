@@ -1,5 +1,5 @@
-// Path: /context/AuthContext.tsx
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+// Path: /context/AuthProvider.tsx
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { API_BASE_URL } from '../utils/api';
 
@@ -11,8 +11,7 @@ interface User {
   id: string;
   username: string;
   email: string;
-  profilePic?: string;
-  // Add other user properties as needed
+  // Removed profilePic and other fields - we only need basic info
 }
 
 interface AuthContextType {
@@ -23,6 +22,7 @@ interface AuthContextType {
   setUser: (user: User | null) => void;
   setAccessToken: (token: string | null) => void;
   setRefreshToken: (token: string | null) => Promise<void>;
+  signIn: (userData: User, accessToken: string, refreshToken?: string) => void;
   logout: () => Promise<void>;
   clearAuth: () => Promise<void>;
 }
@@ -112,10 +112,49 @@ const createAuthenticatedFetch = () => {
 // AuthProvider Component
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [accessToken, setAccessTokenState] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const isAuthenticated = !!user && !!accessToken;
+
+  // Enhanced setAccessToken that manages loading state better
+  const setAccessToken = (token: string | null) => {
+    console.log('🔑 Setting access token:', !!token);
+    setAccessTokenState(token);
+    // Only set loading to false if we're clearing the token OR if we have both token and user
+    if (!token) {
+      setIsLoading(false);
+    }
+  };
+
+  // Enhanced setUser that manages loading state better  
+  const setUserWithLoadingState = (userData: User | null) => {
+    console.log('👤 Setting user:', userData?.username || 'null');
+    setUser(userData);
+    // Only set loading to false if we're clearing the user OR if we have both user and token
+    if (!userData) {
+      setIsLoading(false);
+    }
+  };
+
+  // Effect to manage loading state when both user and token are set
+  useEffect(() => {
+    if (user && accessToken) {
+      console.log('✅ Both user and token set, authentication complete');
+      setIsLoading(false);
+    }
+  }, [user, accessToken]);
+
+  // Atomic function to set both user and token at once - helps with timing issues
+  const signIn = useCallback((userData: User, accessTokenData: string, refreshTokenData?: string) => {
+    console.log('🔐 Atomic sign in:', userData.username);
+    setUser(userData);
+    setAccessTokenState(accessTokenData);
+    if (refreshTokenData) {
+      setRefreshToken(refreshTokenData);
+    }
+    setIsLoading(false);
+  }, []);
 
   // Initialize auth state on app start
   useEffect(() => {
@@ -133,25 +172,35 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Update the global auth context reference whenever state changes
   useEffect(() => {
+    console.log('🔄 Auth state changed:', { 
+      hasUser: !!user, 
+      hasToken: !!accessToken, 
+      isAuthenticated, 
+      isLoading 
+    });
+    
     authContext = {
       user,
       accessToken,
       isLoading,
       isAuthenticated,
-      setUser,
+      setUser: setUserWithLoadingState,
       setAccessToken,
       setRefreshToken,
+      signIn,
       logout,
       clearAuth,
     };
-  }, [user, accessToken, isLoading, isAuthenticated]);
+  }, [user, accessToken, isLoading, isAuthenticated, signIn]);
 
   const setRefreshToken = async (token: string | null): Promise<void> => {
     try {
       if (token) {
         await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, token);
+        console.log('🔒 Refresh token stored');
       } else {
         await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
+        console.log('🔓 Refresh token cleared');
       }
     } catch (error) {
       console.error('Error managing refresh token in SecureStore:', error);
@@ -161,11 +210,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const initializeAuth = async () => {
     try {
       setIsLoading(true);
+      console.log('🚀 Initializing auth...');
       
       // Try to get refresh token from SecureStore
       const refreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
       
       if (refreshToken) {
+        console.log('🔄 Found refresh token, attempting to refresh...');
         // Try to refresh token on app start
         const response = await fetch(`${API_BASE_URL}/api/v1/auth/access-token`, {
           method: 'GET',
@@ -177,32 +228,40 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (response.ok) {
           const result = await response.json();
           const newToken = result.data.accessToken;
-          setAccessToken(newToken);
+          setAccessTokenState(newToken);
+          console.log('✅ Token refreshed on app start');
           
-          // If you have a "get current user" endpoint, call it here
-          // For now, we'll assume login/register will set the user
-          console.log('Token refreshed on app start');
+          // Note: We don't have user data here, but that's okay
+          // The app will need to handle this state appropriately
+          // For now, we'll just have the token without user data
         } else {
+          console.log('❌ Refresh token invalid, clearing...');
           // Refresh token is invalid, clear it
           await setRefreshToken(null);
         }
+      } else {
+        console.log('ℹ️ No refresh token found');
       }
     } catch (error) {
-      console.log('No valid session found on startup');
+      console.log('⚠️ No valid session found on startup:', error);
       await setRefreshToken(null);
     } finally {
+      console.log('🏁 Auth initialization complete');
       setIsLoading(false);
     }
   };
 
   const clearAuth = async (): Promise<void> => {
-    setAccessToken(null);
+    console.log('🧹 Clearing auth state');
+    setAccessTokenState(null);
     setUser(null);
     await setRefreshToken(null);
+    // Don't set loading to true here, as we want other contexts to know auth is cleared
   };
 
   const logout = async (): Promise<void> => {
     try {
+      console.log('👋 Logging out...');
       // Get refresh token for logout call
       const refreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
       
@@ -227,9 +286,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     accessToken,
     isLoading,
     isAuthenticated,
-    setUser,
+    setUser: setUserWithLoadingState,
     setAccessToken,
     setRefreshToken,
+    signIn,
     logout,
     clearAuth,
   };

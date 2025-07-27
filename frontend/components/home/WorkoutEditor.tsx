@@ -17,9 +17,9 @@ import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useThemeContext } from "@/context/ThemeContext";
+import { useWorkouts } from "@/context/WorkoutContext";
 import { getTempExercises } from "@/utils/exerciseBuffer";
-import { loadExercises } from "@/utils/loadExercises";
-import { workoutApi, transformExerciseFromAPI } from "@/services/workoutApi";
+import { transformExerciseFromAPI } from "@/services/workoutApi";
 import { validateWorkoutForSave, getDetailedValidationMessage } from "@/utils/workoutValidation";
 import Header from "@/components/Header";
 import DraggableBottomSheet from "@/components/DraggableBottomSheet";
@@ -70,6 +70,15 @@ interface WorkoutEditorProps {
 const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
   const { primaryColor, tertiaryColor } = useThemeContext();
   const params = useLocalSearchParams();
+  const { 
+    workoutPlan, 
+    getWorkoutById, 
+    getWorkoutForDay, 
+    exerciseDatabase,
+    createWorkout, 
+    updateWorkout,
+    isLoading: contextLoading 
+  } = useWorkouts();
 
   const [workout, setWorkout] = useState<Workout>({
     name: "",
@@ -80,55 +89,66 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [existingWorkoutId, setExistingWorkoutId] = useState<number | null>(null);
-  const [currentWorkoutPlan, setCurrentWorkoutPlan] = useState<number[]>([-1, -1, -1, -1, -1, -1, -1]);
 
-  /* --------------------------- Load existing workout and plan data -------------------------- */
+  /* --------------------------- Load existing workout data -------------------------- */
   useEffect(() => {
-    const loadWorkoutData = async () => {
-      if (mode === "edit" && dayParam) {
-        setIsLoading(true);
-        try {
-          // Get current workout plan to find which workout is assigned to this day
-          const planResult = await workoutApi.getWorkoutPlan();
-          if (planResult.success && planResult.plan) {
-            setCurrentWorkoutPlan(planResult.plan);
-            const dayIndex = dayToIndex[dayParam];
-            const workoutId = planResult.plan[dayIndex];
+    if (mode === "edit" && !contextLoading) {
+      setIsLoading(true);
+      try {
+        // Check if we're editing by workout ID (from workout plans page)
+        const workoutIdParam = params.workoutId as string;
+        
+        if (workoutIdParam) {
+          // Edit by workout ID
+          const existingWorkout = getWorkoutById(parseInt(workoutIdParam));
+          if (existingWorkout) {
+            setExistingWorkoutId(existingWorkout.id);
             
-            if (workoutId && workoutId !== -1) {
-              setExistingWorkoutId(workoutId);
-              
-              // Get all custom workouts to find the one for this day
-              const workoutsResult = await workoutApi.getCustomWorkouts();
-              if (workoutsResult.success && workoutsResult.workouts) {
-                const existingWorkout = workoutsResult.workouts.find(w => w.id === workoutId);
-                if (existingWorkout) {
-                  // Transform API exercises to component format
-                  const exerciseDatabase = loadExercises();
-                  const transformedExercises = existingWorkout.exercises.map(ex => 
-                    transformExerciseFromAPI(ex, exerciseDatabase)
-                  );
-                  
-                  setWorkout({
-                    name: existingWorkout.name,
-                    days: [dayParam], // Start with the current day, user can modify
-                    exercises: transformedExercises,
-                  });
-                }
-              }
-            }
+            // Transform API exercises to component format
+            const transformedExercises = existingWorkout.exercises.map(ex => 
+              transformExerciseFromAPI(ex, exerciseDatabase)
+            );
+            
+            setWorkout({
+              name: existingWorkout.name,
+              days: [], // Don't set any days when editing by ID
+              exercises: transformedExercises,
+            });
+          } else {
+            Alert.alert('Error', 'Workout not found');
+            router.back();
           }
-        } catch (error) {
-          console.error('Error loading workout data:', error);
-          Alert.alert('Error', 'Failed to load workout data');
-        } finally {
-          setIsLoading(false);
+        } else if (dayParam) {
+          // Edit by day (existing logic)
+          const dayIndex = dayToIndex[dayParam];
+          const existingWorkout = getWorkoutForDay(dayIndex);
+          
+          if (existingWorkout) {
+            setExistingWorkoutId(existingWorkout.id);
+            
+            // Transform API exercises to component format
+            const transformedExercises = existingWorkout.exercises.map(ex => 
+              transformExerciseFromAPI(ex, exerciseDatabase)
+            );
+            
+            setWorkout({
+              name: existingWorkout.name,
+              days: [dayParam], // Start with the current day, user can modify
+              exercises: transformedExercises,
+            });
+          } else {
+            // No workout for this day - switch to create mode essentially
+            setWorkout(prev => ({ ...prev, days: [dayParam] }));
+          }
         }
+      } catch (error) {
+        console.error('Error loading workout data:', error);
+        Alert.alert('Error', 'Failed to load workout data');
+      } finally {
+        setIsLoading(false);
       }
-    };
-
-    loadWorkoutData();
-  }, [mode, dayParam]);
+    }
+  }, [mode, dayParam, params.workoutId, contextLoading, getWorkoutById, getWorkoutForDay, exerciseDatabase]);
 
   /* --------------------------- Check for buffered exercises when component comes into focus -------------------------- */
   useFocusEffect(
@@ -206,45 +226,6 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
     return sel.join(", ");
   };
 
-  const updateWorkoutPlan = async (workoutId: number, selectedDays: string[]) => {
-    try {
-      console.log('Updating workout plan with ID:', workoutId, 'for days:', selectedDays);
-      console.log('Current workout plan before update:', currentWorkoutPlan);
-      
-      // Create new plan based on current plan
-      const newPlan = [...currentWorkoutPlan];
-      
-      // Clear any existing assignments of this workout ID
-      for (let i = 0; i < newPlan.length; i++) {
-        if (newPlan[i] === workoutId) {
-          newPlan[i] = -1;
-        }
-      }
-      
-      // Set the workout for selected days
-      selectedDays.forEach(day => {
-        const dayIndex = dayToIndex[day];
-        if (dayIndex !== undefined) {
-          console.log(`Setting workout ${workoutId} for ${day} (index ${dayIndex})`);
-          newPlan[dayIndex] = workoutId;
-        }
-      });
-
-      console.log('New workout plan to send:', newPlan);
-
-      const result = await workoutApi.updateWorkoutPlan(newPlan);
-      if (result.success) {
-        setCurrentWorkoutPlan(newPlan);
-        return true;
-      } else {
-        throw new Error(result.error || 'Failed to update workout plan');
-      }
-    } catch (error) {
-      console.error('Error updating workout plan:', error);
-      throw error;
-    }
-  };
-
   const handleSave = async () => {
     // Validate workout data
     const validation = validateWorkoutForSave(workout);
@@ -256,37 +237,32 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
 
     setIsSaving(true);
     try {
-      let workoutId: number;
       let result;
 
       if (mode === "create") {
-        // Create new workout
-        result = await workoutApi.createCustomWorkout(workout.name, workout.exercises);
-        if (!result.success || !result.workout) {
-          throw new Error(result.error || 'Failed to create workout');
-        }
-        workoutId = result.workout.id;
+        // Create new workout using context
+        result = await createWorkout(workout.name, workout.exercises, workout.days);
       } else {
-        // Update existing workout
+        // Update existing workout using context
         if (!existingWorkoutId) {
           throw new Error('No existing workout ID found for editing');
         }
-        result = await workoutApi.updateCustomWorkout(existingWorkoutId, workout.name, workout.exercises);
-        if (!result.success) {
-          throw new Error(result.error || 'Failed to update workout');
-        }
-        workoutId = existingWorkoutId;
+        
+        // Only pass days if we're editing by day (not by workout ID directly)
+        const workoutIdParam = params.workoutId as string;
+        const daysToUpdate = workoutIdParam ? undefined : workout.days;
+        
+        result = await updateWorkout(existingWorkoutId, workout.name, workout.exercises, daysToUpdate);
       }
 
-      // Update workout plan if days are selected
-      if (workout.days.length > 0) {
-        await updateWorkoutPlan(workoutId, workout.days);
+      if (result.success) {
+        const action = mode === "create" ? "created" : "updated";
+        Alert.alert("Success", `Workout ${action} successfully!`, [
+          { text: "OK", onPress: () => router.back() },
+        ]);
+      } else {
+        throw new Error(result.error || 'Failed to save workout');
       }
-
-      const action = mode === "create" ? "created" : "updated";
-      Alert.alert("Success", `Workout ${action} successfully!`, [
-        { text: "OK", onPress: () => router.back() },
-      ]);
 
     } catch (error) {
       console.error('Save workout error:', error);
@@ -307,7 +283,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
   };
 
   /* ------------------------------- Loading State ------------------------------- */
-  if (isLoading) {
+  if (isLoading || contextLoading) {
     return (
       <View style={{ flex: 1, backgroundColor: "#0F0E1A", justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator size="large" color={primaryColor} />
@@ -369,20 +345,22 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
           />
         </View>
 
-        {/* Days Picker */}
-        <View className="rounded-xl p-4 mb-5" style={{ backgroundColor: tertiaryColor }}>
-          <Text className="text-white font-pmedium mb-2">Workout Days</Text>
-          <TouchableOpacity
-            className="bg-black-200 flex-row justify-between items-center p-3 rounded-lg"
-            onPress={() => setShowDayPicker(true)}
-          >
-            <Text className="text-white font-pmedium">{displayDays()}</Text>
-            <FontAwesome5 name="chevron-down" size={16} color="#CDCDE0" />
-          </TouchableOpacity>
-          <Text className="text-gray-100 text-xs mt-2">
-            Select which days this workout will be scheduled in your weekly plan
-          </Text>
-        </View>
+        {/* Days Picker - Only show if not editing by workout ID */}
+        {!params.workoutId && (
+          <View className="rounded-xl p-4 mb-5" style={{ backgroundColor: tertiaryColor }}>
+            <Text className="text-white font-pmedium mb-2">Workout Days</Text>
+            <TouchableOpacity
+              className="bg-black-200 flex-row justify-between items-center p-3 rounded-lg"
+              onPress={() => setShowDayPicker(true)}
+            >
+              <Text className="text-white font-pmedium">{displayDays()}</Text>
+              <FontAwesome5 name="chevron-down" size={16} color="#CDCDE0" />
+            </TouchableOpacity>
+            <Text className="text-gray-100 text-xs mt-2">
+              Select which days this workout will be scheduled in your weekly plan
+            </Text>
+          </View>
+        )}
 
         {/* Exercises Section */}
         <View className="mb-5">
@@ -442,46 +420,48 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
         </View>
       </ScrollView>
 
-      {/* Days Picker Bottom Sheet */}
-      <DraggableBottomSheet
-        visible={showDayPicker}
-        onClose={() => setShowDayPicker(false)}
-        primaryColor={primaryColor}
-        heightRatio={0.5}
-        scrollable
-        keyboardOffsetRatio={0}
-      >
-        <Text className="text-white text-xl font-psemibold text-center mb-4">
-          Select Days
-        </Text>
-
-        {daysOfWeek.map((day) => {
-          const selected = workout.days.includes(day);
-          return (
-            <TouchableOpacity
-              key={day}
-              className={`p-4 border-b border-black-200 ${
-                selected ? "bg-black-200" : ""
-              }`}
-              onPress={() => toggleDay(day)}
-            >
-              <Text
-                className="text-lg font-pmedium"
-                style={{ color: selected ? primaryColor : "white" }}
-              >
-                {day}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-
-        <TouchableOpacity
-          className="bg-black-200 m-4 mt-6 p-4 rounded-xl"
-          onPress={() => setShowDayPicker(false)}
+      {/* Days Picker Bottom Sheet - Only show if not editing by workout ID */}
+      {!params.workoutId && (
+        <DraggableBottomSheet
+          visible={showDayPicker}
+          onClose={() => setShowDayPicker(false)}
+          primaryColor={primaryColor}
+          heightRatio={0.5}
+          scrollable
+          keyboardOffsetRatio={0}
         >
-          <Text className="text-white font-pmedium text-center">Done</Text>
-        </TouchableOpacity>
-      </DraggableBottomSheet>
+          <Text className="text-white text-xl font-psemibold text-center mb-4">
+            Select Days
+          </Text>
+
+          {daysOfWeek.map((day) => {
+            const selected = workout.days.includes(day);
+            return (
+              <TouchableOpacity
+                key={day}
+                className={`p-4 border-b border-black-200 ${
+                  selected ? "bg-black-200" : ""
+                }`}
+                onPress={() => toggleDay(day)}
+              >
+                <Text
+                  className="text-lg font-pmedium"
+                  style={{ color: selected ? primaryColor : "white" }}
+                >
+                  {day}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+
+          <TouchableOpacity
+            className="bg-black-200 m-4 mt-6 p-4 rounded-xl"
+            onPress={() => setShowDayPicker(false)}
+          >
+            <Text className="text-white font-pmedium text-center">Done</Text>
+          </TouchableOpacity>
+        </DraggableBottomSheet>
+      )}
     </KeyboardAvoidingView>
   );
 };

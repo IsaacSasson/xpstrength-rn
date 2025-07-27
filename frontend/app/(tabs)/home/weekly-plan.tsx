@@ -1,119 +1,103 @@
-import React, { useState } from "react";
+// Path: /app/(tabs)/home/weekly-plan.tsx
+import React, { useState, useMemo } from "react";
 import {
   View,
+  Text,
   StatusBar,
+  ScrollView,
   TouchableOpacity,
   Platform,
-  Text,
-  ScrollView,
+  ActivityIndicator,
+  Alert,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import DayCard from "@/components/DayCard";
 import { useThemeContext } from "@/context/ThemeContext";
+import { useWorkouts } from "@/context/WorkoutContext";
 import Header from "@/components/Header";
 
-// Weekly workout data defined directly in this file
-const weeklyWorkoutData = [
-  {
-    day: "Monday",
-    workout: {
-      name: "Push Day",
-      exercises: [
-        { name: "Bench Press", sets: 4, reps: "8-10" },
-        { name: "Shoulder Press", sets: 3, reps: "10-12" },
-        { name: "Incline DB Press", sets: 3, reps: "10-12" },
-        { name: "Tricep Extensions", sets: 3, reps: "12-15" },
-      ],
-      time: "1h 15m",
-    },
-  },
-  {
-    day: "Tuesday",
-    workout: {
-      name: "Pull Day",
-      exercises: [
-        { name: "Deadlifts", sets: 4, reps: "6-8" },
-        { name: "Pull-ups", sets: 3, reps: "8-10" },
-        { name: "Barbell Rows", sets: 3, reps: "8-10" },
-        { name: "Bicep Curls", sets: 3, reps: "12-15" },
-      ],
-      time: "1h 10m",
-    },
-  },
-  {
-    day: "Wednesday",
-    workout: {
-      name: "Rest Day",
-      exercises: [],
-      time: "0m",
-    },
-  },
-  {
-    day: "Thursday",
-    workout: {
-      name: "Legs Day",
-      exercises: [
-        { name: "Squats", sets: 4, reps: "8-10" },
-        { name: "Leg Press", sets: 3, reps: "10-12" },
-        { name: "Lunges", sets: 3, reps: "10 each" },
-        { name: "Calf Raises", sets: 4, reps: "15-20" },
-      ],
-      time: "1h 20m",
-    },
-  },
-  {
-    day: "Friday",
-    workout: {
-      name: "Upper Body",
-      exercises: [
-        { name: "Incline Bench", sets: 4, reps: "8-10" },
-        { name: "Lat Pulldowns", sets: 3, reps: "10-12" },
-        { name: "Lateral Raises", sets: 3, reps: "12-15" },
-        { name: "Face Pulls", sets: 3, reps: "15-20" },
-      ],
-      time: "1h 05m",
-    },
-  },
-  {
-    day: "Saturday",
-    workout: {
-      name: "Lower Body",
-      exercises: [
-        { name: "Romanian Deadlifts", sets: 4, reps: "8-10" },
-        { name: "Hack Squats", sets: 3, reps: "10-12" },
-        { name: "Leg Extensions", sets: 3, reps: "12-15" },
-        { name: "Hamstring Curls", sets: 3, reps: "12-15" },
-      ],
-      time: "1h 15m",
-    },
-  },
-  {
-    day: "Sunday",
-    workout: {
-      name: "Rest Day",
-      exercises: [],
-      time: "0m",
-    },
-  },
+// Days of the week in order (Sunday first to match your data structure)
+const daysOfWeek = [
+  "Sunday",
+  "Monday", 
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
 ];
 
-const WeeklyPlan = () => {
-  // Use our theme context
-  const { primaryColor } = useThemeContext();
+export default function WeeklyPlan() {
+  const { primaryColor, tertiaryColor } = useThemeContext();
+  const { 
+    workoutPlan, 
+    customWorkouts, 
+    exerciseDatabase, 
+    isLoading, 
+    isRefreshing,
+    error, 
+    refreshData, 
+    getWorkoutForDay,
+    clearError 
+  } = useWorkouts();
 
   // Get current day (0 = Sunday, 1 = Monday, etc.)
   const today = new Date().getDay();
-  // Adjust so that Monday becomes index 0 (Sunday becomes index 6)
-  const todayIndex = today === 0 ? 6 : today - 1;
 
   // Create state for tracking expanded state for each day
   const [expandedDays, setExpandedDays] = useState(() => {
-    const arr = new Array(weeklyWorkoutData.length).fill(false);
-    arr[todayIndex] = true; // Expand current day by default
+    const arr = new Array(7).fill(false);
+    arr[today] = true; // Expand current day by default
     return arr;
   });
+
+  // Transform API data to match DayCard expected format
+  const weeklyWorkoutData = useMemo(() => {
+    return daysOfWeek.map((day, index) => {
+      const workout = getWorkoutForDay(index);
+      
+      if (!workout) {
+        // Rest day
+        return {
+          day,
+          workout: {
+            name: "Rest Day",
+            exercises: [],
+            time: "0m",
+          },
+        };
+      }
+
+      // Transform exercises to expected format
+      const exercises = workout.exercises.map((ex: any) => {
+        // Find exercise name from database
+        const exerciseDetails = exerciseDatabase.find(e => e.id === ex.exercise.toString());
+        const exerciseName = exerciseDetails?.name || `Exercise ${ex.exercise}`;
+        
+        return {
+          name: exerciseName,
+          sets: ex.sets,
+          reps: ex.reps.toString(),
+        };
+      });
+
+      // Estimate workout time (2-3 minutes per set)
+      const totalSets = workout.exercises.reduce((sum: number, ex: any) => sum + ex.sets, 0);
+      const estimatedMinutes = Math.max(15, Math.round(totalSets * 2.5));
+      
+      return {
+        day,
+        workout: {
+          name: workout.name,
+          exercises,
+          time: `${Math.floor(estimatedMinutes / 60)}h ${estimatedMinutes % 60}m`,
+        },
+      };
+    });
+  }, [getWorkoutForDay, exerciseDatabase]);
 
   const toggleExpand = (index: number) => {
     setExpandedDays((prev) => {
@@ -132,14 +116,112 @@ const WeeklyPlan = () => {
   };
 
   const editWorkout = (dayIndex: number) => {
-    console.log(`Edit workout for ${weeklyWorkoutData[dayIndex].day}`);
-    // Add navigation to edit screen if needed
+    const day = daysOfWeek[dayIndex];
+    const workout = getWorkoutForDay(dayIndex);
+    
+    if (!workout) {
+      // No workout for this day - create a new one
+      router.push({
+        pathname: "/home/create-workout",
+        params: { day }
+      });
+    } else {
+      // Edit existing workout
+      router.push({
+        pathname: "/home/edit-workout", 
+        params: { day }
+      });
+    }
   };
 
   const startWorkout = (dayIndex: number) => {
-    console.log("Start workout");
-    // Add functionality to start the workout if needed
+    const workout = getWorkoutForDay(dayIndex);
+    
+    if (!workout) {
+      Alert.alert("No Workout", "There's no workout scheduled for this day.");
+      return;
+    }
+
+    // Navigate to active workout with the workout ID
+    router.push({
+      pathname: "/home/active-workout",
+      params: { workoutId: workout.id.toString() }
+    });
   };
+
+  const handleRetry = () => {
+    clearError();
+    refreshData();
+  };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
+        <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
+        
+        <SafeAreaView edges={["top"]} className="bg-primary">
+          <View className="px-4 pt-6">
+            <View className="flex-row items-center justify-between mb-6">
+              <Header
+                MText="Weekly Workout Plan"
+                SText="Loading your weekly schedule..."
+              />
+            </View>
+          </View>
+        </SafeAreaView>
+
+        <View className="flex-1 justify-center items-center">
+          <ActivityIndicator size="large" color={primaryColor} />
+          <Text className="text-white font-pmedium mt-4">Loading your weekly plan...</Text>
+        </View>
+      </View>
+    );
+  }
+
+  // Error state
+  if (error && !isRefreshing) {
+    return (
+      <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
+        <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
+        
+        <SafeAreaView edges={["top"]} className="bg-primary">
+          <View className="px-4 pt-6">
+            <View className="flex-row items-center justify-between mb-6">
+              <Header
+                MText="Weekly Workout Plan"
+                SText="Error loading your schedule"
+              />
+            </View>
+          </View>
+        </SafeAreaView>
+
+        <View className="flex-1 justify-center items-center px-4">
+          <View
+            className="rounded-2xl p-6 w-full max-w-sm"
+            style={{ backgroundColor: tertiaryColor }}
+          >
+            <FontAwesome5 name="exclamation-triangle" size={40} color="#ff6b6b" style={{ alignSelf: 'center', marginBottom: 16 }} />
+            <Text className="text-white font-pmedium text-center text-lg mb-2">
+              Something went wrong
+            </Text>
+            <Text className="text-gray-100 text-center mb-4">
+              {error}
+            </Text>
+            <TouchableOpacity
+              onPress={handleRetry}
+              className="py-3 px-6 rounded-lg"
+              style={{ backgroundColor: primaryColor }}
+            >
+              <Text className="text-white font-pmedium text-center">
+                Try Again
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
@@ -158,12 +240,22 @@ const WeeklyPlan = () => {
       </SafeAreaView>
 
       {/* Workout Cards */}
-      <ScrollView className="px-4 pt-2 pb-6">
+      <ScrollView 
+        className="px-4 pt-2 pb-6"
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={refreshData}
+            tintColor={primaryColor}
+            colors={[primaryColor]}
+          />
+        }
+      >
         {weeklyWorkoutData.map((dayData, index) => (
           <DayCard
             key={dayData.day}
             dayData={dayData}
-            isToday={index === todayIndex}
+            isToday={index === today}
             isExpanded={expandedDays[index]}
             onToggleExpand={() => toggleExpand(index)}
             onEdit={() => editWorkout(index)}
@@ -173,6 +265,4 @@ const WeeklyPlan = () => {
       </ScrollView>
     </View>
   );
-};
-
-export default WeeklyPlan;
+}

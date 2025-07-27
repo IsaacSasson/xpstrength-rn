@@ -6,6 +6,7 @@ import {
   StatusBar,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
 import { router } from "expo-router";
 import TopBar from "@/components/TopBar";
@@ -15,6 +16,7 @@ import TodaysWorkout, { WorkoutType } from "@/components/home/TodaysWorkout";
 import QuickActions from "@/components/home/QuickActions";
 import Calender from "@/components/home/Calender";
 import { useThemeContext } from "@/context/ThemeContext";
+import { useWorkouts } from "@/context/WorkoutContext";
 import QuickActionsCustomizer, {
   ActionDefinition,
 } from "@/components/home/QuickActionsCustomizer";
@@ -48,6 +50,16 @@ const getHeadingForDate = (selectedDate: Date): string => {
 
 export default function Home() {
   const { primaryColor, tertiaryColor } = useThemeContext();
+  const { 
+    workoutPlan, 
+    customWorkouts, 
+    exerciseDatabase, 
+    isLoading, 
+    error, 
+    refreshData, 
+    getWorkoutForDay,
+    clearError 
+  } = useWorkouts();
 
   /* ---- navigation ---- */
   const goToCreateWorkout = () => router.push("/home/create-workout");
@@ -61,22 +73,46 @@ export default function Home() {
   const restDays = useMemo<Date[]>(() => [], []);
   const restSet = useMemo(() => new Set(restDays.map(dateKey)), [restDays]);
 
+  /* ---- Transform API data to UI format ---- */
   const workoutsByDate: Record<string, WorkoutType> = useMemo(() => {
+    if (!workoutPlan || !customWorkouts || !exerciseDatabase) return {};
+
+    const workoutMap: Record<string, WorkoutType> = {};
+    
+    // Get current week dates
     const today = new Date();
-    return {
-      [dateKey(today)]: {
-        exists: true,
-        name: "Push Day",
-        calories: 550,
-        exercises: [
-          { name: "Bench Press", sets: 4, reps: "8-10" },
-          { name: "Incline Dumbbell Press", sets: 3, reps: "10-12" },
-          { name: "Shoulder Press", sets: 3, reps: "10-12" },
-          { name: "Tricep Pushdown", sets: 3, reps: "12-15" },
-        ],
-      },
-    };
-  }, []);
+    const sunday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay());
+    
+    // Map each day of the week to its workout
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(sunday);
+      date.setDate(sunday.getDate() + i);
+      const key = dateKey(date);
+      
+      const workout = getWorkoutForDay(i);
+      if (workout) {
+        // Transform API workout to UI format with proper exercise names
+        workoutMap[key] = {
+          exists: true,
+          name: workout.name,
+          calories: Math.round(workout.exercises.length * 50 + Math.random() * 100), // Estimate
+          exercises: workout.exercises.slice(0, 4).map((ex: any) => {
+            // Find exercise name from database
+            const exerciseDetails = exerciseDatabase.find(e => e.id === ex.exercise.toString());
+            const exerciseName = exerciseDetails?.name || `Exercise ${ex.exercise}`;
+            
+            return {
+              name: exerciseName,
+              sets: ex.sets,
+              reps: ex.reps.toString(),
+            };
+          }),
+        };
+      }
+    }
+
+    return workoutMap;
+  }, [workoutPlan, customWorkouts, exerciseDatabase, getWorkoutForDay]);
 
   const key = dateKey(selectedDate);
   const workoutForDate = workoutsByDate[key] ?? null;
@@ -189,6 +225,11 @@ export default function Home() {
     .filter(Boolean)
     .map((id) => idToAction(id as string));
 
+  const handleRetry = () => {
+    clearError();
+    refreshData();
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
       <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
@@ -236,8 +277,43 @@ export default function Home() {
           </TouchableOpacity>
         </View>
 
+        {/* Loading state */}
+        {isLoading && (
+          <View
+            className="rounded-2xl p-8 mb-6 items-center"
+            style={{ backgroundColor: tertiaryColor }}
+          >
+            <ActivityIndicator size="large" color={primaryColor} />
+            <Text className="text-white font-pmedium mt-4">Loading workouts...</Text>
+          </View>
+        )}
+
+        {/* Error state */}
+        {error && !isLoading && (
+          <View
+            className="rounded-2xl p-6 mb-6"
+            style={{ backgroundColor: "#ff4d4d20" }}
+          >
+            <Text className="text-red-400 font-pmedium text-center">{error}</Text>
+            <TouchableOpacity
+              onPress={handleRetry}
+              className="mt-3 items-center"
+            >
+              <Text style={{ color: primaryColor }} className="font-pmedium">
+                Tap to retry
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* workout card (no heading inside) */}
-        <TodaysWorkout workout={workoutForDate} allowCreate={!isPastEmpty} />
+        {!isLoading && !error && (
+          <TodaysWorkout 
+            workout={workoutForDate} 
+            allowCreate={!isPastEmpty}
+            selectedDate={selectedDate}
+          />
+        )}
 
         {/* quick actions */}
         <View className="flex-row items-center justify-between mb-4">

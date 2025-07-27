@@ -16,17 +16,50 @@ export interface WorkoutType {
 
 interface Props {
   workout: WorkoutType | null;
-  /** Allow “Create Workout” button when no workout exists */
+  /** Allow "Create Workout" button when no workout exists */
   allowCreate?: boolean;
+  /** The selected date for context when creating/editing workouts */
+  selectedDate?: Date;
 }
 
 /* --------------------------- Component --------------------------------- */
-const TodaysWorkout: React.FC<Props> = ({ workout, allowCreate = true }) => {
+const TodaysWorkout: React.FC<Props> = ({ 
+  workout, 
+  allowCreate = true, 
+  selectedDate 
+}) => {
   const { primaryColor, secondaryColor, tertiaryColor } = useThemeContext();
 
-  const goToEditWorkout = () => router.push("/home/edit-workout");
-  const goToCreateWorkout = () => router.push("/home/create-workout");
-  const goToActiveWorkout = () => router.push("/home/active-workout");
+  // Get day name for navigation context
+  const dayName = selectedDate ? selectedDate.toLocaleDateString("en-US", { weekday: "long" }) : undefined;
+
+  const goToEditWorkout = () => {
+    if (dayName) {
+      router.push({
+        pathname: "/home/edit-workout",
+        params: { day: dayName }
+      });
+    } else {
+      router.push("/home/edit-workout");
+    }
+  };
+
+  const goToCreateWorkout = () => {
+    if (dayName) {
+      router.push({
+        pathname: "/home/create-workout",
+        params: { day: dayName }
+      });
+    } else {
+      router.push("/home/create-workout");
+    }
+  };
+
+  const goToActiveWorkout = () => {
+    // For now, just navigate to active workout
+    // In the future, we could pass the workout ID
+    router.push("/home/active-workout");
+  };
 
   const data: WorkoutType = workout ?? { exists: false };
 
@@ -58,28 +91,38 @@ const TodaysWorkout: React.FC<Props> = ({ workout, allowCreate = true }) => {
           </View>
 
           {/* Exercise list */}
-          <View className="mb-4">
-            {data.exercises?.map((ex, idx) => (
-              <View key={idx} className="flex-row items-center mb-3 last:mb-0">
-                <MaterialCommunityIcons
-                  name="dumbbell"
-                  size={18}
-                  color={primaryColor}
-                />
-                <Text className="text-white font-pmedium ml-3">{ex.name}</Text>
-                <Text className="text-gray-100 ml-auto">
-                  {ex.sets} sets × {ex.reps}
-                </Text>
-              </View>
-            ))}
-          </View>
+          {data.exercises && data.exercises.length > 0 ? (
+            <View className="mb-4">
+              {data.exercises.map((ex, idx) => (
+                <View key={idx} className="flex-row items-center mb-3 last:mb-0">
+                  <MaterialCommunityIcons
+                    name="dumbbell"
+                    size={18}
+                    color={primaryColor}
+                  />
+                  <Text className="text-white font-pmedium ml-3 flex-1" numberOfLines={1}>
+                    {ex.name}
+                  </Text>
+                  <Text className="text-gray-100 ml-2">
+                    {ex.sets} sets × {ex.reps}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View className="mb-4 py-2">
+              <Text className="text-gray-100 text-center">
+                No exercises configured for this workout
+              </Text>
+            </View>
+          )}
 
           {/* Calories + Start button */}
           <View className="flex-row items-center justify-between mt-2">
             <View className="flex-row items-center">
               <FontAwesome5 name="fire" size={14} color="#f97316" />
               <Text className="text-orange-500 ml-2">
-                ≈ {data.calories} kcal
+                ≈ {data.calories ?? 0} kcal
               </Text>
             </View>
 
@@ -103,8 +146,8 @@ const TodaysWorkout: React.FC<Props> = ({ workout, allowCreate = true }) => {
           </Text>
           <Text className="text-gray-100 text-center mt-2 mb-4">
             {allowCreate
-              ? "You don't have a workout planned for this date."
-              : "Past date—workouts can’t be added here."}
+              ? `You don't have a workout planned for ${dayName ? dayName : 'this date'}.`
+              : "Past date—workouts can't be added here."}
           </Text>
 
           {allowCreate && (
