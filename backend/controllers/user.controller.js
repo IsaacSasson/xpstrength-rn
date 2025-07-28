@@ -275,6 +275,49 @@ export async function postLogWorkout(req, res, next) {
   }
 }
 
+export async function getExerciseHistory(req, res, next) {
+  const user = req?.user ?? null;
+
+  try {
+    if (!user) {
+      throw new AppError("Malfored user data", 400, "BAD_DATA");
+    }
+
+    const exerciseHistory = await userService.getExerciseHistory(user);
+
+    return res.status(200).json({
+      data: {
+        exerciseHistory,
+      },
+      message: "User succesfully retieved their exercise history.",
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function postSaveNotes(req, res, next) {
+  const user = req?.user ?? null;
+  const notes = req?.body?.data?.notes ?? null;
+  const exerciseId = req?.params?.exerciseId;
+
+  try {
+    if (!user || !notes || !exerciseId) {
+      throw new AppError(
+        "Invalid ExerciseID, Note, or User DATA",
+        400,
+        "BAD_DATA"
+      );
+    }
+    await userService.saveNotes(user, notes, exerciseId);
+    return res.status(201).json({
+      message: `User succesfully saved their note for exercise with id ${exerciseID}`,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export default {
   getProfile,
   patchProfile,
@@ -288,4 +331,6 @@ export default {
   putCustomWorkout,
   deleteCustomWorkout,
   postLogWorkout,
+  getExerciseHistory,
+  postSaveNotes,
 };

@@ -13,6 +13,8 @@ import {
   deleteCustomWorkout,
   postLogWorkout,
   putCustomWorkout,
+  getExerciseHistory,
+  postSaveNotes,
 } from "../controllers/user.controller.js";
 
 const userRouter = Router();
@@ -25,6 +27,12 @@ userRouter.patch("/update-profile", patchProfile);
 
 //Delete your user Account
 userRouter.delete("/delete-account", deleteAccount);
+
+//Get Exercise History
+userRouter.get("/exercise-history", getExerciseHistory);
+
+//Save Notes for a specific exercise
+userRouter.post("/save-notes/:exerciseId", postSaveNotes);
 
 //Get your history ("Only of type USER, FRIEND, MILESTONE, or STATS") paginated by page and pageSize
 userRouter.get("/history/:page/:pageSize", getHistoryPaginated);

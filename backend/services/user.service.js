@@ -15,6 +15,7 @@ import { Op } from "sequelize";
 import AppHistory from "../utils/AddHistory.js";
 import { workoutAddXP } from "../utils/xpSystem.js";
 import { generateAuthToken } from "../utils/security.js";
+import { P, transport } from "pino";
 
 export async function getProfileData(user) {
   try {
@@ -502,6 +503,59 @@ export async function logWorkout(user, workout) {
   }
 }
 
+export async function getExerciseHistory(user) {
+  try {
+    const exerciseHistory = ExerciseLog.findOne({ where: { userId: user.id } });
+    if (!exerciseHistory) {
+      throw new AppError(
+        "Exercise History not found for user",
+        400,
+        "BAD_DATA"
+      );
+    }
+
+    return exerciseHistory;
+  } catch (err) {
+    throw mapSequelizeError(err);
+  }
+}
+
+export async function saveNotes(user, notes, exerciseId) {
+  try {
+    return sequelize.transaction((t) => {
+      const exerciseHistory = ExerciseLog.findOne({
+        where: { userId: user.id },
+        transaction: t,
+      });
+
+      if (!exerciseHistory) {
+        throw new AppError(
+          "ExerciseHistory not found for userID",
+          404,
+          "NOT_FOUND"
+        );
+      }
+
+      if (exerciseHistory.exerciseHistory[exerciseId]) {
+        exerciseHistory.exerciseHistory[exerciseId].notes = notes;
+      } else {
+        exerciseHistory.exerciseHistory[exerciseId] = {
+          notes: notes,
+          reps: 0,
+          sets: 0,
+          cooldown: 0,
+          weight: 0,
+        };
+      }
+
+      exerciseHistory.changed("exerciseHistory", true);
+      exerciseHistory.save({ transaction: t });
+    });
+  } catch (err) {
+    throw mapSequelizeError(err);
+  }
+}
+
 export default {
   getProfileData,
   setProfileData,
@@ -514,4 +568,6 @@ export default {
   updateCustomWorkout,
   deleteCustomWorkout,
   logWorkout,
+  getExerciseHistory,
+  saveNotes,
 };
