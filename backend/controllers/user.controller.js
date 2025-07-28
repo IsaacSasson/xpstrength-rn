@@ -20,11 +20,52 @@ export async function getProfile(req, res, next) {
 }
 
 export async function patchProfile(req, res, next) {
-  return;
+  const user = req?.user ?? null;
+  const currentPassword = req?.body?.data?.currentPassword ?? null;
+  const newPassword = req?.body?.data?.newPassword ?? null;
+  const newUsername = req?.body?.data?.newUsername ?? null;
+  const newEmail = req?.body?.data?.newEmail ?? null;
+  const newPFP = req?.body?.data?.newPFP ?? null;
+  try {
+    if (!user) {
+      throw new AppError("Malfored User ID", 400, "BAD_DATA");
+    }
+    const { newAccessToken, newProfile } = userService.patchProfile(
+      user,
+      currentPassword,
+      newPassword,
+      newUsername,
+      newEmail,
+      newPFP
+    );
+
+    return res.status(201).json({
+      data: {
+        newAccessToken: newAccessToken,
+        newProfile: newProfile,
+      },
+      message: "Succesfully updated user profile!",
+    });
+  } catch (err) {
+    next(err);
+  }
 }
 
 export async function deleteAccount(req, res, next) {
-  return;
+  const user = req?.user ?? null;
+
+  try {
+    if (!user) {
+      throw new AppError("Malfored user ID", 400, "BAD_DATA");
+    }
+    await userService.deleteAccount(user);
+
+    return res.status(204).json({
+      message: "User succesfully deleted.",
+    });
+  } catch (err) {
+    next(err);
+  }
 }
 
 export async function getHistory(req, res, next) {

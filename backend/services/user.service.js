@@ -1,5 +1,7 @@
 import mapSequelizeError from "../utils/mapSequelizeError.js";
 import AppError from "../utils/AppError.js";
+import bcrypt from "bcrypt";
+
 import {
   User,
   WorkoutLog,
@@ -12,6 +14,7 @@ import { sequelize } from "../config/db.config.js";
 import { Op } from "sequelize";
 import AppHistory from "../utils/AddHistory.js";
 import { workoutAddXP } from "../utils/xpSystem.js";
+import { generateAuthToken } from "../utils/security.js";
 
 export async function getProfileData(user) {
   try {
@@ -24,12 +27,98 @@ export async function getProfileData(user) {
   }
 }
 
-export async function setProfileData(input_data) {
-  return;
+export async function setProfileData(
+  user,
+  currentPassword,
+  newPassword,
+  newUsername,
+  newEmail,
+  newPFP
+) {
+  try {
+    const userId = user.id;
+    return await sequelize.transaction(async (t) => {
+      if (currentPassword) {
+        const match = await bcrypt.compare(currentPassword, user.password);
+
+        if (match) {
+          if (newUsername) {
+            user.username = newUsername;
+            const history = new AppHistory(
+              "USER",
+              `User succesfully updated their username`,
+              userId,
+              null
+            );
+            await history.log(t);
+          }
+
+          if (newEmail) {
+            user.email = email;
+            const history = new AppHistory(
+              "USER",
+              `User succesfully updated their email`,
+              userId,
+              null
+            );
+            await history.log(t);
+          }
+
+          if (newPassword) {
+            user.password = newPassword;
+            const history = new AppHistory(
+              "USER",
+              `User succesfully updated their password`,
+              userId,
+              null
+            );
+            await history.log(t);
+          }
+        }
+      }
+      //Change PFP
+      if (newPFP) {
+        user.profilePic(newPFP);
+        const history = new AppHistory(
+          "USER",
+          `User succesfully updated their profile picture`,
+          userId,
+          null
+        );
+        await history.log(t);
+      }
+
+      user.save({ transaction: t });
+
+      const newAccessToken = await generateAuthToken(user);
+
+      const newProfile = {
+        usernameChanged: match && newUsername ? newUsername : "Not Changed",
+        emailChanged: match && newEmail ? newEmail : "Not Changed",
+        passwordChanged: match && newPassword ? "Changed" : "Not Changed",
+        pfpChanged: newPFP ? newPFP : "Not Changed",
+      };
+
+      return { newAccessToken, newProfile };
+    });
+  } catch (err) {
+    throw mapSequelizeError(err);
+  }
 }
 
-export async function deleteAccount(input_data) {
-  return;
+export async function deleteAccount(user) {
+  try {
+    const userId = user.id;
+
+    await sequelize.transaction(async (t) => {
+      const user = await User.findOne({ where: { userId }, transaction: t });
+      await user.destroy({ transaction: t });
+    });
+
+    return;
+  } catch (err) {
+    throw mapSequelizeError(err);
+  }
 }
 
 export async function getHistory(user, paginated = false) {

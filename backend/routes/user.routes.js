@@ -21,10 +21,10 @@ const userRouter = Router();
 userRouter.get("/profile", getProfile);
 
 //Update your user profile Data
-//userRouter.patch("/update-profile", patchProfile);
+userRouter.patch("/update-profile", patchProfile);
 
 //Delete your user Account
-//userRouter.delete("/delete-account", deleteAccount);
+userRouter.delete("/delete-account", deleteAccount);
 
 //Get your history ("Only of type USER, FRIEND, MILESTONE, or STATS") paginated by page and pageSize
 userRouter.get("/history/:page/:pageSize", getHistoryPaginated);
