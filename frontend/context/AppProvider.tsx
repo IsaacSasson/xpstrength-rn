@@ -2,6 +2,7 @@ import React from 'react';
 import { UserProgressProvider } from './UserProgressContext';
 import { ThemeProvider } from './ThemeContext';
 import { AuthProvider } from './AuthProvider';
+import { WorkoutProvider } from './WorkoutContext';
 
 // This component combines all providers
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -9,7 +10,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     <AuthProvider>
       <UserProgressProvider>
         <ThemeProvider>
-          {children}
+          <WorkoutProvider>
+            {children}
+          </WorkoutProvider>
         </ThemeProvider>
       </UserProgressProvider>
     </AuthProvider>

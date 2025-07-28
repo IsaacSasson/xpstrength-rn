@@ -226,7 +226,6 @@ const UserProfile = () => {
                 style={{
                   width: "100%",
                   color: "#FFF",
-                  backgroundColor: tertiaryColor,
                   borderRadius: 12,
                 }}
                 itemStyle={{ color: "#FFF" }}
@@ -237,10 +236,8 @@ const UserProfile = () => {
               </Picker>
             </View>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
 
-      {/* save button */}
+           {/* save button */}
       <TouchableOpacity
         onPress={onSave}
         disabled={saving}
@@ -263,6 +260,10 @@ const UserProfile = () => {
           <Text className="text-white font-pbold text-lg">Save Changes</Text>
         )}
       </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+     
     </View>
   );
 };

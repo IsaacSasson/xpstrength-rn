@@ -1,6 +1,13 @@
 // Path: /app/(tabs)/home/index.tsx
 import React, { useMemo, useState, useCallback } from "react";
-import { View, Text, StatusBar, ScrollView, TouchableOpacity } from "react-native";
+import {
+  View,
+  Text,
+  StatusBar,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+} from "react-native";
 import { router } from "expo-router";
 import TopBar from "@/components/TopBar";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
@@ -9,24 +16,55 @@ import TodaysWorkout, { WorkoutType } from "@/components/home/TodaysWorkout";
 import QuickActions from "@/components/home/QuickActions";
 import Calender from "@/components/home/Calender";
 import { useThemeContext } from "@/context/ThemeContext";
+import { useWorkouts } from "@/context/WorkoutContext";
 import QuickActionsCustomizer, {
   ActionDefinition,
 } from "@/components/home/QuickActionsCustomizer";
 
 /* ---------- helpers ---------- */
-const dateKey = (d: Date) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+const dateKey = (d: Date) =>
+  `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 const midnight = (() => {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
   return d;
 })();
 
+/* Heading builder (moved out of TodaysWorkout) */
+const getHeadingForDate = (selectedDate: Date): string => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const sel = new Date(selectedDate);
+  sel.setHours(0, 0, 0, 0);
+
+  const diffDays = Math.round((sel.getTime() - today.getTime()) / 86_400_000);
+
+  if (diffDays === 0) return "Today's Workout";
+  if (diffDays === 1) return "Tomorrow's Workout";
+  if (diffDays === -1) return "Yesterday's Workout";
+
+  const dayName = sel.toLocaleDateString("en-US", { weekday: "long" });
+  return `${dayName}'s Workout`;
+};
+
 export default function Home() {
   const { primaryColor, tertiaryColor } = useThemeContext();
+  const { 
+    workoutPlan, 
+    customWorkouts, 
+    exerciseDatabase, 
+    isLoading, 
+    error, 
+    refreshData, 
+    getWorkoutForDay,
+    clearError 
+  } = useWorkouts();
 
   /* ---- navigation ---- */
   const goToCreateWorkout = () => router.push("/home/create-workout");
   const goToPlannedWorkouts = () => router.push("/home/weekly-plan");
+  const goToWorkoutPlans = () => router.push("/home/workout-plans");
   const goToFriends = () => router.push("/friends");
   const goToStats = () => router.push("/stats/stats-over-time");
 
@@ -35,32 +73,59 @@ export default function Home() {
   const restDays = useMemo<Date[]>(() => [], []);
   const restSet = useMemo(() => new Set(restDays.map(dateKey)), [restDays]);
 
+  /* ---- Transform API data to UI format ---- */
   const workoutsByDate: Record<string, WorkoutType> = useMemo(() => {
+    if (!workoutPlan || !customWorkouts || !exerciseDatabase) return {};
+
+    const workoutMap: Record<string, WorkoutType> = {};
+    
+    // Get current week dates
     const today = new Date();
-    return {
-      [dateKey(today)]: {
-        exists: true,
-        name: "Push Day",
-        calories: 550,
-        exercises: [
-          { name: "Bench Press", sets: 4, reps: "8-10" },
-          { name: "Incline Dumbbell Press", sets: 3, reps: "10-12" },
-          { name: "Shoulder Press", sets: 3, reps: "10-12" },
-          { name: "Tricep Pushdown", sets: 3, reps: "12-15" },
-        ],
-      },
-    };
-  }, []);
+    const sunday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay());
+    
+    // Map each day of the week to its workout
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(sunday);
+      date.setDate(sunday.getDate() + i);
+      const key = dateKey(date);
+      
+      const workout = getWorkoutForDay(i);
+      if (workout) {
+        // Transform API workout to UI format with proper exercise names
+        workoutMap[key] = {
+          exists: true,
+          name: workout.name,
+          calories: Math.round(workout.exercises.length * 50 + Math.random() * 100), // Estimate
+          exercises: workout.exercises.slice(0, 4).map((ex: any) => {
+            // Find exercise name from database
+            const exerciseDetails = exerciseDatabase.find(e => e.id === ex.exercise.toString());
+            const exerciseName = exerciseDetails?.name || `Exercise ${ex.exercise}`;
+            
+            return {
+              name: exerciseName,
+              sets: ex.sets,
+              reps: ex.reps.toString(),
+            };
+          }),
+        };
+      }
+    }
+
+    return workoutMap;
+  }, [workoutPlan, customWorkouts, exerciseDatabase, getWorkoutForDay]);
 
   const key = dateKey(selectedDate);
   const workoutForDate = workoutsByDate[key] ?? null;
-  const isPastEmpty = selectedDate < midnight && !restSet.has(key) && !workoutForDate;
+  const isPastEmpty =
+    selectedDate < midnight && !restSet.has(key) && !workoutForDate;
 
   const formattedDate = selectedDate.toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
   });
+
+  const heading = getHeadingForDate(selectedDate);
 
   /* ---- quick actions ---- */
   const allActions: ActionDefinition[] = useMemo(
@@ -74,10 +139,17 @@ export default function Home() {
       },
       {
         id: "viewPlan",
-        title: "View Workout Plan",
+        title: "Weekly Plan",
         icon: "calendar-week",
         iconType: "fontawesome",
         onPress: goToPlannedWorkouts,
+      },
+      {
+        id: "workoutPlans",
+        title: "Workout Plans",
+        icon: "clipboard-list",
+        iconType: "fontawesome",
+        onPress: goToWorkoutPlans,
       },
       {
         id: "inviteFriends",
@@ -93,7 +165,7 @@ export default function Home() {
         iconType: "fontawesome",
         onPress: goToStats,
       },
-      // 4 extras
+      // extras
       {
         id: "exerciseList",
         title: "Exercise List",
@@ -123,14 +195,20 @@ export default function Home() {
         onPress: () => router.push("/profile/settings"),
       },
     ],
-    [goToCreateWorkout, goToPlannedWorkouts, goToFriends, goToStats]
+    [
+      goToCreateWorkout,
+      goToPlannedWorkouts,
+      goToWorkoutPlans,
+      goToFriends,
+      goToStats,
+    ]
   );
 
   // allow nulls = empty slots
   const [quickSlotIds, setQuickSlotIds] = useState<(string | null)[]>([
     "createWorkout",
     "viewPlan",
-    "inviteFriends",
+    "workoutPlans",
     "viewProgress",
   ]);
 
@@ -143,7 +221,14 @@ export default function Home() {
     [allActions]
   );
 
-  const currentSlots = quickSlotIds.filter(Boolean).map((id) => idToAction(id as string));
+  const currentSlots = quickSlotIds
+    .filter(Boolean)
+    .map((id) => idToAction(id as string));
+
+  const handleRetry = () => {
+    clearError();
+    refreshData();
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
@@ -152,31 +237,88 @@ export default function Home() {
       <TopBar subtext="Welcome Back" title="Wiiwho" titleTop={false} />
 
       <ScrollView showsVerticalScrollIndicator={false} className="px-4 pb-6">
-        {/* date + quick link */}
+        {/* date + quick links */}
         <View className="flex-row items-center justify-between mb-4">
-          <Text className="text-white font-pmedium text-lg">{formattedDate}</Text>
-          <TouchableOpacity onPress={goToPlannedWorkouts} className="flex-row items-center">
-            <Text style={{ color: primaryColor }} className="mr-2 font-pmedium">
-              Weekly Plan
-            </Text>
-            <FontAwesome5 name="calendar-alt" size={16} color={primaryColor} />
-          </TouchableOpacity>
+          <Text className="text-white font-pmedium text-lg">
+            {formattedDate}
+          </Text>
+
+          {/* Right-aligned links row */}
+          <View className="flex-row items-center">
+            <TouchableOpacity
+              onPress={goToPlannedWorkouts}
+              className="flex-row items-center"
+            >
+              <Text style={{ color: primaryColor }} className="mr-2 font-pmedium">
+                Weekly Plan
+              </Text>
+              <FontAwesome5 name="calendar-alt" size={16} color={primaryColor} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* calendar */}
-        <Calender selectedDate={selectedDate} onSelectDate={setSelectedDate} restDays={restDays} />
-
-        {/* workout card */}
-        <TodaysWorkout
-          workout={workoutForDate}
-          allowCreate={!isPastEmpty}
+        <Calender
           selectedDate={selectedDate}
+          onSelectDate={setSelectedDate}
+          restDays={restDays}
         />
+
+        {/* heading + right-aligned "My Workouts" aligned with Weekly Plan */}
+        <View className="flex-row items-center justify-between mt-4 mb-6">
+          <Text className="text-white text-xl font-psemibold">{heading}</Text>
+
+          {/* Same structure + no extra right margin so it aligns with Weekly Plan above */}
+          <TouchableOpacity onPress={goToWorkoutPlans} className="flex-row items-center">
+            <Text style={{ color: primaryColor }} className="mr-2 font-pmedium">
+              My Workouts
+            </Text>
+            <FontAwesome5 name="clipboard-list" size={16} color={primaryColor} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Loading state */}
+        {isLoading && (
+          <View
+            className="rounded-2xl p-8 mb-6 items-center"
+            style={{ backgroundColor: tertiaryColor }}
+          >
+            <ActivityIndicator size="large" color={primaryColor} />
+            <Text className="text-white font-pmedium mt-4">Loading workouts...</Text>
+          </View>
+        )}
+
+        {/* Error state */}
+        {error && !isLoading && (
+          <View
+            className="rounded-2xl p-6 mb-6"
+            style={{ backgroundColor: "#ff4d4d20" }}
+          >
+            <Text className="text-red-400 font-pmedium text-center">{error}</Text>
+            <TouchableOpacity
+              onPress={handleRetry}
+              className="mt-3 items-center"
+            >
+              <Text style={{ color: primaryColor }} className="font-pmedium">
+                Tap to retry
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* workout card (no heading inside) */}
+        {!isLoading && !error && (
+          <TodaysWorkout 
+            workout={workoutForDate} 
+            allowCreate={!isPastEmpty}
+            selectedDate={selectedDate}
+          />
+        )}
 
         {/* quick actions */}
         <View className="flex-row items-center justify-between mb-4">
           <Text className="text-white text-xl font-psemibold">Quick Actions</Text>
-          <TouchableOpacity className="pl-10 pr-5 py-1" onPress={openCustomizer}>
+          <TouchableOpacity className="pl-10 pr-5" onPress={openCustomizer}>
             <FontAwesome5 name="ellipsis-v" size={20} color={primaryColor} />
           </TouchableOpacity>
         </View>

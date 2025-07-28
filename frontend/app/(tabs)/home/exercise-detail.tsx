@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   Image,
   StyleSheet,
+  LayoutChangeEvent,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams } from "expo-router";
@@ -30,41 +31,91 @@ interface Exercise {
 
 const ExerciseDetail = () => {
   const { primaryColor, tertiaryColor } = useThemeContext();
-  const params = useLocalSearchParams();
+  const params = useLocalSearchParams<{ id: string; scrollTo?: string }>();
   const exerciseId = params.id as string;
+  const scrollTo = (params.scrollTo as string) || undefined;
 
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  const scrollRef = useRef<ScrollView>(null);
+  const [contentReady, setContentReady] = useState(false);
+  const [didAutoScroll, setDidAutoScroll] = useState(false);
 
   useEffect(() => {
-    // Load the specific exercise by ID
-    const exercises = loadExercises();
-    const foundExercise = exercises.find((ex: Exercise) => ex.id === exerciseId);
-    setExercise(foundExercise || null);
+    try {
+      const exercises = loadExercises();
+      const foundExercise = exercises.find(
+        (ex: Exercise) => ex.id === exerciseId
+      );
+
+      if (foundExercise) {
+        setExercise(foundExercise);
+      } else {
+        const exerciseByName = exercises.find(
+          (ex: Exercise) =>
+            ex.name.toLowerCase().replace(/\s+/g, "-") ===
+              exerciseId.toLowerCase() ||
+            ex.name.toLowerCase() === exerciseId.toLowerCase()
+        );
+        setExercise(exerciseByName || null);
+      }
+    } catch (error) {
+      console.error("Error loading exercise:", error);
+      setExercise(null);
+    } finally {
+      setLoading(false);
+    }
   }, [exerciseId]);
 
   useEffect(() => {
     if (exercise && exercise.images.length > 1) {
       const interval = setInterval(() => {
-        setCurrentImageIndex((prevIndex) => 
-          prevIndex === exercise.images.length - 1 ? 0 : prevIndex + 1
+        setCurrentImageIndex((prev) =>
+          prev === exercise.images.length - 1 ? 0 : prev + 1
         );
       }, 1500);
       return () => clearInterval(interval);
     }
   }, [exercise]);
 
-  const capitalizeWords = (str: string) => {
-    return str.replace(/\b\w/g, (l) => l.toUpperCase());
-  };
+  // ✅ When requested, scroll to the bottom once content is ready (only once)
+  useEffect(() => {
+    if (!didAutoScroll && scrollTo === "bottom" && contentReady) {
+      const t = setTimeout(() => {
+        scrollRef.current?.scrollToEnd({ animated: true });
+        setDidAutoScroll(true);
+      }, 700); // slight delay to ensure content is fully rendered
+      return () => clearTimeout(t);
+    }
+  }, [scrollTo, contentReady, didAutoScroll]);
 
-  const formatInstructions = (instructions: string) => {
-    // Split by "., " (period, comma, space) and filter out empty strings
-    return instructions
-      .split('., ')
-      .filter(sentence => sentence.trim().length > 0)
-      .map(sentence => sentence.trim());
-  };
+  const capitalizeWords = (str: string) =>
+    str.replace(/\b\w/g, (l) => l.toUpperCase());
+
+  const formatInstructions = (instructions: string) =>
+    instructions
+      .split("., ")
+      .filter((s) => s.trim().length > 0)
+      .map((s) => s.trim());
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
+        <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
+        <SafeAreaView edges={["top"]} className="bg-primary">
+          <View className="px-4 pt-6 pb-4">
+            <View className="flex-row items-center mb-4">
+              <Text className="text-white font-psemibold text-xl">
+                Loading...
+              </Text>
+            </View>
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
 
   if (!exercise) {
     return (
@@ -73,10 +124,29 @@ const ExerciseDetail = () => {
         <SafeAreaView edges={["top"]} className="bg-primary">
           <View className="px-4 pt-6 pb-4">
             <View className="flex-row items-center mb-4">
-              <Text className="text-white font-psemibold text-xl">Exercise Not Found</Text>
+              <Header
+                MText="Exercise Not Found"
+                SText={`Could not find exercise with ID: ${exerciseId}`}
+              />
             </View>
           </View>
         </SafeAreaView>
+        <View className="flex-1 px-4 pt-6 items-center justify-center">
+          <MaterialCommunityIcons
+            name="dumbbell"
+            size={80}
+            color={primaryColor}
+          />
+          <Text className="text-white font-psemibold text-xl mt-4 text-center">
+            Exercise Not Found
+          </Text>
+          <Text className="text-gray-100 text-center mt-2">
+            The exercise you're looking for could not be found in the database.
+          </Text>
+          <Text className="text-gray-100 text-center mt-1 text-sm">
+            Exercise ID: {exerciseId}
+          </Text>
+        </View>
       </View>
     );
   }
@@ -84,22 +154,26 @@ const ExerciseDetail = () => {
   return (
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
       <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
-      
+
       <SafeAreaView edges={["top"]} className="bg-primary">
         <View className="px-4 pt-6 pb-4">
           <View className="flex-row items-center mb-4">
             <Header
               MText={exercise.name}
-              SText={`${capitalizeWords(exercise.category)} • ${capitalizeWords(exercise.level)}`}
+              SText={`${capitalizeWords(exercise.category)} • ${capitalizeWords(
+                exercise.level
+              )}`}
             />
           </View>
         </View>
       </SafeAreaView>
 
-      <ScrollView 
+      <ScrollView
+        ref={scrollRef}
         className="flex-1 px-4"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 20 }}
+        onContentSizeChange={() => setContentReady(true)}
       >
         {/* Exercise Images */}
         <View style={styles.imageContainer}>
@@ -111,7 +185,7 @@ const ExerciseDetail = () => {
                   source={image}
                   style={[
                     styles.exerciseImage,
-                    { opacity: currentImageIndex === index ? 1 : 0 }
+                    { opacity: currentImageIndex === index ? 1 : 0 },
                   ]}
                   resizeMode="cover"
                 />
@@ -124,10 +198,11 @@ const ExerciseDetail = () => {
                       style={[
                         styles.dot,
                         {
-                          backgroundColor: currentImageIndex === index 
-                            ? primaryColor 
-                            : 'rgba(255,255,255,0.3)'
-                        }
+                          backgroundColor:
+                            currentImageIndex === index
+                              ? primaryColor
+                              : "rgba(255,255,255,0.3)",
+                        },
                       ]}
                     />
                   ))}
@@ -148,7 +223,7 @@ const ExerciseDetail = () => {
         {/* Exercise Details */}
         <View className="mt-6">
           {/* Primary Muscles */}
-          <View 
+          <View
             className="rounded-xl p-4 mb-4"
             style={{ backgroundColor: tertiaryColor }}
           >
@@ -169,7 +244,7 @@ const ExerciseDetail = () => {
 
           {/* Secondary Muscles */}
           {exercise.secondaryMuscles && (
-            <View 
+            <View
               className="rounded-xl p-4 mb-4"
               style={{ backgroundColor: tertiaryColor }}
             >
@@ -190,7 +265,7 @@ const ExerciseDetail = () => {
           )}
 
           {/* Equipment & Details */}
-          <View 
+          <View
             className="rounded-xl p-4 mb-4"
             style={{ backgroundColor: tertiaryColor }}
           >
@@ -204,37 +279,46 @@ const ExerciseDetail = () => {
                 Exercise Details
               </Text>
             </View>
-            
+
             <View className="space-y-2">
               <View className="flex-row justify-between">
                 <Text className="text-gray-100 font-pmedium">Equipment:</Text>
-                <Text className="text-white">{capitalizeWords(exercise.equipment)}</Text>
+                <Text className="text-white">
+                  {capitalizeWords(exercise.equipment)}
+                </Text>
               </View>
-              
+
               <View className="flex-row justify-between">
                 <Text className="text-gray-100 font-pmedium">Difficulty:</Text>
-                <Text className="text-white">{capitalizeWords(exercise.level)}</Text>
+                <Text className="text-white">
+                  {capitalizeWords(exercise.level)}
+                </Text>
               </View>
-              
+
               {exercise.mechanic && exercise.mechanic !== "unknown" && (
                 <View className="flex-row justify-between">
                   <Text className="text-gray-100 font-pmedium">Mechanic:</Text>
-                  <Text className="text-white">{capitalizeWords(exercise.mechanic)}</Text>
+                  <Text className="text-white">
+                    {capitalizeWords(exercise.mechanic)}
+                  </Text>
                 </View>
               )}
-              
-              {exercise.force_measure && exercise.force_measure !== "unknown" && (
-                <View className="flex-row justify-between">
-                  <Text className="text-gray-100 font-pmedium">Force:</Text>
-                  <Text className="text-white">{capitalizeWords(exercise.force_measure)}</Text>
-                </View>
-              )}
+
+              {exercise.force_measure &&
+                exercise.force_measure !== "unknown" && (
+                  <View className="flex-row justify-between">
+                    <Text className="text-gray-100 font-pmedium">Force:</Text>
+                    <Text className="text-white">
+                      {capitalizeWords(exercise.force_measure)}
+                    </Text>
+                  </View>
+                )}
             </View>
           </View>
 
           {/* Instructions */}
           {exercise.instructions && (
-            <View 
+            <View
               className="rounded-xl p-4 mb-4"
               style={{ backgroundColor: tertiaryColor }}
             >
@@ -248,17 +332,23 @@ const ExerciseDetail = () => {
                   Instructions
                 </Text>
               </View>
-              
-              {formatInstructions(exercise.instructions).map((instruction, index, array) => (
-                <View key={index} className="flex-row mb-2">
-                  <Text style={{ color: primaryColor }} className="font-pmedium mr-2">
-                    {index + 1}.
-                  </Text>
-                  <Text className="text-gray-100 flex-1 leading-5">
-                    {instruction}{index === array.length - 1 ? '' : '.'}
-                  </Text>
-                </View>
-              ))}
+
+              {formatInstructions(exercise.instructions).map(
+                (instruction, index, array) => (
+                  <View key={index} className="flex-row mb-2">
+                    <Text
+                      style={{ color: primaryColor }}
+                      className="font-pmedium mr-2"
+                    >
+                      {index + 1}.
+                    </Text>
+                    <Text className="text-gray-100 flex-1 leading-5">
+                      {instruction}
+                      {index === array.length - 1 ? "" : "."}
+                    </Text>
+                  </View>
+                )
+              )}
             </View>
           )}
         </View>
@@ -269,31 +359,31 @@ const ExerciseDetail = () => {
 
 const styles = StyleSheet.create({
   imageContainer: {
-    width: '100%',
+    width: "100%",
     height: 250,
-    position: 'relative',
-    overflow: 'hidden',
+    position: "relative",
+    overflow: "hidden",
     borderRadius: 12,
-    backgroundColor: '#232533',
+    backgroundColor: "#232533",
   },
   exerciseImage: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
     borderRadius: 12,
   },
   imageIndicator: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 12,
     left: 0,
     right: 0,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
   },
   dot: {
     width: 8,

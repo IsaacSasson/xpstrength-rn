@@ -1,3 +1,4 @@
+// Path: /components/home/TodaysWorkout.tsx
 import React from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
@@ -15,93 +16,113 @@ export interface WorkoutType {
 
 interface Props {
   workout: WorkoutType | null;
-  /** Allow “Create Workout” button when no workout exists */
+  /** Allow "Create Workout" button when no workout exists */
   allowCreate?: boolean;
-  /** Date currently selected in the calendar */
-  selectedDate: Date;
+  /** The selected date for context when creating/editing workouts */
+  selectedDate?: Date;
 }
 
-/* --------------------------- Helpers ----------------------------------- */
-const getHeadingForDate = (selectedDate: Date): string => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const sel = new Date(selectedDate);
-  sel.setHours(0, 0, 0, 0);
-
-  const diffDays = Math.round((sel.getTime() - today.getTime()) / 86_400_000);
-
-  if (diffDays === 0) return "Today's Workout";
-  if (diffDays === 1) return "Tomorrow's Workout";
-  if (diffDays === -1) return "Yesterday's Workout";
-
-  const dayName = sel.toLocaleDateString("en-US", { weekday: "long" });
-  return `${dayName}'s Workout`;
-};
-
 /* --------------------------- Component --------------------------------- */
-const TodaysWorkout: React.FC<Props> = ({
-  workout,
-  allowCreate = true,
-  selectedDate,
+const TodaysWorkout: React.FC<Props> = ({ 
+  workout, 
+  allowCreate = true, 
+  selectedDate 
 }) => {
   const { primaryColor, secondaryColor, tertiaryColor } = useThemeContext();
 
-  const goToEditWorkout = () => router.push("/home/edit-workout");
-  const goToCreateWorkout = () => router.push("/home/create-workout");
-  const goToActiveWorkout = () => router.push("/home/active-workout");
+  // Get day name for navigation context
+  const dayName = selectedDate ? selectedDate.toLocaleDateString("en-US", { weekday: "long" }) : undefined;
+
+  const goToEditWorkout = () => {
+    if (dayName) {
+      router.push({
+        pathname: "/home/edit-workout",
+        params: { day: dayName }
+      });
+    } else {
+      router.push("/home/edit-workout");
+    }
+  };
+
+  const goToCreateWorkout = () => {
+    if (dayName) {
+      router.push({
+        pathname: "/home/create-workout",
+        params: { day: dayName }
+      });
+    } else {
+      router.push("/home/create-workout");
+    }
+  };
+
+  const goToActiveWorkout = () => {
+    // For now, just navigate to active workout
+    // In the future, we could pass the workout ID
+    router.push("/home/active-workout");
+  };
 
   const data: WorkoutType = workout ?? { exists: false };
-  const heading = getHeadingForDate(selectedDate);
 
   return (
     <View
       className="rounded-2xl p-5 mb-6"
       style={{ backgroundColor: tertiaryColor }}
     >
-      <View className="flex-row items-center justify-between mb-4">
-        <Text className="text-white text-xl font-psemibold">{heading}</Text>
-
-        {data.exists && (
-          <TouchableOpacity onPress={goToEditWorkout} className="p-2">
-            <FontAwesome5 name="pencil-alt" size={16} color="#FFF" />
-          </TouchableOpacity>
-        )}
-      </View>
-
       {data.exists ? (
         /* ---------------------- HAS WORKOUT ------------------------------- */
         <View>
-          {data.name && (
+          {/* Header row: Workout name (left) + edit pencil (right) */}
+          <View className="flex-row items-center justify-between mb-4">
             <Text
-              style={{ color: secondaryColor }}
-              className="text-lg font-pmedium mb-4"
+              className="font-pbold"
+              style={{
+                color: primaryColor,
+                fontSize: 20, // enlarged
+                lineHeight: 26,
+              }}
+              numberOfLines={1}
             >
-              {data.name}
+              {data.name ?? "Workout"}
             </Text>
-          )}
 
-          <View className="mb-4">
-            {data.exercises?.map((ex, idx) => (
-              <View key={idx} className="flex-row items-center mb-3 last:mb-0">
-                <MaterialCommunityIcons
-                  name="dumbbell"
-                  size={18}
-                  color={primaryColor}
-                />
-                <Text className="text-white font-pmedium ml-3">{ex.name}</Text>
-                <Text className="text-gray-100 ml-auto">
-                  {ex.sets} sets × {ex.reps}
-                </Text>
-              </View>
-            ))}
+            <TouchableOpacity onPress={goToEditWorkout} className="p-2">
+              <FontAwesome5 name="pencil-alt" size={18} color="#FFF" />
+            </TouchableOpacity>
           </View>
 
+          {/* Exercise list */}
+          {data.exercises && data.exercises.length > 0 ? (
+            <View className="mb-4">
+              {data.exercises.map((ex, idx) => (
+                <View key={idx} className="flex-row items-center mb-3 last:mb-0">
+                  <MaterialCommunityIcons
+                    name="dumbbell"
+                    size={18}
+                    color={primaryColor}
+                  />
+                  <Text className="text-white font-pmedium ml-3 flex-1" numberOfLines={1}>
+                    {ex.name}
+                  </Text>
+                  <Text className="text-gray-100 ml-2">
+                    {ex.sets} sets × {ex.reps}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View className="mb-4 py-2">
+              <Text className="text-gray-100 text-center">
+                No exercises configured for this workout
+              </Text>
+            </View>
+          )}
+
+          {/* Calories + Start button */}
           <View className="flex-row items-center justify-between mt-2">
             <View className="flex-row items-center">
               <FontAwesome5 name="fire" size={14} color="#f97316" />
               <Text className="text-orange-500 ml-2">
-                ≈ {data.calories} kcal
+                ≈ {data.calories ?? 0} kcal
               </Text>
             </View>
 
@@ -112,9 +133,7 @@ const TodaysWorkout: React.FC<Props> = ({
               activeOpacity={0.7}
             >
               <FontAwesome5 name="play" size={14} color="#FFF" />
-              <Text className="text-white font-pmedium ml-2">
-                Start Workout
-              </Text>
+              <Text className="text-white font-pmedium ml-2">Start Workout</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -127,8 +146,8 @@ const TodaysWorkout: React.FC<Props> = ({
           </Text>
           <Text className="text-gray-100 text-center mt-2 mb-4">
             {allowCreate
-              ? "You don't have a workout planned for this date."
-              : "Past date—workouts can’t be added here."}
+              ? `You don't have a workout planned for ${dayName ? dayName : 'this date'}.`
+              : "Past date—workouts can't be added here."}
           </Text>
 
           {allowCreate && (

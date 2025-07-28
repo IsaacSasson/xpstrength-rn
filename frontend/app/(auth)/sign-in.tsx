@@ -17,7 +17,7 @@ const SignIn = () => {
     password: "",
   });
 
-  const { setAccessToken, setUser, setRefreshToken } = useAuth();
+  const { signIn } = useAuth();
 
   const submit = async () => {
     if (!form.username || !form.password) {
@@ -28,7 +28,7 @@ const SignIn = () => {
     try {
       setSubmitting(true);
       
-      // Use the new api utility - AuthProvider handles auth headers automatically
+      // Use the new api utility
       const response = await api.post('/api/v1/auth/login', {
         data: { 
           username: form.username.trim(), 
@@ -42,25 +42,28 @@ const SignIn = () => {
         return;
       }
 
-      // Pull token and user data out and update auth context
+      // Extract token and basic user data from response
       const { data } = await response.json();
       
-      if (data?.accessToken) {
-        setAccessToken(data.accessToken);
-      }
-      
-      if (data?.refreshToken) {
-        await setRefreshToken(data.refreshToken);
-      }
-      
-      if (data?.user) {
-        setUser(data.user);
+      if (!data?.accessToken) {
+        Alert.alert("Login Error", "No access token received");
+        return;
       }
 
-      // logged in – drop them on the first tab & wipe auth stack
+      // Create user object with just the username
+      const userData = {
+        id: data.user?.id?.toString() || '',
+        username: data.user?.username || form.username.trim(),
+        email: data.user?.email || '',
+      };
+
+      // Use the atomic signIn function from AuthContext
+      signIn(userData, data.accessToken, data.refreshToken);
+
+      // Navigate to home - the WorkoutContext will handle fetching workout data
       router.replace("/(tabs)/home");
     } catch (networkErr) {
-      console.error("Network error:", networkErr);
+      console.error("Network error during login:", networkErr);
       Alert.alert("Network error", "Check your connection");
     } finally {
       setSubmitting(false);
@@ -98,7 +101,7 @@ const SignIn = () => {
             value={form.password}
             handleChangeText={(e) => setForm({ ...form, password: e })}
             otherStyles="mt-7"
-            placeHolder={""}
+            placeHolder=""
           />
 
           {/* Forgot Username/Password Links */}

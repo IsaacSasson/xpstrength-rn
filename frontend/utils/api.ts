@@ -1,5 +1,5 @@
 // API Configuration
-const LOCALHOST = 'http://localhost:4000'; // iOS simulator or web
+const LOCALHOST = 'https://tg1bczp0-4000.use.devtunnels.ms'; // iOS simulator or web
 export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? LOCALHOST;
 
 // Simple API utility functions - auth is handled automatically by the AuthProvider interceptor

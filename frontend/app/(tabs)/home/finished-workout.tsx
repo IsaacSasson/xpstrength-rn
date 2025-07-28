@@ -11,6 +11,7 @@ import { useLocalSearchParams, router } from "expo-router";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useThemeContext } from "@/context/ThemeContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import pfptest from "@/assets/images/favicon.png";
 
 /* ------------------------------------------------------------------ */
@@ -27,8 +28,7 @@ interface ExerciseSummary {
   sets: SetSummary[];
 }
 
-const formatTime = (sec: number) =>
-  `${Math.floor(sec / 60)}m ${sec % 60}s`;
+const formatTime = (sec: number) => `${Math.floor(sec / 60)}m ${sec % 60}s`;
 
 const ProgressBar: React.FC<{
   progress: number;
@@ -51,18 +51,19 @@ const ProgressBar: React.FC<{
 /* ------------------------------------------------------------------ */
 const FinishedWorkout = () => {
   const { primaryColor, secondaryColor, tertiaryColor } = useThemeContext();
+  const insets = useSafeAreaInsets();
 
   /* ------------------- params (mock fallback) ------------------- */
   const {
-    volume = "8500",          // in lbs
-    elapsed = "780",          // seconds
+    volume = "8500", // in lbs
+    elapsed = "780", // seconds
     xpGained = "120",
-    level   = "12",
-    xp      = "2863",
-    xpNext  = "5000",
+    level = "12",
+    xp = "2863",
+    xpNext = "5000",
     /* achievements prog example: [{id:'streak',title:'7-Day Streak',icon:'fire',prev:3,now:4}] */
-    ach     = "[]",
-    ex      = "[]",           // exercises JSON
+    ach = "[]",
+    ex = "[]", // exercises JSON
   } = useLocalSearchParams<{
     volume?: string;
     elapsed?: string;
@@ -75,11 +76,11 @@ const FinishedWorkout = () => {
   }>();
 
   /* parse */
-  const levelNum   = Number(level);
-  const xpNum      = Number(xp);
-  const xpNextNum  = Number(xpNext);
-  const xpGainNum  = Number(xpGained);
-  const volumeNum  = Number(volume);
+  const levelNum = Number(level);
+  const xpNum = Number(xp);
+  const xpNextNum = Number(xpNext);
+  const xpGainNum = Number(xpGained);
+  const volumeNum = Number(volume);
   const elapsedNum = Number(elapsed);
   const achievements: {
     id: string;
@@ -97,7 +98,7 @@ const FinishedWorkout = () => {
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
       <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
 
-      <ScrollView showsVerticalScrollIndicator={false} className="px-4 pb-4">
+      <View className="px-4 pb-4">
         {/* ---------- Summary Card ---------- */}
         <View
           className="rounded-2xl p-5 mt-20 mb-6"
@@ -106,7 +107,12 @@ const FinishedWorkout = () => {
           <View className="flex-row items-center mb-4">
             <Image
               source={pfptest}
-              style={{ width: 50, height: 50, borderRadius: 25, marginRight: 12 }}
+              style={{
+                width: 50,
+                height: 50,
+                borderRadius: 25,
+                marginRight: 12,
+              }}
             />
             <View>
               <Text
@@ -175,9 +181,7 @@ const FinishedWorkout = () => {
               style={{ backgroundColor: tertiaryColor }}
             >
               {achievements.map((a) => {
-                const prog = a.target
-                  ? Math.min(a.now / a.target, 1)
-                  : 1;
+                const prog = a.target ? Math.min(a.now / a.target, 1) : 1;
                 return (
                   <View key={a.id} className="mb-4 last:mb-0">
                     <View className="flex-row items-center mb-1">
@@ -205,65 +209,68 @@ const FinishedWorkout = () => {
           </>
         )}
 
-        {/* ---------- Exercise Breakdown ---------- */}
-        <Text className="text-white font-psemibold text-lg mb-3">
-          Exercise Breakdown
-        </Text>
-        {exercises.map((ex) => (
-          <View
-            key={ex.id}
-            className="rounded-2xl p-4 mb-4"
-            style={{ backgroundColor: tertiaryColor }}
-          >
-            <Text
-              className="font-pbold text-center text-xl mb-4"
-              style={{ color: secondaryColor }}
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: insets.bottom + 140 }}
+        >
+          {/* ---------- Exercise Breakdown ---------- */}
+          <Text className="text-white font-psemibold text-lg mb-3">
+            Exercise Breakdown
+          </Text>
+          {exercises.map((ex) => (
+            <View
+              key={ex.id}
+              className="rounded-2xl p-4 mb-4"
+              style={{ backgroundColor: tertiaryColor }}
             >
-              {ex.name}
-            </Text>
-
-            {ex.sets.map((set, idx) => (
-              <View
-                key={idx}
-                className="flex-row justify-between py-1 border-b border-black-200 last:border-0"
+              <Text
+                className="font-pbold text-center text-xl mb-4"
+                style={{ color: secondaryColor }}
               >
-                <Text className="text-gray-100">
-                  Set {idx + 1}
-                </Text>
-                <Text className="text-gray-100">
-                  {set.reps} reps
-                </Text>
-                <Text className="text-gray-100">
-                  {set.lbs} lbs
-                </Text>
-                {set.isPR && (
-                  <FontAwesome5
-                    name="trophy"
-                    size={14}
-                    color={primaryColor}
-                  />
-                )}
-              </View>
-            ))}
+                {ex.name}
+              </Text>
+
+              {ex.sets.map((set, idx) => (
+                <View
+                  key={idx}
+                  className="flex-row justify-between py-1 border-b border-black-200 last:border-0"
+                >
+                  <Text className="text-gray-100">Set {idx + 1}</Text>
+                  <Text className="text-gray-100">{set.reps} reps</Text>
+                  <Text className="text-gray-100">{set.lbs} lbs</Text>
+                  {set.isPR && (
+                    <FontAwesome5
+                      name="trophy"
+                      size={14}
+                      color={primaryColor}
+                    />
+                  )}
+                </View>
+              ))}
+            </View>
+          ))}
+
+          {/* ---------- Footer Buttons ---------- */}
+          <View className="mb-10 mx-28 mt-4 flex-row justify-between">
+            <TouchableOpacity
+              onPress={() => router.replace("/home")}
+              className="flex-1 mx-50 ml-2 py-4 rounded-xl items-center"
+              style={{
+                backgroundColor: primaryColor,
+                shadowColor: primaryColor,
+                shadowOpacity: 0.4,
+                shadowRadius: 13,
+                shadowOffset: { width: 0, height: 4 },
+              }}
+            >
+              <Text className="text-white font-pbold text-lg">Continue</Text>
+            </TouchableOpacity>
           </View>
-        ))}
 
-        {/* ---------- Footer Buttons ---------- */}
-        <View className="mb-10 mx-28 mt-4 flex-row justify-between">
-          <TouchableOpacity
-            onPress={() => router.replace("/home")}
-            className="flex-1 mx-50 ml-2 py-4 rounded-xl items-center"
-            style={{ backgroundColor: primaryColor, shadowColor: primaryColor,
-                  shadowOpacity: 0.4,
-                  shadowRadius: 13,
-                  shadowOffset: { width: 0, height: 4 },
-
-            }}
-          >
-            <Text className="text-white font-pbold text-lg">Continue</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+          {/* extra spacer so you can scroll past the button */}
+          <View style={{ height: 100 }} />
+        </ScrollView>
+      </View>
     </View>
   );
 };

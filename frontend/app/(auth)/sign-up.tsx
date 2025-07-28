@@ -18,19 +18,19 @@ const SignUp = () => {
     password: "",
   });
 
-  const { setAccessToken, setUser, setRefreshToken } = useAuth();
+  const { signIn } = useAuth();
 
   const submit = async () => {
-    // simple validation
-    if(!form.username || !form.email || !form.password) {
-      Alert.alert('Error', 'Please fill in all the fields')
+    // Simple validation
+    if (!form.username || !form.email || !form.password) {
+      Alert.alert('Error', 'Please fill in all the fields');
       return;
     }
 
     try {
       setSubmitting(true);
       
-      // Use the new api utility - AuthProvider handles auth headers automatically
+      // Use the new api utility
       const response = await api.post('/api/v1/auth/register', {
         data: {
           username: form.username.trim(),
@@ -45,23 +45,25 @@ const SignUp = () => {
         return;
       }
 
-      // backend now logs the user in right away
+      // Backend logs the user in right away
       const { data } = await response.json();
       
-      // Update auth context instead of using saveToken
-      if (data?.accessToken) {
-        setAccessToken(data.accessToken);
-      }
-      
-      if (data?.refreshToken) {
-        await setRefreshToken(data.refreshToken);
-      }
-      
-      if (data?.user) {
-        setUser(data.user);
+      if (!data?.accessToken) {
+        Alert.alert("Sign-up Error", "No access token received");
+        return;
       }
 
-      // drop them straight into the main tab stack
+      // Create user object with the data we have
+      const userData = {
+        id: data.user?.id?.toString() || '',
+        username: data.user?.username || form.username.trim(),
+        email: data.user?.email || form.email.trim(),
+      };
+
+      // Use the atomic signIn function from AuthContext
+      signIn(userData, data.accessToken, data.refreshToken);
+
+      // Navigate to home - the WorkoutContext will handle fetching workout data
       router.replace('/(tabs)/home');
     } catch (networkErr) {
       console.error('Network error:', networkErr);
@@ -88,12 +90,13 @@ const SignUp = () => {
           <Text className="text-2xl text-white text-semibold mt-10 font-psemibold">
             Sign Up to XPStrength
           </Text>
+          
           <FormField
             title="Username"
             value={form.username}
             handleChangeText={(e) => setForm({ ...form, username: e })}
             otherStyles="mt-10"
-            placeHolder={""}
+            placeHolder=""
           />
 
           <FormField
@@ -102,7 +105,7 @@ const SignUp = () => {
             handleChangeText={(e) => setForm({ ...form, email: e })}
             otherStyles="mt-7"
             keyboardType="email-address"
-            placeHolder={""}
+            placeHolder=""
           />
 
           <FormField
@@ -110,7 +113,7 @@ const SignUp = () => {
             value={form.password}
             handleChangeText={(e) => setForm({ ...form, password: e })}
             otherStyles="mt-7"
-            placeHolder={""}
+            placeHolder=""
           />
 
           <CustomButton
