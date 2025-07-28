@@ -26,11 +26,11 @@ userRouter.get("/profile", getProfile);
 //Delete your user Account
 //userRouter.delete("/delete-account", deleteAccount);
 
-//Get all your history ("Only of type USER, FRIEND, MILESTONE, or STATS")
-//userRouter.get("/history", getHistory);
-
 //Get your history ("Only of type USER, FRIEND, MILESTONE, or STATS") paginated by page and pageSize
-//userRouter.get("/history/:page/:pageSize", getHistoryPaginated);
+userRouter.get("/history/:page/:pageSize", getHistoryPaginated);
+
+//Get all your history ("Only of type USER, FRIEND, MILESTONE, or STATS")
+userRouter.get("/history", getHistory);
 
 //Get your weekly workout plan
 userRouter.get("/workout-plan", getWorkoutPlan);
@@ -52,8 +52,5 @@ userRouter.delete("/custom-workout", deleteCustomWorkout);
 
 //User Logs a completed workout
 userRouter.post("/log-workout", postLogWorkout);
-
-//User edits a previously completed workout
-//userRouter.patch("log-workout");
 
 export default userRouter;

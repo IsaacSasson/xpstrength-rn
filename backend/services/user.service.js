@@ -6,8 +6,10 @@ import {
   ExerciseLog,
   CustomWorkout,
   WorkoutPlan,
+  History,
 } from "../models/index.js";
 import { sequelize } from "../config/db.config.js";
+import { Op } from "sequelize";
 import AppHistory from "../utils/AddHistory.js";
 import { workoutAddXP } from "../utils/xpSystem.js";
 
@@ -30,8 +32,46 @@ export async function deleteAccount(input_data) {
   return;
 }
 
-export async function getHistory(input_data, paginated = false) {
-  return;
+export async function getHistory(user, paginated = false) {
+  try {
+    const userId = user.id;
+    let history = null;
+    if (paginated) {
+      const { start, end } = paginated;
+
+      //Ensures non negative limits
+      const limit = Math.max(end - start, 0);
+      history = await History.findAll({
+        where: {
+          userId,
+          type: {
+            [Op.or]: ["USER", "FRIEND", "MILESTONE", "STATS"],
+          },
+        },
+        order: [["createdAt", "DESC"]],
+        attributes: ["action"],
+        offset: start,
+        limit,
+      });
+    } else {
+      history = await History.findAll({
+        where: {
+          userId,
+          type: {
+            [Op.or]: ["USER", "FRIEND", "MILESTONE", "STATS"],
+          },
+        },
+        order: [["createdAt", "DESC"]],
+        attributes: ["action"],
+      });
+    }
+    if (!history) {
+      throw new AppError("History not found for user", 404, "NOT_FOUND");
+    }
+    return history;
+  } catch (err) {
+    throw mapSequelizeError(err);
+  }
 }
 
 export async function getWorkoutPlan(user) {
@@ -225,7 +265,7 @@ export async function deleteCustomWorkout(id, user) {
         );
       }
 
-      await oldCustomWorkout.destroy();
+      await oldCustomWorkout.destroy({ transaction: t });
 
       const oldWorkoutPlan = await WorkoutPlan.findOne({
         where: { userId },

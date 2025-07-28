@@ -28,11 +28,52 @@ export async function deleteAccount(req, res, next) {
 }
 
 export async function getHistory(req, res, next) {
-  return;
+  const user = req?.user ?? null;
+
+  try {
+    if (!user) {
+      throw new AppError("Malfored user ID", 400, "BAD_DATA");
+    }
+    const history = await userService.getHistory(user, false);
+
+    return res.status(200).json({
+      data: {
+        userHistory: history,
+      },
+      message: "User succesfully retrived their history!",
+    });
+  } catch (err) {
+    next(err);
+  }
 }
 
 export async function getHistoryPaginated(req, res, next) {
-  return;
+  const user = req?.user ?? null;
+  const block = req?.params?.page ?? null;
+  const blockSize = req?.params?.pageSize ?? null;
+  console.log("Paginated Ran");
+  try {
+    if (!user || block == null || blockSize == null) {
+      throw new AppError("Malfored request parameters.", 400, "BAD_DATA");
+    }
+
+    if (block < 0 || blockSize < 0) {
+      throw new AppError("Page and/or Pagesize must be positive!");
+    }
+    const start = block * blockSize;
+    const end = (block + 1) * blockSize;
+
+    const history = await userService.getHistory(user, { start, end });
+
+    return res.status(200).json({
+      data: {
+        userHistory: history,
+      },
+      message: "User succesfully retrived their paginated history!",
+    });
+  } catch (err) {
+    next(err);
+  }
 }
 
 export async function getWorkoutPlan(req, res, next) {
