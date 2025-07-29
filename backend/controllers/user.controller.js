@@ -33,7 +33,7 @@ export async function patchProfile(req, res, next) {
     if (!(newPassword || newUsername || newEmail || newPFP)) {
       throw new AppError("No profile data added to update!", 400, "BAD_DATA");
     }
-    const { newAccessToken, newProfile } = userService.patchProfile(
+    const { newAccessToken, newProfile } = await userService.setProfileData(
       user,
       currentPassword,
       newPassword,
@@ -314,7 +314,7 @@ export async function postSaveNotes(req, res, next) {
     }
     await userService.saveNotes(user, notes, exerciseId);
     return res.status(201).json({
-      message: `User succesfully saved their note for exercise with id ${exerciseID}`,
+      message: `User succesfully saved their note for exercise with id ${exerciseId}`,
     });
   } catch (err) {
     next(err);

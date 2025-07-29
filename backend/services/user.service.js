@@ -39,16 +39,16 @@ export async function setProfileData(
   try {
     const userId = user.id;
     return await sequelize.transaction(async (t) => {
-      if (!currentPassword && (newEmail, newPassword, newUsername)) {
+      if (!currentPassword && (newEmail || newPassword || newUsername)) {
         throw new AppError(
           "Current password not sent to update restricted data",
           400,
           "BAD_DATA"
         );
       }
-
+      let match = null;
       if (currentPassword) {
-        const match = await bcrypt.compare(currentPassword, user.password);
+        match = await bcrypt.compare(currentPassword, user.password);
 
         if (match) {
           if (newUsername) {
@@ -63,7 +63,7 @@ export async function setProfileData(
           }
 
           if (newEmail) {
-            user.email = email;
+            user.email = newEmail;
             const history = new AppHistory(
               "USER",
               `User succesfully updated their email`,
@@ -89,7 +89,7 @@ export async function setProfileData(
       }
       //Change PFP
       if (newPFP) {
-        user.profilePic(newPFP);
+        user.profilePic = newPFP;
         const history = new AppHistory(
           "USER",
           `User succesfully updated their profile picture`,
@@ -99,7 +99,7 @@ export async function setProfileData(
         await history.log(t);
       }
 
-      user.save({ transaction: t });
+      await user.save({ transaction: t });
 
       const newAccessToken = await generateAuthToken(user);
 
@@ -122,7 +122,10 @@ export async function deleteAccount(user) {
     const userId = user.id;
 
     await sequelize.transaction(async (t) => {
-      const user = await User.findOne({ where: { userId }, transaction: t });
+      const user = await User.findOne({
+        where: { id: userId },
+        transaction: t,
+      });
       await user.destroy({ transaction: t });
     });
 
@@ -519,7 +522,9 @@ export async function logWorkout(user, workout) {
 
 export async function getExerciseHistory(user) {
   try {
-    const exerciseHistory = ExerciseLog.findOne({ where: { userId: user.id } });
+    const exerciseHistory = await ExerciseLog.findOne({
+      where: { userId: user.id },
+    });
     if (!exerciseHistory) {
       throw new AppError(
         "Exercise History not found for user",
@@ -536,8 +541,8 @@ export async function getExerciseHistory(user) {
 
 export async function saveNotes(user, notes, exerciseId) {
   try {
-    return sequelize.transaction((t) => {
-      const exerciseHistory = ExerciseLog.findOne({
+    return sequelize.transaction(async (t) => {
+      const exerciseHistory = await ExerciseLog.findOne({
         where: { userId: user.id },
         transaction: t,
       });
