@@ -39,6 +39,14 @@ export async function setProfileData(
   try {
     const userId = user.id;
     return await sequelize.transaction(async (t) => {
+      if (!currentPassword && (newEmail, newPassword, newUsername)) {
+        throw new AppError(
+          "Current password not sent to update restricted data",
+          400,
+          "BAD_DATA"
+        );
+      }
+
       if (currentPassword) {
         const match = await bcrypt.compare(currentPassword, user.password);
 
@@ -75,6 +83,8 @@ export async function setProfileData(
             );
             await history.log(t);
           }
+        } else {
+          throw new AppError("Invalid Password", 403, "FORBIDDEN");
         }
       }
       //Change PFP
@@ -247,7 +257,11 @@ export async function getCustomWorkouts(user) {
       });
 
       if (!customWorkouts) {
-        throw new AppError("No custom workouts found for user!", 400, "");
+        throw new AppError(
+          "No custom workouts found for user!",
+          400,
+          "BAD_DATA"
+        );
       }
 
       //No Need TO Log

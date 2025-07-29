@@ -30,6 +30,9 @@ export async function patchProfile(req, res, next) {
     if (!user) {
       throw new AppError("Malfored User ID", 400, "BAD_DATA");
     }
+    if (!(newPassword || newUsername || newEmail || newPFP)) {
+      throw new AppError("No profile data added to update!", 400, "BAD_DATA");
+    }
     const { newAccessToken, newProfile } = userService.patchProfile(
       user,
       currentPassword,
