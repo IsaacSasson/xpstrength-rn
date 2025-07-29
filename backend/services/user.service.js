@@ -15,7 +15,6 @@ import { Op } from "sequelize";
 import AppHistory from "../utils/AddHistory.js";
 import { workoutAddXP } from "../utils/xpSystem.js";
 import { generateAuthToken } from "../utils/security.js";
-import { P, transport } from "pino";
 
 export async function getProfileData(user) {
   try {
