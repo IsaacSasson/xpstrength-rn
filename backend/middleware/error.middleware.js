@@ -9,7 +9,7 @@ export default function error(err, req, res, next) {
     );
   }
 
-  if (process.env.NODE_ENV === "development") {
+  if (process.env.NODE_ENV !== "production") {
     console.log(`\x1b[31m${err.message}\x1b[0m`);
   }
 

@@ -1,6 +1,9 @@
 import { Router } from "express";
+import { upload } from "../config/upload.config.js";
 
 import {
+  getProfilePicture,
+  postProfilePicture,
   getProfile,
   patchProfile,
   deleteAccount,
@@ -24,6 +27,12 @@ userRouter.get("/profile", getProfile);
 
 //Update your user profile Data
 userRouter.patch("/update-profile", patchProfile);
+
+//Get Profile Picture
+userRouter.get("/profile-pic", getProfilePicture);
+
+//Save Profile Picture
+userRouter.post("/profile-pic", upload.single("newPFP"), postProfilePicture);
 
 //Delete your user Account
 userRouter.delete("/delete-account", deleteAccount);

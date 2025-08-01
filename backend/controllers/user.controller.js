@@ -1,5 +1,6 @@
 import userService from "../services/user.service.js";
 import AppError from "../utils/AppError.js";
+import { detectFormat } from "../config/upload.config.js";
 
 export async function getProfile(req, res, next) {
   const user = req?.user ?? null;
@@ -25,12 +26,11 @@ export async function patchProfile(req, res, next) {
   const newPassword = req?.body?.data?.newPassword ?? null;
   const newUsername = req?.body?.data?.newUsername ?? null;
   const newEmail = req?.body?.data?.newEmail ?? null;
-  const newPFP = req?.body?.data?.newPFP ?? null;
   try {
     if (!user) {
       throw new AppError("Malfored User ID", 400, "BAD_DATA");
     }
-    if (!(newPassword || newUsername || newEmail || newPFP)) {
+    if (!(newPassword || newUsername || newEmail)) {
       throw new AppError("No profile data added to update!", 400, "BAD_DATA");
     }
     const { newAccessToken, newProfile } = await userService.setProfileData(
@@ -38,8 +38,7 @@ export async function patchProfile(req, res, next) {
       currentPassword,
       newPassword,
       newUsername,
-      newEmail,
-      newPFP
+      newEmail
     );
 
     return res.status(201).json({
@@ -48,6 +47,52 @@ export async function patchProfile(req, res, next) {
         newProfile: newProfile,
       },
       message: "Succesfully updated user profile!",
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getProfilePicture(req, res, next) {
+  const user = req?.user ?? null;
+  try {
+    if (!user) {
+      throw new AppError("Malfored User ID", 400, "BAD_DATA");
+    }
+
+    const pfpBuf = await userService.getProfilePic(user);
+
+    if (!pfpBuf) return res.status(404).end(); // no PFP stored
+
+    const fmt = await detectFormat(pfpBuf); // "jpeg" or "png"
+
+    res
+      .status(200)
+      .type(fmt) // sets Content-Type
+      .set("Content-Length", pfpBuf.length) // optional but nice
+      .send(pfpBuf); // raw bytes
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function postProfilePicture(req, res, next) {
+  const user = req?.user ?? null;
+  const imgBuf = req?.file?.buffer ?? null; // Buffer | undefined
+
+  try {
+    if (!user) {
+      throw new AppError("Malfored User ID", 400, "BAD_DATA");
+    }
+
+    if (!imgBuf) {
+      throw new AppError("Image data Malformed", 400, "BAD_DATA");
+    }
+
+    await userService.saveProfilePic(imgBuf, user);
+
+    res.status(201).json({
+      message: "Profile picture succesfully saved!",
     });
   } catch (err) {
     next(err);
@@ -95,14 +140,17 @@ export async function getHistoryPaginated(req, res, next) {
   const user = req?.user ?? null;
   const block = req?.params?.page ?? null;
   const blockSize = req?.params?.pageSize ?? null;
-  console.log("Paginated Ran");
   try {
     if (!user || block == null || blockSize == null) {
       throw new AppError("Malfored request parameters.", 400, "BAD_DATA");
     }
 
     if (block < 0 || blockSize < 0) {
-      throw new AppError("Page and/or Pagesize must be positive!");
+      throw new AppError(
+        "Page and/or Pagesize must be positive!",
+        400,
+        "BAD_PARAMS"
+      );
     }
     const start = block * blockSize;
     const end = (block + 1) * blockSize;
@@ -322,6 +370,8 @@ export async function postSaveNotes(req, res, next) {
 }
 
 export default {
+  getProfilePicture,
+  postProfilePicture,
   getProfile,
   patchProfile,
   deleteAccount,
