@@ -32,7 +32,7 @@ const createAuthUser = async (
 // Utility: load a binary image buffer to use as a PFP blob
 const loadPfpBuffer = async () => {
   // Use the exact path format you provided
-  const path = "../../__tests__/Images/goodPFP.jpg";
+  const path = "./__tests__/Images/goodPFP.jpg";
   const buf = await fs.readFile(path);
   // When JSON-serialized, Buffer becomes { type: 'Buffer', data: [...] }, which the server
   // can convert back with Buffer.from(obj.data). We send the Buffer directly.
@@ -40,8 +40,59 @@ const loadPfpBuffer = async () => {
 };
 
 describe("USER service routes (protected by auth middleware)", () => {
-  describe("GET /api/v1/user/profile", () => {
-    it("requires Authorization header", async () => {
+  describe("Profile picture lifecycle", () => {
+    it("GET /profile-picture returns 404 when no PFP stored", async () => {
+      const { accessToken } = await createAuthUser();
+      const res = await request(server)
+        .get("/api/v1/user/profile-pic")
+        .set("Authorization", `Bearer ${accessToken}`);
+      expect(res.statusCode).toBe(404);
+    });
+
+    it("POST /profile-picture saves the blob and GET returns it", async () => {
+      const { accessToken } = await createAuthUser();
+      const imgBuf = await loadPfpBuffer();
+
+      // Save
+      const saveRes = await request(server)
+        .post("/api/v1/user/profile-pic")
+        .set("Authorization", `Bearer ${accessToken}`)
+        .attach("newPFP", imgBuf, "goodPFP.jpg"); // field name `pfp` aligns with multer usage
+      expect(saveRes.statusCode).toBe(201);
+      expect(saveRes.body).toHaveProperty(
+        "message",
+        "Profile picture succesfully saved!"
+      );
+
+      // Retrieve
+      const getRes = await request(server)
+        .get("/api/v1/user/profile-pic")
+        .set("Authorization", `Bearer ${accessToken}`)
+        .buffer(true) // treat response as raw
+        .parse((res, cb) => {
+          const data = [];
+          res.on("data", (chunk) => data.push(chunk));
+          res.on("end", () => cb(null, Buffer.concat(data)));
+        });
+      expect(getRes.statusCode).toBe(200);
+      expect(getRes.headers["content-type"]).toMatch(/image\/(jpeg|png)/);
+      expect(Buffer.isBuffer(getRes.body)).toBe(true);
+      expect(getRes.body.length).toBeGreaterThan(0);
+    });
+
+    it("POST /profile-picture 400 when no file attached", async () => {
+      const { accessToken } = await createAuthUser();
+      const res = await request(server)
+        .post("/api/v1/user/profile-pic")
+        .set("Authorization", `Bearer ${accessToken}`)
+        .field("dummy", "value"); // no file
+      await errorChecker(res, 400, "Image data Malformed", "BAD_DATA");
+    });
+  });
+
+  // --- Profile (without PFP updates) ---
+  describe("GET /profile & PATCH /update-profile sans PFP", () => {
+    it("requires auth header for GET /profile", async () => {
       const res = await request(server).get("/api/v1/user/profile");
       await errorChecker(
         res,
@@ -51,28 +102,22 @@ describe("USER service routes (protected by auth middleware)", () => {
       );
     });
 
-    it("returns 200 with sanitized profile data", async () => {
+    it("GET /profile returns sanitized data", async () => {
       const { user, accessToken } = await createAuthUser();
       const res = await request(server)
         .get("/api/v1/user/profile")
         .set("Authorization", `Bearer ${accessToken}`);
-
       expect(res.statusCode).toBe(200);
-      expect(res.body).toHaveProperty("data.profileData");
       const profile = res.body.data.profileData;
-      expect(profile).toHaveProperty("id", user.id);
-      expect(profile).toHaveProperty("username", user.username);
-      expect(profile).toHaveProperty("email", user.email);
+      expect(profile).toMatchObject({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+      });
       expect(profile).not.toHaveProperty("password");
-      expect(res.body).toHaveProperty(
-        "message",
-        "User Profile succesfully recieved!"
-      );
     });
-  });
 
-  describe("PATCH /api/v1/user/update-profile (PFP blob + validations)", () => {
-    it("400 when no update fields are provided", async () => {
+    it("PATCH /update-profile 400 when no fields", async () => {
       const { accessToken } = await createAuthUser();
       const res = await request(server)
         .patch("/api/v1/user/update-profile")
@@ -86,9 +131,8 @@ describe("USER service routes (protected by auth middleware)", () => {
       );
     });
 
-    it("400 when trying to update restricted fields without currentPassword", async () => {
+    it("PATCH /update-profile restricted fields require currentPassword", async () => {
       const { accessToken } = await createAuthUser();
-      const newPFP = await loadPfpBuffer(); // still allowed without password
       const res = await request(server)
         .patch("/api/v1/user/update-profile")
         .set("Authorization", `Bearer ${accessToken}`)
@@ -101,89 +145,54 @@ describe("USER service routes (protected by auth middleware)", () => {
       );
     });
 
-    it("403 when currentPassword is wrong (even if PFP provided)", async () => {
+    it("PATCH /update-profile 403 on wrong currentPassword", async () => {
       const { accessToken } = await createAuthUser();
-      const newPFP = await loadPfpBuffer();
       const res = await request(server)
         .patch("/api/v1/user/update-profile")
         .set("Authorization", `Bearer ${accessToken}`)
         .send({
           data: {
             currentPassword: "WrongPass1!",
-            newUsername: "new_name",
-            newPFP,
+            newUsername: "bad_update",
           },
         });
       await errorChecker(res, 403, "Invalid Password", "FORBIDDEN");
     });
 
-    it("201 when updating only PFP via blob (no password required)", async () => {
-      const { accessToken } = await createAuthUser();
-      const newPFP = await loadPfpBuffer();
-      const res = await request(server)
-        .patch("/api/v1/user/update-profile")
-        .set("Authorization", `Bearer ${accessToken}`)
-        .send({ data: { newPFP } });
-
-      expect(res.statusCode).toBe(201);
-      expect(res.body).toHaveProperty("data.newAccessToken");
-      expect(res.body.data).toHaveProperty("newProfile");
-      const np = res.body.data.newProfile;
-      // Assert that PFP was acknowledged as changed; allow boolean/string forms
-      expect(np).toHaveProperty("pfpChanged");
-      expect(np.pfpChanged === true || np.pfpChanged === "Changed").toBe(true);
-      expect(res.body).toHaveProperty(
-        "message",
-        "Succesfully updated user profile!"
-      );
-    });
-
-    it("201 when updating username/email/password + PFP blob with correct currentPassword", async () => {
+    it("PATCH /update-profile 201 on valid username/email/password update", async () => {
       const { accessToken, password } = await createAuthUser();
-      const newPFP = await loadPfpBuffer();
       const payload = {
         currentPassword: password,
-        newUsername: `new_${Math.floor(Math.random() * 1e6)}`,
-        newEmail: `new${Math.floor(Math.random() * 1e6)}@mail.com`,
-        newPassword: "EvenStronger1!",
-        newPFP,
+        newUsername: `new_${Math.random().toString(36).slice(2, 8)}`,
+        newEmail: `new_${Date.now()}@mail.com`,
+        newPassword: "MuchStronger2!",
       };
-
       const res = await request(server)
         .patch("/api/v1/user/update-profile")
         .set("Authorization", `Bearer ${accessToken}`)
         .send({ data: payload });
-
       expect(res.statusCode).toBe(201);
-      expect(res.body).toHaveProperty("data.newAccessToken");
-      expect(typeof res.body.data.newAccessToken).toBe("string");
-      expect(res.body.data).toHaveProperty("newProfile");
+      expect(res.body.data).toHaveProperty("newAccessToken");
       const np = res.body.data.newProfile;
       expect(np.usernameChanged).toBe(payload.newUsername);
       expect(np.emailChanged).toBe(payload.newEmail);
       expect(np.passwordChanged).toBe("Changed");
-      expect(np).toHaveProperty("pfpChanged");
-      expect(np.pfpChanged === true || np.pfpChanged === "Changed").toBe(true);
-      expect(res.body).toHaveProperty(
-        "message",
-        "Succesfully updated user profile!"
-      );
     });
   });
 
-  describe("DELETE /api/v1/user/delete-account", () => {
-    it("204 and subsequent requests with same token fail", async () => {
+  // --- Delete account ---
+  describe("DELETE /delete-account", () => {
+    it("deletes user and token becomes invalid", async () => {
       const { accessToken } = await createAuthUser();
-      const del = await request(server)
+      await request(server)
         .delete("/api/v1/user/delete-account")
-        .set("Authorization", `Bearer ${accessToken}`);
-      expect(del.statusCode).toBe(204);
+        .set("Authorization", `Bearer ${accessToken}`)
+        .expect(204);
 
-      // Token should now fail because user no longer exists
-      const res2 = await request(server)
+      const res = await request(server)
         .get("/api/v1/user/profile")
         .set("Authorization", `Bearer ${accessToken}`);
-      expect([401, 404]).toContain(res2.statusCode);
+      expect([401, 404]).toContain(res.statusCode);
     });
   });
 
@@ -217,8 +226,7 @@ describe("USER service routes (protected by auth middleware)", () => {
         .set("Authorization", `Bearer ${accessToken}`);
       expect(res.statusCode).toBe(200);
       const hist = res.body.data.exerciseHistory;
-      const map = hist.exerciseHistory || {};
-      const record = map[exerciseId] ?? map[String(exerciseId)];
+      const record = hist[exerciseId] ?? hist[String(exerciseId)];
       expect(record).toBeTruthy();
       expect(record).toHaveProperty("notes", note);
     });
@@ -269,12 +277,26 @@ describe("USER service routes (protected by auth middleware)", () => {
       await request(server)
         .post("/api/v1/user/custom-workout")
         .set("Authorization", `Bearer ${accessToken}`)
-        .send({ data: { name: "CW1", exercises: [{ e: 0 }] } })
+        .send({
+          data: {
+            name: "CW1",
+            exercises: [
+              { exercise: 0, reps: 0, sets: 0, weight: 0, cooldown: 0 },
+            ],
+          },
+        })
         .expect(201);
       await request(server)
         .post("/api/v1/user/custom-workout")
         .set("Authorization", `Bearer ${accessToken}`)
-        .send({ data: { name: "CW2", exercises: [{ e: 1 }] } })
+        .send({
+          data: {
+            name: "CW2",
+            exercises: [
+              { exercise: 1, reps: 0, sets: 0, weight: 0, cooldown: 0 },
+            ],
+          },
+        })
         .expect(201);
 
       const p1 = await request(server)
@@ -353,7 +375,13 @@ describe("USER service routes (protected by auth middleware)", () => {
       const res = await request(server)
         .post("/api/v1/user/custom-workout")
         .set("Authorization", `Bearer ${accessToken}`)
-        .send({ data: { exercises: [{ e: 0 }] } });
+        .send({
+          data: {
+            exercises: [
+              { exercise: 1, reps: 0, sets: 0, weight: 0, cooldown: 0 },
+            ],
+          },
+        });
       await errorChecker(res, 400, "Malformed CustomWorkout Data", "BAD_DATA");
     });
 
@@ -364,7 +392,14 @@ describe("USER service routes (protected by auth middleware)", () => {
       const createRes = await request(server)
         .post("/api/v1/user/custom-workout")
         .set("Authorization", `Bearer ${accessToken}`)
-        .send({ data: { name: "Push Day", exercises: [{ id: 0, sets: 3 }] } })
+        .send({
+          data: {
+            name: "Push Day",
+            exercises: [
+              { exercise: 1, reps: 0, sets: 0, weight: 0, cooldown: 0 },
+            ],
+          },
+        })
         .expect(201);
       const cw = createRes.body.data.newCustomWorkout;
       expect(cw).toHaveProperty("id");
@@ -378,7 +413,9 @@ describe("USER service routes (protected by auth middleware)", () => {
           data: {
             id: cw.id,
             name: updatedName,
-            exercises: [{ id: 0, sets: 4 }],
+            exercises: [
+              { exercise: 2, reps: 0, sets: 0, weight: 0, cooldown: 0 },
+            ],
           },
         })
         .expect(201);

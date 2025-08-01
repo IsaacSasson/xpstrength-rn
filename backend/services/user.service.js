@@ -18,10 +18,42 @@ import { generateAuthToken } from "../utils/security.js";
 
 export async function getProfileData(user) {
   try {
-    const { password, createdAt, updatedAt, ...safeUser } =
+    const { password, profilePic, createdAt, updatedAt, ...safeUser } =
       user.get?.({ plain: true }) || user;
 
     return safeUser;
+  } catch (err) {
+    throw mapSequelizeError(err);
+  }
+}
+
+export async function getProfilePic(user) {
+  //GET PFP
+  try {
+    return user.profilePic;
+  } catch (err) {
+    throw mapSequelizeError(err);
+  }
+}
+
+export async function saveProfilePic(newPFP, user) {
+  //Change PFP
+  try {
+    await sequelize.transaction(async (t) => {
+      const userId = user.id;
+      if (newPFP) {
+        user.profilePic = newPFP;
+        const history = new AppHistory(
+          "USER",
+          `User succesfully updated their profile picture`,
+          userId,
+          null
+        );
+        await history.log(t);
+
+        await user.save({ transaction: t });
+      }
+    });
   } catch (err) {
     throw mapSequelizeError(err);
   }
@@ -32,8 +64,7 @@ export async function setProfileData(
   currentPassword,
   newPassword,
   newUsername,
-  newEmail,
-  newPFP
+  newEmail
 ) {
   try {
     const userId = user.id;
@@ -86,17 +117,6 @@ export async function setProfileData(
           throw new AppError("Invalid Password", 403, "FORBIDDEN");
         }
       }
-      //Change PFP
-      if (newPFP) {
-        user.profilePic = newPFP;
-        const history = new AppHistory(
-          "USER",
-          `User succesfully updated their profile picture`,
-          userId,
-          null
-        );
-        await history.log(t);
-      }
 
       await user.save({ transaction: t });
 
@@ -106,7 +126,6 @@ export async function setProfileData(
         usernameChanged: match && newUsername ? newUsername : "Not Changed",
         emailChanged: match && newEmail ? newEmail : "Not Changed",
         passwordChanged: match && newPassword ? "Changed" : "Not Changed",
-        pfpChanged: newPFP ? newPFP : "Not Changed",
       };
 
       return { newAccessToken, newProfile };
@@ -532,7 +551,7 @@ export async function getExerciseHistory(user) {
       );
     }
 
-    return exerciseHistory;
+    return exerciseHistory.exerciseHistory;
   } catch (err) {
     throw mapSequelizeError(err);
   }
@@ -567,7 +586,7 @@ export async function saveNotes(user, notes, exerciseId) {
       }
 
       exerciseHistory.changed("exerciseHistory", true);
-      exerciseHistory.save({ transaction: t });
+      await exerciseHistory.save({ transaction: t });
     });
   } catch (err) {
     throw mapSequelizeError(err);
@@ -575,6 +594,8 @@ export async function saveNotes(user, notes, exerciseId) {
 }
 
 export default {
+  getProfilePic,
+  saveProfilePic,
   getProfileData,
   setProfileData,
   deleteAccount,
