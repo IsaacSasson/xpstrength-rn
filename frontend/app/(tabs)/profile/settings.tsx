@@ -131,7 +131,7 @@ const Settings = () => {
 
         {/* rows */}
         <Row
-          label="Profile"
+          label="Edit Profile"
           icon="user"
           onPress={() => router.push("/profile/user-profile")}
         />

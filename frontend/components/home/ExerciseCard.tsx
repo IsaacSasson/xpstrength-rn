@@ -694,24 +694,7 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
                 >
                   Exercise Notes
                 </Text>
-                <View
-                  style={{
-                    backgroundColor: "#FFA50020",
-                    paddingHorizontal: 8,
-                    paddingVertical: 4,
-                    borderRadius: 6,
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: "#FFA500",
-                      fontSize: 10,
-                      fontWeight: "500",
-                    }}
-                  >
-                    SESSION ONLY
-                  </Text>
-                </View>
+              
               </View>
               <View
                 style={{
@@ -738,10 +721,7 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
                   onChangeText={handleNotesUpdate}
                 />
               </View>
-              <Text style={{ color: "#7b7b8b", fontSize: 12, marginTop: 8 }}>
-                ⚠️ Notes are for this session only and won't be saved to your
-                workout template.
-              </Text>
+              
             </View>
           </ScrollView>
         </View>

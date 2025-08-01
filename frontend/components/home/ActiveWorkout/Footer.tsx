@@ -29,6 +29,9 @@ interface Props {
   onApplyPicker: () => void; // call parent's applyPicker
   onStartRest: () => void;
   onCloseRest: () => void; // should also stop/reset in parent
+
+  /* NEW: Adjust ongoing rest timer by a delta in seconds (e.g., -5 or +5) */
+  onAdjustRest: (seconds: number) => void;
 }
 
 const fmt = (s: number) =>
@@ -53,6 +56,7 @@ const ActiveWorkoutFooter: React.FC<Props> = ({
   onApplyPicker,
   onStartRest,
   onCloseRest,
+  onAdjustRest,
 }) => {
   return (
     <>
@@ -134,13 +138,45 @@ const ActiveWorkoutFooter: React.FC<Props> = ({
               Rest timer running
             </Text>
 
-            <TouchableOpacity
-              onPress={onCloseRest}
-              className="mt-6 px-10 py-3 rounded-lg"
-              style={{ backgroundColor: primaryColor }}
+            {/* Controls row: -5 | Close | +5 */}
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 12,
+                marginTop: 24,
+              }}
             >
-              <Text className="text-white font-pmedium">Close</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => onAdjustRest(-5)}
+                className="px-4 py-3 rounded-lg"
+                style={{
+                  borderWidth: 1,
+                  borderColor: primaryColor,
+                }}
+              >
+                <Text className="text-white font-pmedium">-5</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={onCloseRest}
+                className="px-10 py-3 rounded-lg"
+                style={{ backgroundColor: primaryColor }}
+              >
+                <Text className="text-white font-pmedium">Close</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => onAdjustRest(5)}
+                className="px-4 py-3 rounded-lg"
+                style={{
+                  borderWidth: 1,
+                  borderColor: primaryColor,
+                }}
+              >
+                <Text className="text-white font-pmedium">+5</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         ) : (
           <View style={{ alignItems: "center", paddingTop: 8 }}>

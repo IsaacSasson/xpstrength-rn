@@ -22,7 +22,6 @@ import ActiveWorkoutAddCard from "@/components/home/ActiveWorkout/AddExerciseCar
 import PauseModal from "@/components/home/ActiveWorkout/PauseModal";
 // REMOVED: RestPickerModal (picker now handled by DraggableBottomSheet in Footer)
 import ConfirmCancelModal from "@/components/home/ActiveWorkout/ConfirmCancelModal";
-import InstructionsModal from "@/components/home/ActiveWorkout/InstructionsModal";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_PREVIEW_SCALE = 0.9;
@@ -213,13 +212,18 @@ const ActiveWorkout = () => {
   const hideConfirmCancel = () => setConfirmCancelVisible(false);
   const doCancelWorkout = () => router.replace("/home");
 
-  const [instructionsModalVisible, setInstructionsModalVisible] = useState(false);
-  const [currentInstructions, setCurrentInstructions] = useState("");
-  const handleInstructions = () => {
-    if (selectedExerciseIdx !== null) {
-      setCurrentInstructions(exercises[selectedExerciseIdx].instructions);
-      setInstructionsModalVisible(true);
+  /* ───────── Instructions navigation (same logic as ExerciseCard) ───────── */
+  const goToInstructions = () => {
+    if (selectedExerciseIdx === null) {
+      Alert.alert("No Instructions", "Select an exercise to view instructions.");
+      return;
     }
+    const ex = exercises[selectedExerciseIdx];
+    router.push({
+      pathname: "/home/exercise-detail",
+      params: { id: ex.id, scrollTo: "bottom" },
+    });
+    setShowOptionsSheet(false);
   };
 
   /* ───────── Animated scroll logic ───────── */
@@ -244,7 +248,8 @@ const ActiveWorkout = () => {
             sets: ex.sets.map((s) => ({ reps: s.reps, lbs: s.lbs })),
           }));
           const totalVolume = exercises.reduce(
-            (sum, ex) => sum + ex.sets.reduce((acc, s) => acc + s.lbs * s.reps, 0),
+            (sum, ex) =>
+              sum + ex.sets.reduce((acc, s) => acc + s.lbs * s.reps, 0),
             0
           );
           const xpGained = Math.floor(totalVolume / 100);
@@ -363,7 +368,10 @@ const ActiveWorkout = () => {
         restLeft={restLeft}
         restVisible={restSheetVisible}
         pickerVisible={pickerOpen}
-        onPause={handlePause}
+        onPause={() => {
+          setPaused(true);
+          setPauseModalVisible(true);
+        }}
         onOpenPicker={() => setPickerOpen(true)}
         onClosePicker={() => setPickerOpen(false)}
         onChangeMin={(v) => setDurMin(v)}
@@ -371,13 +379,20 @@ const ActiveWorkout = () => {
         onApplyPicker={applyPicker}
         onStartRest={startRest}
         onCloseRest={closeRestSheet}
+        // adjust the running rest timer by ±seconds
+        onAdjustRest={(delta) => {
+          setRestLeft((prev) => Math.max(0, prev + delta));
+        }}
       />
 
       {/* Remaining modals */}
       <PauseModal
         visible={pauseModalVisible}
         primaryColor={primaryColor}
-        onResume={handleResume}
+        onResume={() => {
+          setPaused(false);
+          setPauseModalVisible(false);
+        }}
       />
 
       <ConfirmCancelModal
@@ -388,13 +403,7 @@ const ActiveWorkout = () => {
         onYes={doCancelWorkout}
       />
 
-      <InstructionsModal
-        visible={instructionsModalVisible}
-        text={currentInstructions}
-        onDismiss={() => setInstructionsModalVisible(false)}
-      />
-
-      {/* Options bottom‑sheet */}
+      {/* Options bottom-sheet (STYLING reverted to your original) */}
       <DraggableBottomSheet
         visible={showOptionsSheet}
         onClose={() => setShowOptionsSheet(false)}
@@ -404,10 +413,10 @@ const ActiveWorkout = () => {
       >
         {[
           {
-            label: "Instructions",
+            label: "View Exercise Instructions",
             icon: "information-outline",
             onPress: () => {
-              handleInstructions();
+              goToInstructions();
               setShowOptionsSheet(false);
             },
           },
@@ -445,7 +454,7 @@ const ActiveWorkout = () => {
             <MaterialCommunityIcons
               name={opt.icon as any}
               size={24}
-              color={opt.danger ? "#FF4D4D" : "#FFFFFF"}
+              color={opt.danger ? "#FF4D4D" : primaryColor}
             />
             <Animated.Text
               className="text-lg font-pmedium ml-3"
@@ -455,15 +464,6 @@ const ActiveWorkout = () => {
             </Animated.Text>
           </TouchableOpacity>
         ))}
-
-        <TouchableOpacity
-          className="bg-black-200 m-4 mt-6 p-4 rounded-xl"
-          onPress={() => setShowOptionsSheet(false)}
-        >
-          <Animated.Text className="text-white font-pmedium text-center">
-            Cancel
-          </Animated.Text>
-        </TouchableOpacity>
       </DraggableBottomSheet>
     </View>
   );
