@@ -1,3 +1,4 @@
+// path: /utils/handleApiError.ts
 export async function handleApiError(res: Response) {
   let details: { error?: string; code?: string } = {};
   try {
