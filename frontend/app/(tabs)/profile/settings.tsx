@@ -14,10 +14,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import { useThemeContext } from "@/context/ThemeContext";
+import { useAuth } from "@/context/AuthProvider";
 import logo from "@/assets/images/logo.png";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { deleteToken, getToken } from "@/utils/tokenStore";
-import { handleApiError } from "@/utils/handleApiError";
 
 const APP_VERSION = "v0.8.3";
 const UNIT_KEY = "unit_preference";
@@ -53,6 +52,7 @@ const Row: React.FC<RowProps> = ({ label, icon, onPress }) => {
 /* ------------------------------------------------------------------ */
 const Settings = () => {
   const { primaryColor, secondaryColor, tertiaryColor } = useThemeContext();
+  const { logout } = useAuth();
   const [loadingOut, setLoadingOut] = useState(false);
 
   /* -------- UNITS -------- */
@@ -79,25 +79,13 @@ const Settings = () => {
     if (loadingOut) return;
     setLoadingOut(true);
     try {
-      const token = await getToken();
-      if (token) {
-        const res = await fetch("/api/v1/network/logout", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        if (!res.ok) {
-          const { error, code } = await handleApiError(res);
-          console.error(`Log‑out error (${code}):`, error);
-          return;
-        }
-      }
+      console.log("🚪 Logging out...");
+      await logout();
+      console.log("✅ Logged out successfully");
+      // Navigation will be handled by auth state changes
     } catch (err) {
-      console.error("Log‑out request failed:", err);
+      console.error("❌ Log‑out request failed:", err);
     } finally {
-      // Clear local token no matter what
-      await deleteToken();
       setLoadingOut(false);
     }
   };
@@ -171,7 +159,7 @@ const Settings = () => {
         {loadingOut ? (
           <ActivityIndicator color="#FFF" />
         ) : (
-          <Text className="text-red-500 font-pbold text-lg">Log Out</Text>
+          <Text className="text-red-500 font-pbold text-lg">Log Out</Text>
         )}
       </TouchableOpacity>
 

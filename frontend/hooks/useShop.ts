@@ -1,7 +1,7 @@
 // Path: /hooks/useShop.ts
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useUserProgress } from '@/context/UserProgressContext';
+import { useUserProgress } from '@/context/UserProvider';
 import { SHOP_THEMES } from '@/context/constants/themeConstants';
 
 export const useShop = () => {

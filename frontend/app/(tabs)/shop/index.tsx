@@ -13,7 +13,7 @@ import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 
 // Import our context hooks
 import { useThemeContext } from "@/context/ThemeContext";
-import { useUserProgress } from "@/context/UserProgressContext";
+import { useUserProgress } from "@/context/UserProvider";
 import { useShop } from "@/hooks/useShop"; // Import our new hook
 import { SHOP_THEMES } from "@/context/constants/themeConstants";
 

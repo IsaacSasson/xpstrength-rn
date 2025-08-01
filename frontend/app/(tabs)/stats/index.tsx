@@ -7,7 +7,7 @@ import Tabs from "@/components/TabList";
 import RadarChart from "@/components/stats/RadarChart";
 import StatButtons from "@/components/stats/StatButtons";
 import { useThemeContext } from "@/context/ThemeContext";
-import { useUserProgress } from "@/context/UserProgressContext";
+import { useUserProgress } from "@/context/UserProvider";
 import { useStats, MetricType, MuscleGroup } from "@/hooks/useStats"; // Import our custom hook
 
 const Stats = () => {
