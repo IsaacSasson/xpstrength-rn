@@ -56,8 +56,8 @@ const createAuthenticatedFetch = () => {
       
       let response = await originalFetch(input, requestInit);
       
-      // Handle 403 Unauthorized
-      if (response.status === 403 && authContext) {
+      // Handle 401 Unauthorized
+      if (response.status === 401 && authContext) {
         try {
           console.log('Token expired, attempting refresh...');
           

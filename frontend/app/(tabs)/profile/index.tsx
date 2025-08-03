@@ -19,6 +19,7 @@ import { useAuth } from "@/context/AuthProvider";
 import TopBar from "@/components/TopBar";
 import defaultPfp from "@/assets/images/favicon.png";
 import { router } from "expo-router";
+import { calculateXpProgress } from "@/utils/xpUtils";
 
 /* ------------------------------------------------------------------
    Helpers
@@ -108,60 +109,11 @@ const Profile = () => {
     clearError,
   } = useUser();
 
-  // Calculate achievements from profile data
-  const achievements = useMemo(() => {
-    if (!profile) return [];
-    
-    const achievementsList = [];
-    
-    // Workout streak achievement (based on total workouts)
-    if (profile.total_workouts >= 7) {
-      achievementsList.push({
-        id: "workouts",
-        title: `${profile.total_workouts} Workouts`,
-        icon: "dumbbell" as const,
-      });
-    }
-    
-    // Time achievement
-    const totalHours = Math.floor(profile.totalTimeWorkedOut / 60);
-    if (totalHours >= 10) {
-      achievementsList.push({
-        id: "time",
-        title: `${totalHours}+ Hours`,
-        icon: "clock" as const,
-      });
-    }
-    
-    // Level achievement
-    if (profile.level >= 5) {
-      achievementsList.push({
-        id: "level",
-        title: `Level ${profile.level}`,
-        icon: "trophy" as const,
-      });
-    }
-    
-    return achievementsList.slice(0, 3); // Show max 3 achievements
-  }, [profile]);
-
-
-
-  // Calculate XP progress to next level
+  // Calculate XP progress to next level using the real XP system
   const xpProgress = useMemo(() => {
     if (!profile) return { current: 0, needed: 1000, percentage: 0 };
     
-    // Simple level calculation - adjust based on your game logic
-    const currentLevelXp = (profile.level - 1) * 1000;
-    const nextLevelXp = profile.level * 1000;
-    const currentXpInLevel = profile.xp - currentLevelXp;
-    const xpNeededForNext = nextLevelXp - currentLevelXp;
-    
-    return {
-      current: currentXpInLevel,
-      needed: xpNeededForNext,
-      percentage: (currentXpInLevel / xpNeededForNext) * 100,
-    };
+    return calculateXpProgress(profile.level, profile.xp);
   }, [profile]);
 
   // Handle pull to refresh
@@ -188,7 +140,7 @@ const Profile = () => {
       <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
 
       <TopBar 
-        subtext={profile ? `Welcome back, ${profile.username}!` : "It's You!"} 
+        subtext={profile ? `It's You, ${profile.username}!` : "It's you!"} 
         title="Your Profile" 
         titleTop 
       />
@@ -326,32 +278,52 @@ const Profile = () => {
         )}
 
         {/* ---------- ACHIEVEMENTS ---------- */}
-        {achievements.length > 0 && (
-          <>
-            <Text className="text-white text-xl font-psemibold mb-3 text-center">
-              Featured Achievements
-            </Text>
-            <View className="flex-row mb-6">
-              {achievements.map((ach) => (
-                <View key={ach.id} className="flex-1 items-center">
-                  <View
-                    className="h-16 w-16 rounded-full items-center justify-center mb-2"
-                    style={{ backgroundColor: primaryColor }}
-                  >
-                    <MaterialCommunityIcons 
-                      name={ach.icon} 
-                      size={24} 
-                      color="#FFF" 
-                    />
-                  </View>
-                  <Text className="text-center text-white text-xs font-pmedium px-1">
-                    {ach.title}
-                  </Text>
-                </View>
-              ))}
+        <Text className="text-white text-xl font-psemibold mb-3 text-center">
+          Featured Achievements
+        </Text>
+        <View className="flex-row mb-6">
+          {[
+            { id: 1, icon: "dumbbell", title: "Workout Warrior" },
+            { id: 2, icon: "trophy", title: "Personal Best" },
+            { id: 3, icon: "fire", title: "Streak Master" }
+          ].map((ach) => (
+            <View key={ach.id} className="flex-1 items-center">
+              <View
+                className="h-16 w-16 rounded-full items-center justify-center mb-2"
+                style={{ backgroundColor: primaryColor }}
+              >
+                <FontAwesome5 name={ach.icon as any} size={24} color="#FFF" />
+              </View>
+              <Text className="text-center text-white text-xs font-pmedium px-1">
+                {ach.title}
+              </Text>
             </View>
-          </>
-        )}
+          ))}
+        </View>
+
+        {/* ---------- SPOTLIGHT LIFT ---------- */}
+        <Text className="text-white text-xl font-psemibold mb-3">
+          Spotlight Exercise
+        </Text>
+        <View
+          className="rounded-2xl p-5 mb-6"
+          style={{ backgroundColor: tertiaryColor }}
+        >
+          <View className="flex-row items-center justify-between">
+            <View className="flex-row items-center">
+              <MaterialCommunityIcons name="arm-flex" size={22} color={primaryColor} />
+              <Text className="text-white font-pmedium text-lg ml-2">
+                Bench Press
+              </Text>
+            </View>
+            <Text
+              className="text-white font-psemibold text-lg"
+              style={{ color: primaryColor }}
+            >
+              225 lbs
+            </Text>
+          </View>
+        </View>
 
         {/* Bottom padding */}
         <View className="h-8" />
