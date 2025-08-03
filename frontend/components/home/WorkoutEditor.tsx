@@ -17,7 +17,7 @@ import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useThemeContext } from "@/context/ThemeContext";
 import { useWorkouts } from "@/context/WorkoutContext";
-import { getTempExercises } from "@/utils/exerciseBuffer";
+import { getTempExercises, clearTempExercises } from "@/utils/exerciseBuffer";
 import { transformExerciseFromAPI } from "@/services/workoutApi";
 import { validateWorkoutForSave, getDetailedValidationMessage } from "@/utils/workoutValidation";
 import Header from "@/components/Header";
@@ -88,6 +88,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [existingWorkoutId, setExistingWorkoutId] = useState<number | null>(null);
+  const [exerciseToReplace, setExerciseToReplace] = useState<string | null>(null);
 
   /* ------------------------- helpers: normalize days ------------------------- */
   const normalizeDays = (days: string[]) => {
@@ -213,9 +214,17 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
     useCallback(() => {
       const bufferedExercises = getTempExercises();
       if (bufferedExercises && bufferedExercises.length > 0) {
-        addExercisesFromList(bufferedExercises);
+        if (exerciseToReplace) {
+          // Replace mode: replace the exercise
+          replaceExerciseWithNew(exerciseToReplace, bufferedExercises[0]);
+          setExerciseToReplace(null);
+        } else {
+          // Add mode: add all exercises
+          addExercisesFromList(bufferedExercises);
+        }
+        // Note: getTempExercises automatically clears the buffer
       }
-    }, [])
+    }, [exerciseToReplace])
   );
 
   // Track exercise IDs
@@ -245,6 +254,27 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
     }));
   };
 
+  const replaceExerciseWithNew = (exerciseId: string, newExerciseData: any) => {
+    const newExercise: Exercise = {
+      id: exerciseId, // Keep the same ID
+      name: newExerciseData.name,
+      sets: [
+        { reps: "10", weight: "0 lbs" },
+        { reps: "10", weight: "0 lbs" },
+        { reps: "10", weight: "0 lbs" },
+      ],
+      notes: "",
+      originalExerciseId: newExerciseData.id,
+    };
+
+    setWorkout((prev) => ({
+      ...prev,
+      exercises: prev.exercises.map((ex) =>
+        ex.id === exerciseId ? newExercise : ex
+      ),
+    }));
+  };
+
   const removeExercise = (id: string) => {
     setWorkout({
       ...workout,
@@ -259,6 +289,29 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
         e.id === id ? { ...e, [field]: value } : e
       ),
     });
+
+  const replaceExercise = (id: string) => {
+    setExerciseToReplace(id);
+    navigateToExerciseList("replace");
+  };
+
+  const reorderExercises = (fromIndex: number, toIndex: number) => {
+    const newExercises = [...workout.exercises];
+    const [movedExercise] = newExercises.splice(fromIndex, 1);
+    newExercises.splice(toIndex, 0, movedExercise);
+    
+    setWorkout({
+      ...workout,
+      exercises: newExercises,
+    });
+  };
+
+  const handleReorderComplete = (reorderedExercises: Exercise[]) => {
+    setWorkout({
+      ...workout,
+      exercises: reorderedExercises,
+    });
+  };
 
   const toggleDay = (d: string) =>
     setWorkout({
@@ -331,11 +384,12 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
     }
   };
 
-  const navigateToExerciseList = () => {
+  const navigateToExerciseList = (action: "add" | "replace" = "add") => {
     router.push({
       pathname: "/home/exercise-list",
       params: {
         returnTo: mode === "create" ? "create-workout" : "edit-workout",
+        action,
         ...(dayParam && { day: dayParam }),
       },
     });
@@ -428,7 +482,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
             <TouchableOpacity
               className="flex-row items-center px-4 py-3 rounded-xl"
               style={{ backgroundColor: primaryColor }}
-              onPress={navigateToExerciseList}
+              onPress={() => navigateToExerciseList("add")}
               activeOpacity={0.8}
             >
               <FontAwesome5 name="plus" size={14} color="#FFF" />
@@ -470,6 +524,11 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
                   index={idx}
                   onUpdate={updateExercise}
                   onRemove={removeExercise}
+                  onReplace={replaceExercise}
+                  onReorder={reorderExercises}
+                  onReorderComplete={handleReorderComplete}
+                  totalExercises={workout.exercises.length}
+                  allExercises={workout.exercises}
                 />
               ))}
             </View>

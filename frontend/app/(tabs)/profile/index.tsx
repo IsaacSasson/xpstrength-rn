@@ -278,7 +278,7 @@ const Profile = () => {
         )}
 
         {/* ---------- ACHIEVEMENTS ---------- */}
-        <Text className="text-white text-xl font-psemibold mb-3 text-center">
+        <Text className="text-white text-xl font-psemibold mb-6">
           Featured Achievements
         </Text>
         <View className="flex-row mb-6">

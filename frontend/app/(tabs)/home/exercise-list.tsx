@@ -38,9 +38,9 @@ interface Exercise {
 const ExerciseList = () => {
   const { primaryColor, tertiaryColor } = useThemeContext();
   const params = useLocalSearchParams();
-  const isReplaceMode = params.isReplaceMode === "true" || false;
-  const replaceIndex = params.replaceIndex ? Number(params.replaceIndex) : null;
   const returnTo = params.returnTo as string;
+  const action = params.action as string;
+  const isReplaceMode = action === "replace";
 
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
@@ -145,7 +145,7 @@ const ExerciseList = () => {
     if (selectedExercises.length === 0) {
       Alert.alert(
         "No exercises selected!",
-        "Please select at least one exercise."
+        `Please select ${isReplaceMode ? "an exercise" : "at least one exercise"}.`
       );
       return;
     }
@@ -155,21 +155,17 @@ const ExerciseList = () => {
       selectedExercises.includes(ex.id)
     );
 
-    if (isReplaceMode && replaceIndex !== null) {
-      // TODO: Handle replace mode if needed
-      router.back();
-    } else {
-      // Store exercises in temporary buffer and navigate back
-      // This maintains clean navigation stack while passing data
-      setTempExercises(selectedExerciseObjects);
-      router.back();
-    }
+    // Store exercises in temporary buffer and navigate back
+    setTempExercises(selectedExerciseObjects);
+    router.back();
   };
 
   const handleExerciseClick = (exerciseId: string) => {
     if (isReplaceMode) {
+      // In replace mode, only allow one selection
       setSelectedExercises([exerciseId]);
     } else {
+      // In add mode, allow multiple selections
       setSelectedExercises((prev) => {
         if (prev.includes(exerciseId)) {
           return prev.filter((id) => id !== exerciseId);
@@ -214,6 +210,32 @@ const ExerciseList = () => {
     });
   };
 
+  const getHeaderText = () => {
+    if (isReplaceMode) {
+      return {
+        main: "Replace Exercise",
+        sub: loading ? "Loading..." : `Choose a replacement from ${exercises.length} exercises`
+      };
+    } else {
+      return {
+        main: "Exercise List",
+        sub: loading ? "Loading..." : `${exercises.length} exercises available`
+      };
+    }
+  };
+
+  const getButtonText = () => {
+    if (isReplaceMode) {
+      return selectedExercises.length > 0 ? "Replace Exercise" : "Select Exercise";
+    } else {
+      return selectedExercises.length > 0 
+        ? `Add to Workout (${selectedExercises.length})` 
+        : "Add to Workout";
+    }
+  };
+
+  const headerText = getHeaderText();
+
   return (
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
       <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
@@ -221,12 +243,8 @@ const ExerciseList = () => {
         <View className="px-4 pt-6 pb-4">
           <View className="flex-row items-center justify-between mb-4">
             <Header
-              MText="Exercise List"
-              SText={
-                loading
-                  ? "Loading..."
-                  : `${exercises.length} exercises available`
-              }
+              MText={headerText.main}
+              SText={headerText.sub}
             />
           </View>
 
@@ -249,13 +267,16 @@ const ExerciseList = () => {
               />
             </TouchableOpacity>
             <TouchableOpacity
-              style={{ backgroundColor: primaryColor }}
+              style={{ 
+                backgroundColor: selectedExercises.length > 0 ? primaryColor : `${primaryColor}50`,
+                opacity: selectedExercises.length > 0 ? 1 : 0.7
+              }}
               className="px-4 py-2 rounded-lg"
               onPress={handleAddOrReplace}
+              disabled={selectedExercises.length === 0}
             >
               <Text className="text-white font-pmedium">
-                {isReplaceMode ? "Replace" : "Add to Workout"}
-                {selectedExercises.length > 0 && ` (${selectedExercises.length})`}
+                {getButtonText()}
               </Text>
             </TouchableOpacity>
           </View>
@@ -381,7 +402,7 @@ const ExerciseList = () => {
                     backgroundColor: isSelected
                       ? `${primaryColor}20`
                       : tertiaryColor,
-                    borderWidth: isSelected ? 1 : 0,
+                    borderWidth: isSelected ? 2 : 0,
                     borderColor: isSelected ? primaryColor : "transparent",
                   }}
                   onPress={() => handleExerciseClick(exercise.id)}
@@ -448,7 +469,7 @@ const ExerciseList = () => {
                   </View>
                   <View className="justify-center">
                     <View
-                      className={`w-5 h-5 rounded-full border-2 items-center justify-center`}
+                      className={`w-6 h-6 rounded-full border-2 items-center justify-center`}
                       style={{
                         borderColor: primaryColor,
                         backgroundColor: isSelected
@@ -457,7 +478,7 @@ const ExerciseList = () => {
                       }}
                     >
                       {isSelected && (
-                        <FontAwesome5 name="check" size={10} color="white" />
+                        <FontAwesome5 name="check" size={12} color="white" />
                       )}
                     </View>
                   </View>

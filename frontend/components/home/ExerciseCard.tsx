@@ -18,6 +18,7 @@ import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useThemeContext } from "@/context/ThemeContext";
 import { router } from "expo-router";
 import { loadExercises } from "@/utils/loadExercises";
+import ReorderModal from "./ReorderModal";
 
 /* -------------------------------------------------------------------------- */
 /*                                   Types                                    */
@@ -32,7 +33,7 @@ export interface Exercise {
   name: string;
   sets: ExerciseSet[];
   notes: string;
-  originalExerciseId?: string; // Add this to track the original exercise from the database
+  originalExerciseId?: string;
 }
 
 interface ExerciseCardProps {
@@ -40,6 +41,11 @@ interface ExerciseCardProps {
   index: number;
   onUpdate: (id: string, field: keyof Exercise, value: any) => void;
   onRemove: (id: string) => void;
+  onReplace: (id: string) => void;
+  onReorder: (fromIndex: number, toIndex: number) => void;
+  onReorderComplete: (reorderedExercises: Exercise[]) => void;
+  totalExercises: number;
+  allExercises: Exercise[]; // Added for reorder modal
 }
 
 /* -------------------------------------------------------------------------- */
@@ -84,10 +90,16 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
   index,
   onUpdate,
   onRemove,
+  onReplace,
+  onReorder,
+  onReorderComplete,
+  totalExercises,
+  allExercises,
 }) => {
   const { primaryColor, tertiaryColor } = useThemeContext();
   const [isExpanded, setIsExpanded] = useState(false);
   const [showOptionsModal, setShowOptionsModal] = useState(false);
+  const [showReorderModal, setShowReorderModal] = useState(false);
   const [imageIndex, setImageIndex] = useState(0);
   const [exerciseImages, setExerciseImages] = useState<number[]>([]);
   const scaleAnimation = useRef(new Animated.Value(1)).current;
@@ -138,6 +150,16 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
     );
   };
 
+  const handleReplace = () => {
+    setShowOptionsModal(false);
+    onReplace(exercise.id);
+  };
+
+  const handleShowReorder = () => {
+    setShowOptionsModal(false);
+    setShowReorderModal(true);
+  };
+
   const handleSetUpdate = (
     setIndex: number,
     field: keyof ExerciseSet,
@@ -164,16 +186,11 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
     onUpdate(exercise.id, "sets", newSets);
   };
 
-  const handleNotesUpdate = (notes: string) => {
-    onUpdate(exercise.id, "notes", notes);
-  };
-
   const handleShowOptions = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowOptionsModal(true);
   };
 
-  // 👉 Navigate and request a bottom scroll on the detail page
   const handleViewInstructions = () => {
     if (exercise.originalExerciseId) {
       setShowOptionsModal(false);
@@ -221,7 +238,10 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
   return (
     <>
       <Animated.View
-        style={{ transform: [{ scale: scaleAnimation }], marginBottom: 16 }}
+        style={{
+          transform: [{ scale: scaleAnimation }],
+          marginBottom: 16,
+        }}
       >
         <View
           style={{
@@ -526,55 +546,6 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
               </View>
             </View>
           </ExpandableSection>
-
-          {exercise.notes && (
-            <View
-              style={{
-                paddingHorizontal: 16,
-                paddingBottom: 16,
-                paddingTop: 0,
-              }}
-            >
-              <View
-                style={{
-                  backgroundColor: primaryColor + "10",
-                  borderRadius: 8,
-                  padding: 12,
-                  borderLeftWidth: 3,
-                  borderLeftColor: primaryColor,
-                }}
-              >
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    marginBottom: 4,
-                  }}
-                >
-                  <FontAwesome5
-                    name="sticky-note"
-                    size={12}
-                    color={primaryColor}
-                  />
-                  <Text
-                    style={{
-                      color: primaryColor,
-                      fontSize: 12,
-                      fontWeight: "500",
-                      marginLeft: 6,
-                    }}
-                  >
-                    Notes
-                  </Text>
-                </View>
-                <Text
-                  style={{ color: "#CDCDE0", fontSize: 14, lineHeight: 18 }}
-                >
-                  {exercise.notes}
-                </Text>
-              </View>
-            </View>
-          )}
         </View>
       </Animated.View>
 
@@ -617,6 +588,7 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
           </View>
 
           <ScrollView style={{ flex: 1, padding: 16 }}>
+            {/* View Instructions */}
             <TouchableOpacity
               onPress={handleViewInstructions}
               style={{
@@ -648,6 +620,65 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
               <FontAwesome5 name="chevron-right" size={14} color="#CDCDE0" />
             </TouchableOpacity>
 
+            {/* Replace Exercise */}
+            <TouchableOpacity
+              onPress={handleReplace}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                backgroundColor: tertiaryColor,
+                borderRadius: 12,
+                padding: 16,
+                marginBottom: 16,
+              }}
+              activeOpacity={0.7}
+            >
+              <FontAwesome5 name="exchange-alt" size={16} color={primaryColor} />
+              <Text
+                style={{
+                  color: "white",
+                  fontSize: 16,
+                  fontWeight: "500",
+                  marginLeft: 12,
+                  flex: 1,
+                }}
+              >
+                Replace Exercise
+              </Text>
+              <FontAwesome5 name="chevron-right" size={14} color="#CDCDE0" />
+            </TouchableOpacity>
+
+            {/* Reorder Exercises */}
+            {totalExercises > 1 && (
+              <TouchableOpacity
+                onPress={handleShowReorder}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  backgroundColor: tertiaryColor,
+                  borderRadius: 12,
+                  padding: 16,
+                  marginBottom: 16,
+                }}
+                activeOpacity={0.7}
+              >
+                <FontAwesome5 name="sort" size={16} color={primaryColor} />
+                <Text
+                  style={{
+                    color: "white",
+                    fontSize: 16,
+                    fontWeight: "500",
+                    marginLeft: 12,
+                    flex: 1,
+                  }}
+                >
+                  Reorder Exercises
+                </Text>
+                <FontAwesome5 name="chevron-right" size={14} color="#CDCDE0" />
+              </TouchableOpacity>
+            )}
+
+            {/* Remove Exercise */}
             <TouchableOpacity
               onPress={handleRemove}
               style={{
@@ -674,58 +705,19 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
               </Text>
               <FontAwesome5 name="chevron-right" size={14} color="#FF4D4D" />
             </TouchableOpacity>
-
-            {/* Notes Section */}
-            <View>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  marginBottom: 12,
-                }}
-              >
-                <Text
-                  style={{
-                    color: "#CDCDE0",
-                    fontSize: 16,
-                    fontWeight: "500",
-                    flex: 1,
-                  }}
-                >
-                  Exercise Notes
-                </Text>
-              
-              </View>
-              <View
-                style={{
-                  backgroundColor: tertiaryColor,
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderColor: "#3A3A4A",
-                  minHeight: 120,
-                }}
-              >
-                <TextInput
-                  style={{
-                    color: "white",
-                    fontSize: 16,
-                    padding: 16,
-                    fontWeight: "400",
-                    textAlignVertical: "top",
-                  }}
-                  placeholder="Add notes about form, tempo, rest time, modifications..."
-                  placeholderTextColor="#7b7b8b"
-                  multiline
-                  numberOfLines={6}
-                  value={exercise.notes}
-                  onChangeText={handleNotesUpdate}
-                />
-              </View>
-              
-            </View>
           </ScrollView>
         </View>
       </Modal>
+
+      {/* Reorder Modal */}
+      <ReorderModal
+        visible={showReorderModal}
+        onClose={() => setShowReorderModal(false)}
+        exercises={allExercises}
+        onReorderComplete={onReorderComplete}
+        primaryColor={primaryColor}
+        tertiaryColor={tertiaryColor}
+      />
     </>
   );
 };

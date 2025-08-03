@@ -11,3 +11,18 @@ export const getTempExercises = () => {
   tempExercises = null; // Clear after getting to prevent reuse
   return exercises;
 };
+
+export const clearTempExercises = () => {
+  tempExercises = null;
+};
+
+export const addTempExercise = (exercise: any) => {
+  if (!tempExercises) {
+    tempExercises = [];
+  }
+  tempExercises.push(exercise);
+};
+
+export const hasTempExercises = (): boolean => {
+  return tempExercises !== null && tempExercises.length > 0;
+};
