@@ -17,6 +17,7 @@ import QuickActions from "@/components/home/QuickActions";
 import Calender from "@/components/home/Calender";
 import { useThemeContext } from "@/context/ThemeContext";
 import { useWorkouts } from "@/context/WorkoutContext";
+import { useAuth } from "@/context/AuthProvider";
 import QuickActionsCustomizer, {
   ActionDefinition,
 } from "@/components/home/QuickActionsCustomizer";
@@ -50,6 +51,7 @@ const getHeadingForDate = (selectedDate: Date): string => {
 
 export default function Home() {
   const { primaryColor, tertiaryColor } = useThemeContext();
+  const { user } = useAuth();
   const { 
     workoutPlan, 
     customWorkouts, 
@@ -234,7 +236,7 @@ export default function Home() {
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
       <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
 
-      <TopBar subtext="Welcome Back" title="Wiiwho" titleTop={false} />
+      <TopBar subtext="Welcome back" title={user?.username || "User"} titleTop={false} />
 
       <ScrollView showsVerticalScrollIndicator={false} className="px-4 pb-6">
         {/* date + quick links */}
