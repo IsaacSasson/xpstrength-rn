@@ -1,5 +1,4 @@
-// Path: /app/(tabs)/home/workout-plans.tsx
-import React, { useMemo, useCallback } from "react";
+import React, { useMemo } from "react";
 import {
   View,
   Text,
@@ -8,9 +7,8 @@ import {
   StatusBar,
   Alert,
   ActivityIndicator,
-  RefreshControl,
 } from "react-native";
-import { router, useFocusEffect } from "expo-router";
+import { router } from "expo-router";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useThemeContext } from "@/context/ThemeContext";
@@ -32,35 +30,25 @@ export type WorkoutPlan = {
 /* -------------------------------- Screen -------------------------------- */
 const WorkoutPlans = () => {
   const { primaryColor, tertiaryColor } = useThemeContext();
-  const { 
-    customWorkouts, 
-    exerciseDatabase, 
-    isLoading, 
-    isRefreshing,
-    error, 
-    refreshData, 
+  const {
+    customWorkouts,
+    exerciseDatabase,
+    isLoading,
+    error,
+    refreshData,   // kept for manual retry on error only
     deleteWorkout,
-    clearError 
+    clearError,
   } = useWorkouts();
 
-  // Refresh data when screen comes into focus (after creating/editing a workout)
-  useFocusEffect(
-    useCallback(() => {
-      if (!isLoading) {
-        refreshData();
-      }
-    }, [refreshData, isLoading])
-  );
-
-  // Transform API data to UI format
+  // Transform API data to UI format (cached; no auto refetch on focus)
   const plans: WorkoutPlan[] = useMemo(() => {
-    return customWorkouts.map(workout => {
-      // Transform exercises from API format to UI format
+    return customWorkouts.map((workout) => {
       const exercises: Exercise[] = workout.exercises.map((ex: any) => {
-        // Find exercise name from database
-        const exerciseDetails = exerciseDatabase.find(e => e.id === ex.exercise.toString());
+        const exerciseDetails = exerciseDatabase.find(
+          (e) => e.id === ex.exercise.toString()
+        );
         const exerciseName = exerciseDetails?.name || `Exercise ${ex.exercise}`;
-        
+
         return {
           name: exerciseName,
           sets: ex.sets,
@@ -76,7 +64,7 @@ const WorkoutPlans = () => {
             id: "main",
             title: "Main Session",
             exercises,
-          }
+          },
         ],
       };
     });
@@ -98,10 +86,9 @@ const WorkoutPlans = () => {
   );
 
   const openPlan = (plan: WorkoutPlan) => {
-    // Navigate to edit workout
     router.push({
       pathname: "/home/edit-workout",
-      params: { workoutId: plan.id }
+      params: { workoutId: plan.id },
     });
   };
 
@@ -110,12 +97,12 @@ const WorkoutPlans = () => {
   };
 
   const removePlan = async (id: string) => {
-    const plan = plans.find(p => p.id === id);
-    const planName = plan?.name || 'this workout';
-    
+    const plan = plans.find((p) => p.id === id);
+    const planName = plan?.name || "this workout";
+
     Alert.alert(
-      "Delete workout?", 
-      `This will remove "${planName}" permanently and from your weekly schedule.`, 
+      "Delete workout?",
+      `This will remove "${planName}" permanently and from your weekly schedule.`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -130,7 +117,7 @@ const WorkoutPlans = () => {
                 Alert.alert("Error", result.error || "Failed to delete workout");
               }
             } catch (error) {
-              console.error('Error deleting workout:', error);
+              console.error("Error deleting workout:", error);
               Alert.alert("Error", "Failed to delete workout");
             }
           },
@@ -141,7 +128,7 @@ const WorkoutPlans = () => {
 
   const handleRetry = () => {
     clearError();
-    refreshData();
+    refreshData(); // manual only
   };
 
   // Loading state
@@ -149,7 +136,7 @@ const WorkoutPlans = () => {
     return (
       <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
         <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
-        
+
         <SafeAreaView edges={["top"]} className="bg-primary">
           <View className="px-4 pt-6">
             <View className="flex-row items-center justify-between mb-4">
@@ -181,12 +168,12 @@ const WorkoutPlans = () => {
     );
   }
 
-  // Error state
-  if (error && !isRefreshing) {
+  // Error state (no isRefreshing check; no pull-to-refresh)
+  if (error) {
     return (
       <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
         <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
-        
+
         <SafeAreaView edges={["top"]} className="bg-primary">
           <View className="px-4 pt-6">
             <View className="flex-row items-center justify-between mb-4">
@@ -215,21 +202,22 @@ const WorkoutPlans = () => {
             className="rounded-2xl p-6 w-full max-w-sm"
             style={{ backgroundColor: tertiaryColor }}
           >
-            <FontAwesome5 name="exclamation-triangle" size={40} color="#ff6b6b" style={{ alignSelf: 'center', marginBottom: 16 }} />
+            <FontAwesome5
+              name="exclamation-triangle"
+              size={40}
+              color="#ff6b6b"
+              style={{ alignSelf: "center", marginBottom: 16 }}
+            />
             <Text className="text-white font-pmedium text-center text-lg mb-2">
               Something went wrong
             </Text>
-            <Text className="text-gray-100 text-center mb-4">
-              {error}
-            </Text>
+            <Text className="text-gray-100 text-center mb-4">{error}</Text>
             <TouchableOpacity
               onPress={handleRetry}
               className="py-3 px-6 rounded-lg"
               style={{ backgroundColor: primaryColor }}
             >
-              <Text className="text-white font-pmedium text-center">
-                Try Again
-              </Text>
+              <Text className="text-white font-pmedium text-center">Try Again</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -265,18 +253,7 @@ const WorkoutPlans = () => {
         </View>
       </SafeAreaView>
 
-      <ScrollView 
-        className="px-4" 
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={refreshData}
-            tintColor={primaryColor}
-            colors={[primaryColor]}
-          />
-        }
-      >
+      <ScrollView className="px-4" showsVerticalScrollIndicator={false}>
         {plans.length === 0 ? (
           <View className="mt-10 items-center">
             <MaterialCommunityIcons name="notebook-outline" size={48} color="#888" />
@@ -301,11 +278,10 @@ const WorkoutPlans = () => {
                 onPress={() => openPlan(plan)}
                 activeOpacity={0.9}
                 style={{
-                  // Glassmorphism card (mirrors ActiveWorkout styling language)
                   backgroundColor: tertiaryColor,
                   borderRadius: 16,
                   padding: 14,
-                  marginBottom: 20, 
+                  marginBottom: 20,
                   borderWidth: 1,
                   borderColor: "rgba(255,255,255,0.15)",
                   shadowColor: primaryColor,

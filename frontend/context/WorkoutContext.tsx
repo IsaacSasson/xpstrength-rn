@@ -23,7 +23,7 @@ export interface CustomWorkout {
 
 export interface WorkoutContextType {
   // Data
-  workoutPlan: number[];
+  workoutPlan: number[]; // -1=rest, 0=unassigned, >0=workoutId
   customWorkouts: CustomWorkout[];
   exerciseDatabase: any[];
 
@@ -52,10 +52,16 @@ export interface WorkoutContextType {
   getWorkoutById: (id: number) => CustomWorkout | undefined;
   getWorkoutForDay: (dayIndex: number) => CustomWorkout | null;
   clearError: () => void;
+
+  // assign a single day to: -1 (rest), 0 (unassigned), or >0 (workout id)
+  setPlanDay: (dayIndex: number, value: number) => Promise<boolean>;
 }
 
 /* ----------------------------- Constants ----------------------------- */
-const EMPTY_PLAN = Array(7).fill(-1) as number[];
+const REST = -1;
+const UNASSIGNED = 0;
+const EMPTY_PLAN = Array(7).fill(UNASSIGNED) as number[];
+
 const DAY_TO_INDEX: Record<string, number> = {
   Sunday: 0,
   Monday: 1,
@@ -81,12 +87,7 @@ const extractPlanArray = (res: any): number[] | null => {
 };
 
 const extractWorkoutsList = (res: any): any[] => {
-  return (
-    res?.workouts ??
-    res?.data?.customWorkouts ??
-    res?.data?.workouts ??
-    []
-  );
+  return res?.workouts ?? res?.data?.customWorkouts ?? res?.data?.workouts ?? [];
 };
 
 /* ----------------------------- Provider ----------------------------- */
@@ -135,9 +136,9 @@ export const WorkoutProvider: React.FC<{ children: ReactNode }> = ({ children })
           const planArray = extractPlanArray(planResult);
           if (planArray && planArray.length === 7) {
             console.log("✅ Workout plan loaded:", planArray);
-            setWorkoutPlan(planArray);
+            setWorkoutPlan(planArray.map(Number));
           } else {
-            console.warn("⚠️ Plan missing/invalid, using empty plan:", planResult);
+            console.warn("⚠️ Plan missing/invalid, using empty (UNASSIGNED) plan:", planResult);
             setWorkoutPlan(EMPTY_PLAN);
           }
         } else {
@@ -216,7 +217,7 @@ export const WorkoutProvider: React.FC<{ children: ReactNode }> = ({ children })
               const newPlan = [...currentPlan];
               days.forEach((day) => {
                 const idx = DAY_TO_INDEX[day];
-                if (idx !== undefined) newPlan[idx] = newWorkout.id;
+                if (idx !== undefined) newPlan[idx] = newWorkout.id; // assign (>0)
               });
 
               workoutApi.updateWorkoutPlan(newPlan).then((res) => {
@@ -265,16 +266,16 @@ export const WorkoutProvider: React.FC<{ children: ReactNode }> = ({ children })
             updatedAt: result.workout.updatedAt,
           };
 
-          setCustomWorkouts((prev) =>
-            prev.map((w) => (w.id === id ? updatedWorkout : w))
-          );
+          setCustomWorkouts((prev) => prev.map((w) => (w.id === id ? updatedWorkout : w)));
 
           if (days && days.length > 0) {
             setWorkoutPlan((currentPlan) => {
+              // remove existing assignments of this workout -> set to UNASSIGNED (0)
               const newPlan = currentPlan.map((workoutId) =>
-                workoutId === id ? -1 : workoutId
+                workoutId === id ? UNASSIGNED : workoutId
               );
 
+              // then assign days
               days.forEach((day) => {
                 const idx = DAY_TO_INDEX[day];
                 if (idx !== undefined) newPlan[idx] = id;
@@ -315,7 +316,8 @@ export const WorkoutProvider: React.FC<{ children: ReactNode }> = ({ children })
           setCustomWorkouts((prev) => prev.filter((w) => w.id !== id));
 
           setWorkoutPlan((prev) => {
-            const newPlan = prev.map((workoutId) => (workoutId === id ? -1 : workoutId));
+            // Clear any day that was assigned to this id -> UNASSIGNED
+            const newPlan = prev.map((workoutId) => (workoutId === id ? UNASSIGNED : workoutId));
             workoutApi.updateWorkoutPlan(newPlan).then((res) => {
               if (!res.success) {
                 console.error("Failed to update workout plan on server:", res.error);
@@ -363,6 +365,31 @@ export const WorkoutProvider: React.FC<{ children: ReactNode }> = ({ children })
     [isAuthenticated]
   );
 
+  /* ----------------------------- set a single day ----------------------------- */
+  const setPlanDay = useCallback(
+    async (dayIndex: number, value: number): Promise<boolean> => {
+      try {
+        if (dayIndex < 0 || dayIndex > 6) {
+          console.error("setPlanDay: invalid dayIndex", dayIndex);
+          return false;
+        }
+
+        const basePlan =
+          Array.isArray(workoutPlan) && workoutPlan.length === 7 ? workoutPlan : EMPTY_PLAN;
+
+        const nextPlan = [...basePlan];
+        nextPlan[dayIndex] = Number(value); // -1 rest, 0 unassigned, >0 workoutId
+
+        const res = await updateWorkoutPlan(nextPlan);
+        return !!res?.success;
+      } catch (e) {
+        console.error("setPlanDay error:", e);
+        return false;
+      }
+    },
+    [workoutPlan, updateWorkoutPlan]
+  );
+
   /* ----------------------------- Helper Functions ----------------------------- */
   const getWorkoutById = useCallback(
     (id: number): CustomWorkout | undefined =>
@@ -374,10 +401,11 @@ export const WorkoutProvider: React.FC<{ children: ReactNode }> = ({ children })
     (dayIndex: number): CustomWorkout | null => {
       if (dayIndex < 0 || dayIndex > 6) return null;
 
-      const workoutId = Number(workoutPlan[dayIndex]);
-      if (workoutId === -1) return null;
+      const val = Number(workoutPlan[dayIndex]);
+      // only return a workout if it's a positive id
+      if (val > 0) return getWorkoutById(val) ?? null;
 
-      return getWorkoutById(workoutId) ?? null;
+      return null; // rest (-1) or unassigned (0) -> no workout object
     },
     [workoutPlan, getWorkoutById]
   );
@@ -429,13 +457,10 @@ export const WorkoutProvider: React.FC<{ children: ReactNode }> = ({ children })
     getWorkoutById,
     getWorkoutForDay,
     clearError,
+    setPlanDay,
   };
 
-  return (
-    <WorkoutContext.Provider value={contextValue}>
-      {children}
-    </WorkoutContext.Provider>
-  );
+  return <WorkoutContext.Provider value={contextValue}>{children}</WorkoutContext.Provider>;
 };
 
 /* ----------------------------- Hook ----------------------------- */

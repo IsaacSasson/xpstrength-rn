@@ -1,4 +1,3 @@
-// Path: /components/DraggableBottomSheet.tsx
 import React, { useEffect, useRef } from "react";
 import {
   Animated,
@@ -17,25 +16,25 @@ import {
 interface Props {
   /** Show / hide the sheet */
   visible: boolean;
-  /** Called when the sheet should close (tap‑away or drag down) */
+  /** Called when the sheet should close (tap-away or drag down) */
   onClose: () => void;
-  /** Fraction of screen height the sheet should occupy (0 – 1). Default 0.5 */
+  /** Fraction of screen height the sheet should occupy (0 – 1). Default 0.5 */
   heightRatio?: number;
-  /** Accent colour for border / drag‑handle */
+  /** Accent colour for border / drag-handle */
   primaryColor: string;
   /** Content to render inside the sheet */
   children: React.ReactNode;
   /**
    * Fraction of keyboard height to raise the sheet by when the
-   * keyboard opens (0 – 1). Default 0 – no lift.
+   * keyboard opens (0 – 1). Default 0 – no lift.
    */
   keyboardOffsetRatio?: number;
   /**
    * If true, the children are wrapped in a ScrollView so long
-   * lists can scroll without pushing the sheet off‑screen.
+   * lists can scroll without pushing the sheet off-screen.
    */
   scrollable?: boolean;
-  /** Sheet background colour. Default “#1A1925” */
+  /** Sheet background colour. Default “#1A1925” */
   backgroundColor?: string;
   /** Height (px) of the draggable header area. Default 32 */
   dragZoneHeight?: number;
@@ -54,7 +53,7 @@ const DraggableBottomSheet: React.FC<Props> = ({
 }) => {
   /* ───────── Layout constants ───────── */
   const SCREEN_HEIGHT = Dimensions.get("window").height;
-  const SHEET_HEIGHT = SCREEN_HEIGHT * heightRatio;
+  const SHEET_HEIGHT = Math.round(SCREEN_HEIGHT * heightRatio);
 
   /* ───────── Animated value ───────── */
   const translateY = useRef(new Animated.Value(SHEET_HEIGHT)).current;
@@ -69,19 +68,15 @@ const DraggableBottomSheet: React.FC<Props> = ({
   /* Track value at drag start so we can offset correctly (esp. after keyboard push) */
   const dragStartVal = useRef(0);
 
-  const getCurrentVal = () =>
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (translateY as any).__getValue
-      ? // RN's private getter; fine for this internal use.
-        (translateY as any).__getValue()
-      : // fallback
-        0;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const getCurrentVal = () => ((translateY as any).__getValue?.() ?? 0);
 
   /* ───────── Open / close ───────── */
   useEffect(() => {
     if (visible) animateTo(0);
     else animateTo(SHEET_HEIGHT);
-  }, [visible]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, SHEET_HEIGHT]);
 
   /* ───────── Drag to close (header only) ───────── */
   const panResponder = useRef(
@@ -125,6 +120,7 @@ const DraggableBottomSheet: React.FC<Props> = ({
       showSub.remove();
       hideSub.remove();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keyboardOffsetRatio]);
 
   /* ───────── Render ───────── */
@@ -136,7 +132,7 @@ const DraggableBottomSheet: React.FC<Props> = ({
       onRequestClose={onClose}
       statusBarTranslucent
     >
-      {/* Tap‑away area */}
+      {/* Tap-away area */}
       <TouchableWithoutFeedback onPress={onClose}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0)" }} />
       </TouchableWithoutFeedback>
@@ -148,14 +144,18 @@ const DraggableBottomSheet: React.FC<Props> = ({
         <Animated.View
           style={{
             transform: [{ translateY }],
+            height: SHEET_HEIGHT,           // <<< fixed height
+            maxHeight: SHEET_HEIGHT,        // <<< cap just in case
+            width: "100%",
             backgroundColor,
             paddingHorizontal: 24,
-            paddingTop: 0, // we'll give padding in header/content separately
+            paddingTop: 0,
             paddingBottom: 32,
             borderTopLeftRadius: 24,
             borderTopRightRadius: 24,
             borderTopColor: primaryColor,
             borderTopWidth: 2,
+            overflow: "hidden",             // <<< keep content inside to allow internal scroll
           }}
         >
           {/* ───── Draggable Header (ONLY this part takes pan handlers) ───── */}
@@ -169,7 +169,7 @@ const DraggableBottomSheet: React.FC<Props> = ({
               marginBottom: 12,
             }}
           >
-            {/* Drag‑handle */}
+            {/* Drag-handle */}
             <View
               style={{
                 width: 40,
@@ -180,17 +180,23 @@ const DraggableBottomSheet: React.FC<Props> = ({
             />
           </View>
 
-          {/* Content */}
-          {scrollable ? (
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: 40 }}
-            >
-              {children}
-            </ScrollView>
-          ) : (
-            children
-          )}
+          {/* Content area gets remaining height */}
+          <View style={{ flex: 1 }}>
+            {scrollable ? (
+              <ScrollView
+                style={{ flex: 1 }}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: 40 }}
+                keyboardShouldPersistTaps="handled"
+              >
+                {children}
+              </ScrollView>
+            ) : (
+              // If you pass your own ScrollView as children (like in WeeklyPlan),
+              // it'll now scroll within the fixed-height sheet.
+              children
+            )}
+          </View>
         </Animated.View>
       </KeyboardAvoidingView>
     </Modal>

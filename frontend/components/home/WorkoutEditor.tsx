@@ -1,4 +1,3 @@
-// Path: /components/home/WorkoutEditor.tsx
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
@@ -37,7 +36,7 @@ interface Workout {
 
 const daysOfWeek = [
   "Monday",
-  "Tuesday", 
+  "Tuesday",
   "Wednesday",
   "Thursday",
   "Friday",
@@ -45,39 +44,39 @@ const daysOfWeek = [
   "Sunday",
 ];
 
-// Map day names to indices for the workout plan array
+// Map day names to indices for the workout plan array (API enum: Sunday..Saturday)
 const dayToIndex: { [key: string]: number } = {
-  "Sunday": 0,
-  "Monday": 1,
-  "Tuesday": 2,
-  "Wednesday": 3,
-  "Thursday": 4,
-  "Friday": 5,
-  "Saturday": 6,
+  Sunday: 0,
+  Monday: 1,
+  Tuesday: 2,
+  Wednesday: 3,
+  Thursday: 4,
+  Friday: 5,
+  Saturday: 6,
 };
 
+// Reverse map for deriving day names from plan indices (Sunday..Saturday)
+const indexToDay = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
 /* -------------------------------------------------------------------------- */
-/*                           WORKOUT EDITOR PROPS                            */
+/*                        SHARED WORKOUT EDITOR COMPONENT                    */
 /* -------------------------------------------------------------------------- */
 interface WorkoutEditorProps {
   mode: "create" | "edit";
   dayParam?: string;
 }
 
-/* -------------------------------------------------------------------------- */
-/*                        SHARED WORKOUT EDITOR COMPONENT                    */
-/* -------------------------------------------------------------------------- */
 const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
   const { primaryColor, tertiaryColor } = useThemeContext();
   const params = useLocalSearchParams();
-  const { 
-    workoutPlan, 
-    getWorkoutById, 
-    getWorkoutForDay, 
+  const {
+    workoutPlan,
+    getWorkoutById,
+    getWorkoutForDay,
     exerciseDatabase,
-    createWorkout, 
+    createWorkout,
     updateWorkout,
-    isLoading: contextLoading 
+    isLoading: contextLoading,
   } = useWorkouts();
 
   const [workout, setWorkout] = useState<Workout>({
@@ -90,67 +89,126 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [existingWorkoutId, setExistingWorkoutId] = useState<number | null>(null);
 
+  /* ------------------------- helpers: normalize days ------------------------- */
+  const normalizeDays = (days: string[]) => {
+    // dedupe and order Sunday..Saturday like indexToDay
+    const set = new Set(days);
+    return indexToDay.filter((d) => set.has(d));
+  };
+
+  /**
+   * UPDATED: Derive day names this workout is assigned to.
+   * - If wk.days exists, map numbers -> names, validate, and normalize.
+   * - Otherwise, scan workoutPlan (array of numbers OR objects) and collect all matches.
+   */
+  const deriveDaysForWorkout = useCallback(
+    (wk: any): string[] => {
+      if (!wk) return [];
+
+      // prefer explicit days on the workout object
+      if (Array.isArray(wk.days) && wk.days.length > 0) {
+        const mapped = wk.days.map((d: any) =>
+          typeof d === "number" ? indexToDay[d] : d
+        );
+        const filtered = mapped.filter((d: string) => indexToDay.includes(d));
+        return normalizeDays(filtered);
+      }
+
+      // infer from weekly plan
+      if (Array.isArray(workoutPlan) && workoutPlan.length >= 7) {
+        const inferred: string[] = [];
+        for (let i = 0; i < 7; i++) {
+          const slot = (workoutPlan as any[])[i];
+          // handle numeric IDs (-1 = rest) and various object shapes
+          const slotId =
+            typeof slot === "number"
+              ? slot
+              : slot?.id ?? slot?.workoutId ?? slot?.workout?.id ?? null;
+
+          if (slotId === wk.id) {
+            inferred.push(indexToDay[i]);
+          }
+        }
+        return normalizeDays(inferred);
+      }
+
+      return [];
+    },
+    [workoutPlan]
+  );
+
   /* --------------------------- Load existing workout data -------------------------- */
   useEffect(() => {
     if (mode === "edit" && !contextLoading) {
       setIsLoading(true);
       try {
-        // Check if we're editing by workout ID (from workout plans page)
-        const workoutIdParam = params.workoutId as string;
-        
+        const workoutIdParam = params.workoutId as string | undefined;
+
         if (workoutIdParam) {
-          // Edit by workout ID
+          // Edit by workout ID (from plans list)
           const existingWorkout = getWorkoutById(parseInt(workoutIdParam));
           if (existingWorkout) {
             setExistingWorkoutId(existingWorkout.id);
-            
-            // Transform API exercises to component format
-            const transformedExercises = existingWorkout.exercises.map(ex => 
+
+            const transformedExercises = existingWorkout.exercises.map((ex) =>
               transformExerciseFromAPI(ex, exerciseDatabase)
             );
-            
+
+            const derivedDays = deriveDaysForWorkout(existingWorkout);
+
             setWorkout({
               name: existingWorkout.name,
-              days: [], // Don't set any days when editing by ID
+              days: derivedDays.length > 0 ? derivedDays : [],
               exercises: transformedExercises,
             });
           } else {
-            Alert.alert('Error', 'Workout not found');
+            Alert.alert("Error", "Workout not found");
             router.back();
           }
         } else if (dayParam) {
-          // Edit by day (existing logic)
+          // Edit by day (from calendar)
           const dayIndex = dayToIndex[dayParam];
           const existingWorkout = getWorkoutForDay(dayIndex);
-          
+
           if (existingWorkout) {
             setExistingWorkoutId(existingWorkout.id);
-            
-            // Transform API exercises to component format
-            const transformedExercises = existingWorkout.exercises.map(ex => 
+
+            const transformedExercises = existingWorkout.exercises.map((ex) =>
               transformExerciseFromAPI(ex, exerciseDatabase)
             );
-            
+
+            // UPDATED: include ALL days this workout appears on, not just dayParam
+            const derivedDays = deriveDaysForWorkout(existingWorkout);
+
             setWorkout({
               name: existingWorkout.name,
-              days: [dayParam], // Start with the current day, user can modify
+              days: derivedDays.length > 0 ? derivedDays : [dayParam],
               exercises: transformedExercises,
             });
           } else {
-            // No workout for this day - switch to create mode essentially
-            setWorkout(prev => ({ ...prev, days: [dayParam] }));
+            // No workout for this day - switch to create-like state
+            setWorkout((prev) => ({ ...prev, days: [dayParam] }));
           }
         }
       } catch (error) {
-        console.error('Error loading workout data:', error);
-        Alert.alert('Error', 'Failed to load workout data');
+        console.error("Error loading workout data:", error);
+        Alert.alert("Error", "Failed to load workout data");
       } finally {
         setIsLoading(false);
       }
     }
-  }, [mode, dayParam, params.workoutId, contextLoading, getWorkoutById, getWorkoutForDay, exerciseDatabase]);
+  }, [
+    mode,
+    dayParam,
+    params.workoutId,
+    contextLoading,
+    getWorkoutById,
+    getWorkoutForDay,
+    exerciseDatabase,
+    deriveDaysForWorkout,
+  ]);
 
-  /* --------------------------- Check for buffered exercises when component comes into focus -------------------------- */
+  /* --------------------------- Check for buffered exercises on focus -------------------------- */
   useFocusEffect(
     useCallback(() => {
       const bufferedExercises = getTempExercises();
@@ -162,10 +220,10 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
 
   // Track exercise IDs
   useEffect(() => {
-    console.log("Current exercise IDs:", workout.exercises.map(ex => ex.id));
+    console.log("Current exercise IDs:", workout.exercises.map((ex) => ex.id));
   }, [workout.exercises]);
 
-  /* --------------------------- Helper functions --------------------------- */
+  /* --------------------------- Exercise helpers --------------------------- */
   const generateId = () => `ex_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
   const addExercisesFromList = (exerciseData: any[]) => {
@@ -175,16 +233,15 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
       sets: [
         { reps: "10", weight: "0 lbs" },
         { reps: "10", weight: "0 lbs" },
-        { reps: "10", weight: "0 lbs" }
+        { reps: "10", weight: "0 lbs" },
       ],
       notes: "",
-      originalExerciseId: ex.id, // Store the original exercise ID for navigation
+      originalExerciseId: ex.id,
     }));
 
-    // Add to existing exercises
-    setWorkout(prev => ({
+    setWorkout((prev) => ({
       ...prev,
-      exercises: [...prev.exercises, ...newExercises]
+      exercises: [...prev.exercises, ...newExercises],
     }));
   };
 
@@ -208,28 +265,34 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
       ...workout,
       days: workout.days.includes(d)
         ? workout.days.filter((x) => x !== d)
-        : [...workout.days, d],
+        : normalizeDays([...workout.days, d]),
     });
 
   const displayDays = () => {
-    const sel = daysOfWeek.filter((d) => workout.days.includes(d));
-    if (sel.length === 7) return "Everyday";
-    if (
-      sel.length === 5 &&
-      ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"].every((d) =>
-        sel.includes(d)
-      )
-    )
-      return "Weekdays";
-    if (sel.length === 2 && sel.includes("Saturday") && sel.includes("Sunday"))
-      return "Weekends";
-    return sel.join(", ");
+    const normalized = normalizeDays(workout.days);
+    if (normalized.length === 0) return "Select days";
+
+    const weekdaySet = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+    const weekendSet = ["Saturday", "Sunday"];
+
+    const hasAll = indexToDay.every((d) => normalized.includes(d));
+    if (hasAll) return "Everyday";
+
+    const isWeekdays =
+      weekdaySet.every((d) => normalized.includes(d)) &&
+      weekendSet.every((d) => !normalized.includes(d));
+    if (isWeekdays) return "Weekdays";
+
+    const isWeekends =
+      weekendSet.every((d) => normalized.includes(d)) &&
+      weekdaySet.every((d) => !normalized.includes(d));
+    if (isWeekends) return "Weekends";
+
+    return normalized.join(", ");
   };
 
   const handleSave = async () => {
-    // Validate workout data
     const validation = validateWorkoutForSave(workout);
-    
     if (!validation.isValid) {
       Alert.alert("Validation Error", getDetailedValidationMessage(validation));
       return;
@@ -240,19 +303,16 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
       let result;
 
       if (mode === "create") {
-        // Create new workout using context
         result = await createWorkout(workout.name, workout.exercises, workout.days);
       } else {
-        // Update existing workout using context
-        if (!existingWorkoutId) {
-          throw new Error('No existing workout ID found for editing');
-        }
-        
-        // Only pass days if we're editing by day (not by workout ID directly)
-        const workoutIdParam = params.workoutId as string;
-        const daysToUpdate = workoutIdParam ? undefined : workout.days;
-        
-        result = await updateWorkout(existingWorkoutId, workout.name, workout.exercises, daysToUpdate);
+        if (!existingWorkoutId) throw new Error("No existing workout ID found for editing");
+
+        result = await updateWorkout(
+          existingWorkoutId,
+          workout.name,
+          workout.exercises,
+          workout.days
+        );
       }
 
       if (result.success) {
@@ -261,11 +321,10 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
           { text: "OK", onPress: () => router.back() },
         ]);
       } else {
-        throw new Error(result.error || 'Failed to save workout');
+        throw new Error(result.error || "Failed to save workout");
       }
-
     } catch (error) {
-      console.error('Save workout error:', error);
+      console.error("Save workout error:", error);
       Alert.alert("Error", error instanceof Error ? error.message : "Failed to save workout");
     } finally {
       setIsSaving(false);
@@ -277,8 +336,8 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
       pathname: "/home/exercise-list",
       params: {
         returnTo: mode === "create" ? "create-workout" : "edit-workout",
-        ...(dayParam && { day: dayParam })
-      }
+        ...(dayParam && { day: dayParam }),
+      },
     });
   };
 
@@ -304,7 +363,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
       <SafeAreaView edges={["top"]} className="bg-primary">
         <View className="px-4 pt-6">
           <View className="flex-row items-center justify-between mb-6">
-            <Header 
+            <Header
               MText={mode === "create" ? "Create Workout" : "Edit Workout"}
               SText={mode === "create" ? "Create a new workout routine" : "Customize your workout plan"}
             />
@@ -312,9 +371,9 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
             <TouchableOpacity
               onPress={handleSave}
               className="px-4 py-2 rounded-lg flex-row items-center"
-              style={{ 
+              style={{
                 backgroundColor: isSaving ? primaryColor + "50" : primaryColor,
-                opacity: isSaving ? 0.7 : 1 
+                opacity: isSaving ? 0.7 : 1,
               }}
               disabled={isSaving}
             >
@@ -328,8 +387,8 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
       </SafeAreaView>
 
       {/* Body */}
-      <ScrollView 
-        showsVerticalScrollIndicator={false} 
+      <ScrollView
+        showsVerticalScrollIndicator={false}
         className="flex-1 px-4 pt-2"
         contentContainerStyle={{ paddingBottom: 40 }}
       >
@@ -345,22 +404,20 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
           />
         </View>
 
-        {/* Days Picker - Only show if not editing by workout ID */}
-        {!params.workoutId && (
-          <View className="rounded-xl p-4 mb-5" style={{ backgroundColor: tertiaryColor }}>
-            <Text className="text-white font-pmedium mb-2">Workout Days</Text>
-            <TouchableOpacity
-              className="bg-black-200 flex-row justify-between items-center p-3 rounded-lg"
-              onPress={() => setShowDayPicker(true)}
-            >
-              <Text className="text-white font-pmedium">{displayDays()}</Text>
-              <FontAwesome5 name="chevron-down" size={16} color="#CDCDE0" />
-            </TouchableOpacity>
-            <Text className="text-gray-100 text-xs mt-2">
-              Select which days this workout will be scheduled in your weekly plan
-            </Text>
-          </View>
-        )}
+        {/* Days Picker */}
+        <View className="rounded-xl p-4 mb-5" style={{ backgroundColor: tertiaryColor }}>
+          <Text className="text-white font-pmedium mb-2">Workout Days</Text>
+          <TouchableOpacity
+            className="bg-black-200 flex-row justify-between items-center p-3 rounded-lg"
+            onPress={() => setShowDayPicker(true)}
+          >
+            <Text className="text-white font-pmedium">{displayDays()}</Text>
+            <FontAwesome5 name="chevron-down" size={16} color="#CDCDE0" />
+          </TouchableOpacity>
+          <Text className="text-gray-100 text-xs mt-2">
+            Select which days this workout will be scheduled in your weekly plan
+          </Text>
+        </View>
 
         {/* Exercises Section */}
         <View className="mb-5">
@@ -420,48 +477,44 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
         </View>
       </ScrollView>
 
-      {/* Days Picker Bottom Sheet - Only show if not editing by workout ID */}
-      {!params.workoutId && (
-        <DraggableBottomSheet
-          visible={showDayPicker}
-          onClose={() => setShowDayPicker(false)}
-          primaryColor={primaryColor}
-          heightRatio={0.5}
-          scrollable
-          keyboardOffsetRatio={0}
-        >
-          <Text className="text-white text-xl font-psemibold text-center mb-4">
-            Select Days
-          </Text>
+      {/* Days Picker Bottom Sheet */}
+      <DraggableBottomSheet
+        visible={showDayPicker}
+        onClose={() => setShowDayPicker(false)}
+        primaryColor={primaryColor}
+        heightRatio={0.5}
+        scrollable
+        keyboardOffsetRatio={0}
+      >
+        <Text className="text-white text-xl font-psemibold text-center mb-4">
+          Select Days
+        </Text>
 
-          {daysOfWeek.map((day) => {
-            const selected = workout.days.includes(day);
-            return (
-              <TouchableOpacity
-                key={day}
-                className={`p-4 border-b border-black-200 ${
-                  selected ? "bg-black-200" : ""
-                }`}
-                onPress={() => toggleDay(day)}
+        {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map((day) => {
+          const selected = workout.days.includes(day);
+          return (
+            <TouchableOpacity
+              key={day}
+              className={`p-4 border-b border-black-200 ${selected ? "bg-black-200" : ""}`}
+              onPress={() => toggleDay(day)}
+            >
+              <Text
+                className="text-lg font-pmedium"
+                style={{ color: selected ? primaryColor : "white" }}
               >
-                <Text
-                  className="text-lg font-pmedium"
-                  style={{ color: selected ? primaryColor : "white" }}
-                >
-                  {day}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+                {day}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
 
-          <TouchableOpacity
-            className="bg-black-200 m-4 mt-6 p-4 rounded-xl"
-            onPress={() => setShowDayPicker(false)}
-          >
-            <Text className="text-white font-pmedium text-center">Done</Text>
-          </TouchableOpacity>
-        </DraggableBottomSheet>
-      )}
+        <TouchableOpacity
+          className="bg-black-200 m-4 mt-6 p-4 rounded-xl"
+          onPress={() => setShowDayPicker(false)}
+        >
+          <Text className="text-white font-pmedium text-center">Done</Text>
+        </TouchableOpacity>
+      </DraggableBottomSheet>
     </KeyboardAvoidingView>
   );
 };

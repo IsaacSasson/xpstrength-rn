@@ -1,6 +1,5 @@
-// Path: /components/DayCard.tsx
 import React, { useState, useRef, useEffect } from "react";
-import { View, Text, TouchableOpacity, Animated, Platform } from "react-native";
+import { View, Text, TouchableOpacity, Animated } from "react-native";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useThemeContext } from "@/context/ThemeContext";
@@ -77,7 +76,6 @@ interface DayProps {
   isExpanded: boolean;
   onToggleExpand: () => void;
   onEdit: () => void;
-  onStart: () => void;
 }
 
 const DayCard: React.FC<DayProps> = ({
@@ -86,36 +84,26 @@ const DayCard: React.FC<DayProps> = ({
   isExpanded,
   onToggleExpand,
   onEdit,
-  onStart,
 }) => {
   // Use our theme context for colors
   const { primaryColor, secondaryColor, tertiaryColor } = useThemeContext();
-
-  // Toggle the expanded state (no LayoutAnimation now)
-  const toggleExpand = () => {
-    onToggleExpand();
-  };
 
   // Determine if it's a rest day
   const isRestDay = dayData.workout.name === "Rest Day";
 
   return (
     <View
-      className={` rounded-xl overflow-hidden mb-4 ${
-        isToday ? "border-2" : ""
-      }`}
+      className={` rounded-xl overflow-hidden mb-4 ${isToday ? "border-2" : ""}`}
       style={
         isToday
           ? { borderColor: primaryColor, backgroundColor: tertiaryColor }
-          : {
-              backgroundColor: tertiaryColor,
-            }
+          : { backgroundColor: tertiaryColor }
       }
     >
       {/* Card Header - Always visible */}
       <TouchableOpacity
         className="flex-row items-center justify-between p-4"
-        onPress={toggleExpand}
+        onPress={onToggleExpand}
         activeOpacity={0.7}
       >
         <View className="flex-row items-center">
@@ -132,10 +120,7 @@ const DayCard: React.FC<DayProps> = ({
 
         <View className="flex-row items-center">
           {!isRestDay ? (
-            <Text
-              className="font-pmedium mr-3"
-              style={{ color: secondaryColor }}
-            >
+            <Text className="font-pmedium mr-3" style={{ color: secondaryColor }}>
               {dayData.workout.name}
             </Text>
           ) : (
@@ -159,24 +144,31 @@ const DayCard: React.FC<DayProps> = ({
       <ExpandableSection isExpanded={isExpanded}>
         <View className="p-4 border-t border-black-200">
           {isRestDay ? (
-            <View className="items-center py-4">
-              <MaterialCommunityIcons
-                name="sleep"
-                size={40}
-                color={primaryColor}
-              />
-              <Text className="text-white font-pmedium text-center mt-3">
-                Rest and recovery day. No workout scheduled.
-              </Text>
-            </View>
+            <>
+              <View className="items-center py-4">
+                <MaterialCommunityIcons name="sleep" size={40} color={primaryColor} />
+                <Text className="text-white font-pmedium text-center mt-3">
+                  Rest and recovery day. No workout scheduled.
+                </Text>
+              </View>
+
+              {/* Edit button visible on Rest Day as well */}
+              <View className="flex-row justify-end">
+                <TouchableOpacity
+                  onPress={onEdit}
+                  className="flex-row items-center px-3 py-2 rounded-lg bg-black-200"
+                  activeOpacity={0.7}
+                >
+                  <FontAwesome5 name="edit" size={14} color={primaryColor} />
+                  <Text className="text-white font-pmedium ml-2">Edit</Text>
+                </TouchableOpacity>
+              </View>
+            </>
           ) : (
             <>
               <View className="mb-4">
                 {dayData.workout.exercises.map((exercise, index) => (
-                  <View
-                    key={index}
-                    className="flex-row items-center mb-3 last:mb-0"
-                  >
+                  <View key={index} className="flex-row items-center mb-3 last:mb-0">
                     <MaterialCommunityIcons
                       name="dumbbell"
                       size={18}
@@ -195,21 +187,11 @@ const DayCard: React.FC<DayProps> = ({
               <View className="flex-row justify-end">
                 <TouchableOpacity
                   onPress={onEdit}
-                  className="flex-row items-center mr-3 px-3 py-2 rounded-lg bg-black-200"
+                  className="flex-row items-center px-3 py-2 rounded-lg bg-black-200"
                   activeOpacity={0.7}
                 >
                   <FontAwesome5 name="edit" size={14} color={primaryColor} />
                   <Text className="text-white font-pmedium ml-2">Edit</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={onStart}
-                  style={{ backgroundColor: primaryColor }}
-                  className="flex-row items-center px-3 py-2 rounded-lg"
-                  activeOpacity={0.7}
-                >
-                  <FontAwesome5 name="play" size={14} color="#FFF" />
-                  <Text className="text-white font-pmedium ml-2">Start</Text>
                 </TouchableOpacity>
               </View>
             </>

@@ -8,7 +8,7 @@ import {
   Alert,
   TouchableOpacity,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router"; // UPDATED: import useLocalSearchParams
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import DraggableBottomSheet from "@/components/DraggableBottomSheet";
 import { useThemeContext } from "@/context/ThemeContext";
@@ -17,6 +17,9 @@ import ActiveWorkoutHeader from "@/components/home//ActiveWorkout/Header";
 import ActiveWorkoutFooter from "@/components/home/ActiveWorkout/Footer";
 import ActiveWorkoutCard from "@/components/home/ActiveWorkout/CarouselCard";
 import ActiveWorkoutAddCard from "@/components/home/ActiveWorkout/AddExerciseCard";
+
+// NEW: use exerciseDatabase so we can resolve names by id (same as Home does)
+import { useWorkouts } from "@/context/WorkoutContext";
 
 // Modals still used
 import PauseModal from "@/components/home/ActiveWorkout/PauseModal";
@@ -42,8 +45,15 @@ interface Exercise extends ExerciseData {
   sets: Set[];
 }
 
+type PresetParam = {
+  name: string;
+  exercises: { id: number; reps: number; sets: number }[];
+};
+
 const ActiveWorkout = () => {
   const { primaryColor, secondaryColor, tertiaryColor } = useThemeContext();
+  const { exerciseDatabase } = useWorkouts(); // NEW
+  const { preset } = useLocalSearchParams<{ preset?: string }>(); // NEW
 
   /* ───────── Stopwatch ───────── */
   const [elapsed, setElapsed] = useState(0);
@@ -108,13 +118,66 @@ const ActiveWorkout = () => {
   };
 
   /* ───────── Exercises ───────── */
+  const [workoutTitle, setWorkoutTitle] = useState<string>("Workout"); // NEW
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [selectedExerciseIdx, setSelectedExerciseIdx] = useState<number | null>(
     null
   );
 
+  // UPDATED: hydrate from preset if present; otherwise fall back to demo data
   useEffect(() => {
-    const data = loadExercises()
+    const parsePreset = (): PresetParam | null => {
+      if (!preset) return null;
+      try {
+        const raw = Array.isArray(preset) ? preset[0] : preset;
+        return JSON.parse(raw) as PresetParam;
+      } catch (e) {
+        console.warn("Failed to parse preset param:", e);
+        return null;
+      }
+    };
+
+    const p = parsePreset();
+    if (p && Array.isArray(p.exercises) && p.exercises.length > 0) {
+      setWorkoutTitle(p.name || "Workout");
+
+      const built: Exercise[] = p.exercises.map((ex, idx) => {
+        // Try to resolve the name from exerciseDatabase (ids are strings there in Home)
+        const dbEntry = exerciseDatabase?.find((d: any) => d.id === String(ex.id));
+        const baseName = dbEntry?.name || `Exercise ${ex.id}`;
+
+        // We'll build a minimal ExerciseData-compatible object.
+        // If ExerciseData has extra required fields, we cast as any to avoid TS complaints.
+        const baseExercise: ExerciseData = {
+          // @ts-ignore - id in your ExerciseData may be string; align to whatever your components expect
+          id: ex.id,
+          // @ts-ignore
+          name: baseName,
+        } as any;
+
+        const repsNum = Number.isFinite(ex.reps) ? ex.reps : parseInt(String(ex.reps), 10) || 0;
+        const setsCount = Number.isFinite(ex.sets) ? ex.sets : parseInt(String(ex.sets), 10) || 0;
+
+        const setsArray: Set[] = Array.from({ length: Math.max(setsCount, 0) }, (_, i) => ({
+          id: i + 1,
+          reps: repsNum,
+          lbs: 0,
+          checked: false,
+        }));
+
+        return {
+          ...(baseExercise as any),
+          sets: setsArray,
+        };
+      });
+
+      setExercises(built);
+      setSelectedExerciseIdx(0);
+      return;
+    }
+
+    // Fallback to sample data if no preset provided
+    const demo = loadExercises()
       .slice(0, 3)
       .map<Exercise>((ex) => ({
         ...ex,
@@ -123,8 +186,10 @@ const ActiveWorkout = () => {
           { id: 2, reps: 10, lbs: 0, checked: false },
         ],
       }));
-    setExercises(data);
-  }, []);
+    setWorkoutTitle("Push Day Workout");
+    setExercises(demo);
+    setSelectedExerciseIdx(0);
+  }, [preset, exerciseDatabase]);
 
   const addSet = (exIdx: number) =>
     setExercises((prev) =>
@@ -221,7 +286,8 @@ const ActiveWorkout = () => {
     const ex = exercises[selectedExerciseIdx];
     router.push({
       pathname: "/home/exercise-detail",
-      params: { id: ex.id, scrollTo: "bottom" },
+      // @ts-ignore: ex.id matches whatever your detail screen expects
+      params: { id: (ex as any).id, scrollTo: "bottom" },
     });
     setShowOptionsSheet(false);
   };
@@ -235,7 +301,7 @@ const ActiveWorkout = () => {
 
       {/* Header */}
       <ActiveWorkoutHeader
-        title="Push Day Workout"
+        title={workoutTitle} // UPDATED: dynamic title
         elapsedSeconds={elapsed}
         primaryColor={primaryColor}
         secondaryColor={secondaryColor}
@@ -243,8 +309,10 @@ const ActiveWorkout = () => {
         onCancel={showConfirmCancel}
         onFinish={() => {
           const summaries = exercises.map((ex) => ({
-            id: ex.id,
-            name: ex.name,
+            // @ts-ignore
+            id: (ex as any).id,
+            // @ts-ignore
+            name: (ex as any).name,
             sets: ex.sets.map((s) => ({ reps: s.reps, lbs: s.lbs })),
           }));
           const totalVolume = exercises.reduce(
@@ -297,7 +365,7 @@ const ActiveWorkout = () => {
 
           return (
             <Animated.View
-              key={ex.id}
+              key={(ex as any).id ?? exIdx}
               style={{
                 width: CARD_WIDTH,
                 marginRight: CARD_SPACING,
