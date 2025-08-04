@@ -16,7 +16,7 @@ import exercises from "../../../shared/exercises.json" with { type: "json" };
  * @param {any} value – the value to validate
  * @throws {Error} – if validation fails
  */
-export function checkCustomWorkoutFormat(value) {
+export function checkLogWorkoutFormat(value) {
   /* 1. Top-level check */
   if (!Array.isArray(value)) {
     throw new Error("Value stored is not an array of exercises");

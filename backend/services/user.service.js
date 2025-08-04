@@ -259,7 +259,6 @@ export async function setWorkoutPlan(user, newPlan) {
       return newWorkoutPlan;
     });
   } catch (err) {
-    console.log("Testing is caught?");
     throw mapSequelizeError(err);
   }
 }
@@ -448,9 +447,7 @@ export async function logWorkout(user, workout) {
         throw new AppError("No exercise-history found", 400);
       }
       let exerciseId = null;
-      let exerciseWeight = null;
       let exerciseNotes = null;
-      let exerciseReps = null;
       let exerciseSets = null;
       let exerciseCooldown = null;
 
@@ -463,16 +460,12 @@ export async function logWorkout(user, workout) {
 
       for (const exerciseLog of exerciseLogs) {
         exerciseId = exerciseLog.id;
-        exerciseWeight = exerciseLog.weight;
         exerciseNotes = exerciseLog.notes;
-        exerciseReps = exerciseLog.reps;
         exerciseSets = exerciseLog.sets;
         exerciseCooldown = exerciseLog.cooldown;
 
         if (
           exerciseId == null ||
-          exerciseWeight == null ||
-          exerciseReps == null ||
           exerciseCooldown == null ||
           exerciseSets == null
         ) {
@@ -480,17 +473,13 @@ export async function logWorkout(user, workout) {
         }
 
         let newHistory = {
-          reps: exerciseReps,
           sets: exerciseSets,
-          weight: exerciseWeight,
           cooldown: exerciseCooldown,
           notes: exerciseNotes ?? "No Notes",
         };
 
         let newLog = {
-          reps: exerciseReps,
           sets: exerciseSets,
-          weight: exerciseWeight,
           cooldown: exerciseCooldown,
           exercise: exerciseId,
         };
@@ -578,10 +567,8 @@ export async function saveNotes(user, notes, exerciseId) {
       } else {
         exerciseHistory.exerciseHistory[exerciseId] = {
           notes: notes,
-          reps: 0,
-          sets: 0,
+          sets: [],
           cooldown: 0,
-          weight: 0,
         };
       }
 
