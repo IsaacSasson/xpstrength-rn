@@ -75,6 +75,15 @@ const User = sequelize.define(
       },
       comment: "Users email, must be unique.",
     },
+    fitnessGoal: {
+      type: DataTypes.STRING(60),
+      allowNull: true,
+      unique: false,
+      validate: {
+        isTextClean,
+      },
+      comment: "fitnessGoal user writes for themselves",
+    },
     profilePic: {
       type: DataTypes.BLOB,
       allowNull: true,

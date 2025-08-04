@@ -26,11 +26,12 @@ export async function patchProfile(req, res, next) {
   const newPassword = req?.body?.data?.newPassword ?? null;
   const newUsername = req?.body?.data?.newUsername ?? null;
   const newEmail = req?.body?.data?.newEmail ?? null;
+  const fitnessGoal = req?.body?.data?.newFitnessGoal ?? null;
   try {
     if (!user) {
       throw new AppError("Malfored User ID", 400, "BAD_DATA");
     }
-    if (!(newPassword || newUsername || newEmail)) {
+    if (!(newPassword || newUsername || newEmail || fitnessGoal)) {
       throw new AppError("No profile data added to update!", 400, "BAD_DATA");
     }
     const { newAccessToken, newProfile } = await userService.setProfileData(
@@ -38,7 +39,8 @@ export async function patchProfile(req, res, next) {
       currentPassword,
       newPassword,
       newUsername,
-      newEmail
+      newEmail,
+      fitnessGoal
     );
 
     return res.status(201).json({

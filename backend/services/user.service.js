@@ -64,7 +64,8 @@ export async function setProfileData(
   currentPassword,
   newPassword,
   newUsername,
-  newEmail
+  newEmail,
+  newFitnessGoal
 ) {
   try {
     const userId = user.id;
@@ -116,6 +117,17 @@ export async function setProfileData(
         } else {
           throw new AppError("Invalid Password", 403, "FORBIDDEN");
         }
+      }
+
+      if (newFitnessGoal) {
+        user.fitnessGoal = newFitnessGoal;
+        const history = new AppHistory(
+          "USER",
+          `User succesfully updated their Fitness Goal`,
+          userId,
+          null
+        );
+        await history.log(t);
       }
 
       await user.save({ transaction: t });
