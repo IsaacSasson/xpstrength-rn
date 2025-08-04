@@ -138,6 +138,7 @@ export async function setProfileData(
         usernameChanged: match && newUsername ? newUsername : "Not Changed",
         emailChanged: match && newEmail ? newEmail : "Not Changed",
         passwordChanged: match && newPassword ? "Changed" : "Not Changed",
+        fitnessGoalChanged: newFitnessGoal ? "Changed" : "Not Changed",
       };
 
       return { newAccessToken, newProfile };

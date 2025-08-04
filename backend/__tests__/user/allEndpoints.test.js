@@ -166,6 +166,7 @@ describe("USER service routes (protected by auth middleware)", () => {
         newUsername: `new_${Math.random().toString(36).slice(2, 8)}`,
         newEmail: `new_${Date.now()}@mail.com`,
         newPassword: "MuchStronger2!",
+        newFitnessGoal: "I want to be able to bench 315 Pounds!",
       };
       const res = await request(server)
         .patch("/api/v1/user/update-profile")
@@ -177,6 +178,7 @@ describe("USER service routes (protected by auth middleware)", () => {
       expect(np.usernameChanged).toBe(payload.newUsername);
       expect(np.emailChanged).toBe(payload.newEmail);
       expect(np.passwordChanged).toBe("Changed");
+      expect(np.fitnessGoalChanged).toBe("Changed");
     });
   });
 
