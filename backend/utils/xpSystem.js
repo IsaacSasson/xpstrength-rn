@@ -134,9 +134,14 @@ export async function addXpToCoreMuscle(
   workoutId,
   xpGainedPerCategory
 ) {
-  const reps = exerciseLog.reps;
-  const sets = exerciseLog.sets;
-  const weight = exerciseLog.weight;
+  const sets = exerciseLog.sets.length
+  let reps = 0
+  let weight = 0
+  for(const setObj of exerciseLog.sets) {
+    reps += setObj.reps;
+    weight += setObj.weight;
+  }
+
   const cooldown = exerciseLog.cooldown;
   const exerciseId = Number(exerciseLog.exercise);
 
@@ -216,7 +221,11 @@ export async function addXpFromNewPB(
   userId
 ) {
   const exerciseId = Number(exerciseLog.exercise);
-  const weight = exerciseLog.weight;
+  let weight = 0
+  for(const setObj of exerciseLog.sets) {
+    //Maximum Weight they lifted
+    weight = max(weight, setObj.weight);
+  }
   const personalBests = pb.personalBests
   const cmp = personalBests[exerciseId] ?? null;
 
@@ -265,8 +274,14 @@ export async function addXpFromNewPB(
   if (!cmpExerciseLog) {
     throw new AppError("Unknown workoutLog stored in PB", 400, "BAD_DATA");
   }
+  
+  let cmpWeight = 0
+  for(const setObj of cmpExerciseLog.sets) {
+    //Maximum Weight they lifted
+    cmpWeight = max(cmpWeight, setObj.cmpWeight);
+  }
 
-  if (cmpExerciseLog.weight < weight) {
+  if (cmpWeight < weight) {
     await sequelize.transaction(async (t) => {
       pb[exerciseId] = workoutId;
       pb.changed("personalBests", true);
@@ -279,6 +294,8 @@ export async function addXpFromNewPB(
         workoutId,
         {
           exerciseId,
+          newWeight: weight,
+          oldWeight: cmpWeight,
           log: exerciseLog,
           oldLog: cmpExerciseLog,
           rewards: { userXp: pbReward },
@@ -305,7 +322,7 @@ export async function milestoneAddXP(user, milestone) {
   return;
 }
 
-export async function steakAddXP(user) {
+export async function streakAddXP(user) {
   return;
 }
 
