@@ -26,7 +26,7 @@ const createAuthUser = async (
   return { user, accessToken };
 };
 
-describe.skip("POST /api/v1/user/log‑workout", () => {
+describe("POST /api/v1/user/log‑workout", () => {
   it("returns 400 BAD_DATA if no payload is sent", async () => {
     const { accessToken } = await createAuthUser();
     const res = await request(server)
@@ -48,49 +48,59 @@ describe.skip("POST /api/v1/user/log‑workout", () => {
   it("returns 201 and the expected response shape when given a valid workout log", async () => {
     const { user, accessToken } = await createAuthUser();
 
-    // Example workout log payload
     const validLog = {
       length: 3600,
       exercises: [
         {
-          id: 0,
-          weight: 110,
-          reps: 8,
-          sets: 3,
+          exercise: 0,
           cooldown: 60,
           notes: "Felt strong on bench press.",
+          sets: [
+            { reps: 8, weight: 110 },
+            { reps: 8, weight: 110 },
+            { reps: 8, weight: 110 },
+          ],
         },
         {
-          id: 1,
-          weight: 150,
-          reps: 5,
-          sets: 4,
+          exercise: 1,
           cooldown: 90,
           notes: "Squats depth was solid.",
+          sets: [
+            { reps: 5, weight: 150 },
+            { reps: 5, weight: 150 },
+            { reps: 5, weight: 150 },
+            { reps: 5, weight: 150 },
+          ],
         },
         {
-          id: 2,
-          weight: 120,
-          reps: 6,
-          sets: 3,
+          exercise: 2,
           cooldown: 60,
           notes: "Focused on keeping back flat.",
+          sets: [
+            { reps: 6, weight: 120 },
+            { reps: 6, weight: 120 },
+            { reps: 6, weight: 120 },
+          ],
         },
         {
-          id: 3,
-          weight: 60,
-          reps: 10,
-          sets: 3,
+          exercise: 3,
           cooldown: 45,
           notes: "Overhead press felt stable.",
+          sets: [
+            { reps: 10, weight: 60 },
+            { reps: 10, weight: 60 },
+            { reps: 10, weight: 60 },
+          ],
         },
         {
-          id: 4,
-          weight: 20,
-          reps: 12,
-          sets: 3,
+          exercise: 4,
           cooldown: 30,
           notes: "Biceps pump finisher.",
+          sets: [
+            { reps: 12, weight: 20 },
+            { reps: 12, weight: 20 },
+            { reps: 12, weight: 20 },
+          ],
         },
       ],
     };

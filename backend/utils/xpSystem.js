@@ -224,7 +224,7 @@ export async function addXpFromNewPB(
   let weight = 0
   for(const setObj of exerciseLog.sets) {
     //Maximum Weight they lifted
-    weight = max(weight, setObj.weight);
+    weight = Math.max(weight, setObj.weight);
   }
   const personalBests = pb.personalBests
   const cmp = personalBests[exerciseId] ?? null;
@@ -278,7 +278,7 @@ export async function addXpFromNewPB(
   let cmpWeight = 0
   for(const setObj of cmpExerciseLog.sets) {
     //Maximum Weight they lifted
-    cmpWeight = max(cmpWeight, setObj.cmpWeight);
+    cmpWeight = Math.max(cmpWeight, setObj.cmpWeight);
   }
 
   if (cmpWeight < weight) {

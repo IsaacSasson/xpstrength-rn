@@ -459,11 +459,10 @@ export async function logWorkout(user, workout) {
       }
 
       for (const exerciseLog of exerciseLogs) {
-        exerciseId = exerciseLog.id;
+        exerciseId = exerciseLog.exercise;
         exerciseNotes = exerciseLog.notes;
         exerciseSets = exerciseLog.sets;
         exerciseCooldown = exerciseLog.cooldown;
-
         if (
           exerciseId == null ||
           exerciseCooldown == null ||
@@ -567,7 +566,7 @@ export async function saveNotes(user, notes, exerciseId) {
       } else {
         exerciseHistory.exerciseHistory[exerciseId] = {
           notes: notes,
-          sets: [],
+          sets: [{ reps: 0, weight: 0 }],
           cooldown: 0,
         };
       }

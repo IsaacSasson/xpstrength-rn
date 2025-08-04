@@ -281,7 +281,7 @@ describe("USER service routes (protected by auth middleware)", () => {
           data: {
             name: "CW1",
             exercises: [
-              { exercise: 0, reps: 0, sets: 0, weight: 0, cooldown: 0 },
+              { exercise: 0, sets: [{ reps: 10, weight: 4 }], cooldown: 0 },
             ],
           },
         })
@@ -293,7 +293,7 @@ describe("USER service routes (protected by auth middleware)", () => {
           data: {
             name: "CW2",
             exercises: [
-              { exercise: 1, reps: 0, sets: 0, weight: 0, cooldown: 0 },
+              { exercise: 1, sets: [{ reps: 10, weight: 4 }], cooldown: 0 },
             ],
           },
         })
@@ -378,7 +378,7 @@ describe("USER service routes (protected by auth middleware)", () => {
         .send({
           data: {
             exercises: [
-              { exercise: 1, reps: 0, sets: 0, weight: 0, cooldown: 0 },
+              { exercise: 1, sets: [{ reps: 10, weight: 4 }], cooldown: 0 },
             ],
           },
         });
@@ -396,7 +396,7 @@ describe("USER service routes (protected by auth middleware)", () => {
           data: {
             name: "Push Day",
             exercises: [
-              { exercise: 1, reps: 0, sets: 0, weight: 0, cooldown: 0 },
+              { exercise: 1, sets: [{ reps: 10, weight: 4 }], cooldown: 0 },
             ],
           },
         })
@@ -414,7 +414,7 @@ describe("USER service routes (protected by auth middleware)", () => {
             id: cw.id,
             name: updatedName,
             exercises: [
-              { exercise: 2, reps: 0, sets: 0, weight: 0, cooldown: 0 },
+              { exercise: 2, sets: [{ reps: 10, weight: 4 }], cooldown: 0 },
             ],
           },
         })
