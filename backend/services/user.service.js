@@ -18,7 +18,7 @@ import { generateAuthToken } from "../utils/security.js";
 
 export async function getProfileData(user) {
   try {
-    const { password, profilePic, createdAt, updatedAt, ...safeUser } =
+    const { password, profilePic, ...safeUser } =
       user.get?.({ plain: true }) || user;
 
     return safeUser;
