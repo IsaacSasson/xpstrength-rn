@@ -7,24 +7,26 @@ import {
   Animated,
   Alert,
   TouchableOpacity,
+  Text,
 } from "react-native";
-import { router, useLocalSearchParams } from "expo-router"; // UPDATED: import useLocalSearchParams
+import { router, useLocalSearchParams } from "expo-router";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import DraggableBottomSheet from "@/components/DraggableBottomSheet";
 import { useThemeContext } from "@/context/ThemeContext";
 import { loadExercises, ExerciseData } from "@/utils/loadExercises";
-import ActiveWorkoutHeader from "@/components/home//ActiveWorkout/Header";
+import ActiveWorkoutHeader from "@/components/home/ActiveWorkout/Header";
 import ActiveWorkoutFooter from "@/components/home/ActiveWorkout/Footer";
 import ActiveWorkoutCard from "@/components/home/ActiveWorkout/CarouselCard";
 import ActiveWorkoutAddCard from "@/components/home/ActiveWorkout/AddExerciseCard";
+import ReorderModal from "@/components/home/ReorderModal";
 
 // NEW: use exerciseDatabase so we can resolve names by id (same as Home does)
 import { useWorkouts } from "@/context/WorkoutContext";
 
 // Modals still used
 import PauseModal from "@/components/home/ActiveWorkout/PauseModal";
-// REMOVED: RestPickerModal (picker now handled by DraggableBottomSheet in Footer)
 import ConfirmCancelModal from "@/components/home/ActiveWorkout/ConfirmCancelModal";
+import InstructionsModal from "@/components/home/ActiveWorkout/InstructionsModal";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_PREVIEW_SCALE = 0.9;
@@ -43,6 +45,7 @@ interface Set {
 }
 interface Exercise extends ExerciseData {
   sets: Set[];
+  notes?: string; // Add notes field
 }
 
 type PresetParam = {
@@ -52,8 +55,8 @@ type PresetParam = {
 
 const ActiveWorkout = () => {
   const { primaryColor, secondaryColor, tertiaryColor } = useThemeContext();
-  const { exerciseDatabase } = useWorkouts(); // NEW
-  const { preset } = useLocalSearchParams<{ preset?: string }>(); // NEW
+  const { exerciseDatabase } = useWorkouts();
+  const { preset } = useLocalSearchParams<{ preset?: string }>();
 
   /* ───────── Stopwatch ───────── */
   const [elapsed, setElapsed] = useState(0);
@@ -108,7 +111,7 @@ const ActiveWorkout = () => {
     setRestSheetVisible(false);
   };
 
-  /* ───────── Picker sheet state (replaces RestPickerModal) ───────── */
+  /* ───────── Picker sheet state ───────── */
   const [pickerOpen, setPickerOpen] = useState(false);
   const applyPicker = () => {
     setPickerOpen(false);
@@ -118,11 +121,16 @@ const ActiveWorkout = () => {
   };
 
   /* ───────── Exercises ───────── */
-  const [workoutTitle, setWorkoutTitle] = useState<string>("Workout"); // NEW
+  const [workoutTitle, setWorkoutTitle] = useState<string>("Workout");
   const [exercises, setExercises] = useState<Exercise[]>([]);
-  const [selectedExerciseIdx, setSelectedExerciseIdx] = useState<number | null>(
-    null
-  );
+  const [selectedExerciseIdx, setSelectedExerciseIdx] = useState<number | null>(null);
+
+  // Notes state
+  const [notesModalVisible, setNotesModalVisible] = useState(false);
+  const [currentNotes, setCurrentNotes] = useState("");
+
+  // Reorder state
+  const [showReorderModal, setShowReorderModal] = useState(false);
 
   // UPDATED: hydrate from preset if present; otherwise fall back to demo data
   useEffect(() => {
@@ -147,12 +155,11 @@ const ActiveWorkout = () => {
         const baseName = dbEntry?.name || `Exercise ${ex.id}`;
 
         // We'll build a minimal ExerciseData-compatible object.
-        // If ExerciseData has extra required fields, we cast as any to avoid TS complaints.
         const baseExercise: ExerciseData = {
-          // @ts-ignore - id in your ExerciseData may be string; align to whatever your components expect
           id: ex.id,
-          // @ts-ignore
           name: baseName,
+          images: dbEntry?.images || [],
+          instructions: dbEntry?.instructions || "",
         } as any;
 
         const repsNum = Number.isFinite(ex.reps) ? ex.reps : parseInt(String(ex.reps), 10) || 0;
@@ -168,6 +175,7 @@ const ActiveWorkout = () => {
         return {
           ...(baseExercise as any),
           sets: setsArray,
+          notes: "",
         };
       });
 
@@ -185,6 +193,7 @@ const ActiveWorkout = () => {
           { id: 1, reps: 10, lbs: 0, checked: false },
           { id: 2, reps: 10, lbs: 0, checked: false },
         ],
+        notes: "",
       }));
     setWorkoutTitle("Push Day Workout");
     setExercises(demo);
@@ -254,11 +263,19 @@ const ActiveWorkout = () => {
           : ex
       )
     );
+    // Start rest timer when checking off a set
     if (willCheck) startRest();
     else resetRest();
   };
 
-  /* ───────── Separate modal states ───────── */
+  // Update exercise notes
+  const updateExerciseNotes = (exIdx: number, notes: string) => {
+    setExercises((prev) =>
+      prev.map((ex, i) => (i === exIdx ? { ...ex, notes } : ex))
+    );
+  };
+
+  /* ───────── Modal states ───────── */
   const [pauseModalVisible, setPauseModalVisible] = useState(false);
   const handlePause = () => {
     setPaused(true);
@@ -277,7 +294,50 @@ const ActiveWorkout = () => {
   const hideConfirmCancel = () => setConfirmCancelVisible(false);
   const doCancelWorkout = () => router.replace("/home");
 
-  /* ───────── Instructions navigation (same logic as ExerciseCard) ───────── */
+  // Notes functionality
+  const handleNotesPress = () => {
+    if (selectedExerciseIdx !== null) {
+      setCurrentNotes(exercises[selectedExerciseIdx]?.notes || "");
+      setNotesModalVisible(true);
+    }
+  };
+
+  const handleNotesSave = (notes: string) => {
+    if (selectedExerciseIdx !== null) {
+      updateExerciseNotes(selectedExerciseIdx, notes);
+    }
+    setNotesModalVisible(false);
+  };
+
+  // Replace workout functionality
+  const handleReplaceWorkout = () => {
+    Alert.alert(
+      "Replace Workout",
+      "Go to workout selection to choose a different workout?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Go to Workouts",
+          onPress: () => {
+            router.replace("/home");
+          },
+        },
+      ]
+    );
+  };
+
+  // Reorder exercises functionality
+  const handleReorderExercises = () => {
+    setShowOptionsSheet(false);
+    setShowReorderModal(true);
+  };
+
+  const handleReorderComplete = (reorderedExercises: any[]) => {
+    setExercises(reorderedExercises);
+    setShowReorderModal(false);
+  };
+
+  /* ───────── Instructions navigation ───────── */
   const goToInstructions = () => {
     if (selectedExerciseIdx === null) {
       Alert.alert("No Instructions", "Select an exercise to view instructions.");
@@ -286,7 +346,6 @@ const ActiveWorkout = () => {
     const ex = exercises[selectedExerciseIdx];
     router.push({
       pathname: "/home/exercise-detail",
-      // @ts-ignore: ex.id matches whatever your detail screen expects
       params: { id: (ex as any).id, scrollTo: "bottom" },
     });
     setShowOptionsSheet(false);
@@ -295,23 +354,35 @@ const ActiveWorkout = () => {
   /* ───────── Animated scroll logic ───────── */
   const scrollX = useRef(new Animated.Value(0)).current;
 
+  // Track selected exercise based on scroll position
+  const handleScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+    {
+      useNativeDriver: true,
+      listener: (event: any) => {
+        const { contentOffset } = event.nativeEvent;
+        const index = Math.round(contentOffset.x / (CARD_WIDTH + CARD_SPACING));
+        setSelectedExerciseIdx(Math.min(index, exercises.length - 1));
+      },
+    }
+  );
+
   return (
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
       <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
 
-      {/* Header */}
+      {/* Header with pause button */}
       <ActiveWorkoutHeader
-        title={workoutTitle} // UPDATED: dynamic title
+        title={workoutTitle}
         elapsedSeconds={elapsed}
         primaryColor={primaryColor}
         secondaryColor={secondaryColor}
         tertiaryColor={tertiaryColor}
         onCancel={showConfirmCancel}
+        onPause={handlePause} // Add pause handler
         onFinish={() => {
           const summaries = exercises.map((ex) => ({
-            // @ts-ignore
             id: (ex as any).id,
-            // @ts-ignore
             name: (ex as any).name,
             sets: ex.sets.map((s) => ({ reps: s.reps, lbs: s.lbs })),
           }));
@@ -346,10 +417,7 @@ const ActiveWorkout = () => {
         decelerationRate="fast"
         scrollEventThrottle={16}
         contentContainerStyle={{ paddingHorizontal: SIDE_PADDING }}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-          { useNativeDriver: true }
-        )}
+        onScroll={handleScroll}
       >
         {exercises.map((ex, exIdx) => {
           const inputRange = [
@@ -381,6 +449,8 @@ const ActiveWorkout = () => {
                 CARD_HEIGHT={CARD_HEIGHT}
                 COL_WIDTH={COL_WIDTH}
                 CHECK_COL_WIDTH={CHECK_COL_WIDTH}
+                restLeft={restLeft}
+                restRunning={restRunning}
                 onOpenOptions={(idx) => {
                   setSelectedExerciseIdx(idx);
                   setShowOptionsSheet(true);
@@ -427,40 +497,98 @@ const ActiveWorkout = () => {
         })()}
       </Animated.ScrollView>
 
-      {/* Footer now controls BOTH sheets (rest + picker) */}
+      {/* Footer now only controls picker, no rest timer display */}
       <ActiveWorkoutFooter
         durMin={durMin}
         durSec={durSec}
         tertiaryColor={tertiaryColor}
         primaryColor={primaryColor}
-        restLeft={restLeft}
-        restVisible={restSheetVisible}
         pickerVisible={pickerOpen}
-        onPause={() => {
-          setPaused(true);
-          setPauseModalVisible(true);
-        }}
         onOpenPicker={() => setPickerOpen(true)}
         onClosePicker={() => setPickerOpen(false)}
         onChangeMin={(v) => setDurMin(v)}
         onChangeSec={(v) => setDurSec(v)}
         onApplyPicker={applyPicker}
         onStartRest={startRest}
-        onCloseRest={closeRestSheet}
-        // adjust the running rest timer by ±seconds
-        onAdjustRest={(delta) => {
-          setRestLeft((prev) => Math.max(0, prev + delta));
-        }}
       />
+
+      {/* Rest countdown bottom sheet */}
+      <DraggableBottomSheet
+        visible={restSheetVisible}
+        onClose={closeRestSheet}
+        primaryColor={primaryColor}
+        heightRatio={0.35}
+      >
+        {restLeft > 0 ? (
+          <View style={{ alignItems: "center", paddingTop: 8 }}>
+            <Text className="text-white p-2 font-pbold text-6xl">
+              {`${String(Math.floor(restLeft / 60)).padStart(2, "0")}:${String(restLeft % 60).padStart(2, "0")}`}
+            </Text>
+            <Text className="text-white font-pmedium mt-4">
+              Rest timer running
+            </Text>
+
+            {/* Controls row: -5 | Close | +5 */}
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 12,
+                marginTop: 24,
+              }}
+            >
+              <TouchableOpacity
+                onPress={() => setRestLeft((prev) => Math.max(0, prev - 5))}
+                className="px-4 py-3 rounded-lg"
+                style={{
+                  borderWidth: 1,
+                  borderColor: primaryColor,
+                }}
+              >
+                <Text className="text-white font-pmedium">-5</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={closeRestSheet}
+                className="px-10 py-3 rounded-lg"
+                style={{ backgroundColor: primaryColor }}
+              >
+                <Text className="text-white font-pmedium">Close</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setRestLeft((prev) => prev + 5)}
+                className="px-4 py-3 rounded-lg"
+                style={{
+                  borderWidth: 1,
+                  borderColor: primaryColor,
+                }}
+              >
+                <Text className="text-white font-pmedium">+5</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <View style={{ alignItems: "center", paddingTop: 8 }}>
+            <Text className="text-white font-pbold text-3xl mt-2">
+              Time is up!
+            </Text>
+            <TouchableOpacity
+              onPress={closeRestSheet}
+              className="mt-6 px-10 py-3 rounded-lg"
+              style={{ backgroundColor: primaryColor }}
+            >
+              <Text className="text-white font-pmedium">Close</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </DraggableBottomSheet>
 
       {/* Remaining modals */}
       <PauseModal
         visible={pauseModalVisible}
         primaryColor={primaryColor}
-        onResume={() => {
-          setPaused(false);
-          setPauseModalVisible(false);
-        }}
+        onResume={handleResume}
       />
 
       <ConfirmCancelModal
@@ -471,7 +599,27 @@ const ActiveWorkout = () => {
         onYes={doCancelWorkout}
       />
 
-      {/* Options bottom-sheet (STYLING reverted to your original) */}
+      {/* Notes Modal */}
+      <InstructionsModal
+        visible={notesModalVisible}
+        text={currentNotes}
+        onDismiss={() => setNotesModalVisible(false)}
+        onSave={handleNotesSave}
+        isEditable={true}
+        title="Exercise Notes"
+      />
+
+      {/* Reorder Modal */}
+      <ReorderModal
+        visible={showReorderModal}
+        onClose={() => setShowReorderModal(false)}
+        exercises={exercises}
+        onReorderComplete={handleReorderComplete}
+        primaryColor={primaryColor}
+        tertiaryColor={tertiaryColor}
+      />
+
+      {/* Options bottom-sheet */}
       <DraggableBottomSheet
         visible={showOptionsSheet}
         onClose={() => setShowOptionsSheet(false)}
@@ -483,21 +631,22 @@ const ActiveWorkout = () => {
           {
             label: "View Exercise Instructions",
             icon: "information-outline",
-            onPress: () => {
-              goToInstructions();
-              setShowOptionsSheet(false);
-            },
+            onPress: goToInstructions,
           },
           {
             label: "Notes",
             icon: "note-text-outline",
-            onPress: () => Alert.alert("Notes", "Open notes editor…"),
+            onPress: handleNotesPress,
           },
           {
             label: "Replace Workout",
             icon: "swap-horizontal",
-            onPress: () =>
-              Alert.alert("Replace Workout", "Replace workout action…"),
+            onPress: handleReplaceWorkout,
+          },
+          {
+            label: "Reorder Exercises",
+            icon: "sort-variant",
+            onPress: handleReorderExercises,
           },
           {
             label: "Delete",
@@ -524,12 +673,12 @@ const ActiveWorkout = () => {
               size={24}
               color={opt.danger ? "#FF4D4D" : primaryColor}
             />
-            <Animated.Text
+            <Text
               className="text-lg font-pmedium ml-3"
               style={{ color: opt.danger ? "#FF4D4D" : "white" }}
             >
               {opt.label}
-            </Animated.Text>
+            </Text>
           </TouchableOpacity>
         ))}
       </DraggableBottomSheet>

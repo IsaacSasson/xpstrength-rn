@@ -1,11 +1,13 @@
-// Path: /components/home/ActiveWorkoutCard.tsx
-import React, { useMemo, useRef, useState } from "react";
+// Path: /components/home/ActiveWorkout/CarouselCard.tsx
+import React, { useMemo, useRef, useState, useEffect } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   ScrollView,
   TextInput,
+  Image,
+  StyleSheet,
 } from "react-native";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 
@@ -22,7 +24,9 @@ export interface ExerciseItem {
   id: string;
   name: string;
   instructions: string;
+  images?: number[];
   sets: SetItem[];
+  notes?: string;
 }
 
 interface Props {
@@ -36,6 +40,10 @@ interface Props {
   CARD_HEIGHT: number;
   COL_WIDTH: number;
   CHECK_COL_WIDTH: number;
+
+  // rest timer state
+  restLeft: number;
+  restRunning: boolean;
 
   // actions from parent
   onOpenOptions: (exIdx: number) => void;
@@ -61,6 +69,8 @@ const ActiveWorkoutCard: React.FC<Props> = ({
   CARD_HEIGHT,
   COL_WIDTH,
   CHECK_COL_WIDTH,
+  restLeft,
+  restRunning,
   onOpenOptions,
   onToggleSetChecked,
   onUpdateSetField,
@@ -73,6 +83,21 @@ const ActiveWorkoutCard: React.FC<Props> = ({
   // Local editing controller (UI only; values saved via onUpdateSetField)
   const [editing, setEditing] = useState<EditingState>(null);
   const [editingValue, setEditingValue] = useState("");
+
+  // Image flickering state
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  // Flicker images if available
+  useEffect(() => {
+    if (exercise.images && exercise.images.length > 1) {
+      const interval = setInterval(() => {
+        setCurrentImageIndex((prev) => 
+          prev === exercise.images!.length - 1 ? 0 : prev + 1
+        );
+      }, 1500); // Flicker every 1.5 seconds
+      return () => clearInterval(interval);
+    }
+  }, [exercise.images]);
 
   const beginEdit = (setIdx: number, field: "reps" | "lbs", current: number) => {
     setEditing({ setIdx, field });
@@ -105,6 +130,9 @@ const ActiveWorkoutCard: React.FC<Props> = ({
     }
   };
 
+  const formatTime = (seconds: number) =>
+    `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+
   return (
     <View
       className="rounded-2xl p-4 mt-10"
@@ -120,8 +148,55 @@ const ActiveWorkoutCard: React.FC<Props> = ({
         height: CARD_HEIGHT,
       }}
     >
-      {/* Card header */}
+      {/* Card header with rest timer, image, and name */}
       <View className="flex-row items-center mb-4">
+        {/* Rest Timer (left side) */}
+        <View className="mr-3">
+          {restRunning ? (
+            <View className="items-center">
+              <Text
+                className="text-sm font-pmedium"
+                style={{ color: primaryColor }}
+              >
+                REST
+              </Text>
+              <Text
+                className="text-lg font-pbold"
+                style={{ color: primaryColor }}
+              >
+                {formatTime(restLeft)}
+              </Text>
+            </View>
+          ) : (
+            <View className="items-center">
+              <MaterialCommunityIcons
+                name="timer-outline"
+                size={20}
+                color="#666"
+              />
+              <Text className="text-xs text-gray-500">Ready</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Exercise Image (small, flickering) */}
+        {exercise.images && exercise.images.length > 0 && (
+          <View style={styles.imageContainer}>
+            {exercise.images.map((image, index) => (
+              <Image
+                key={index}
+                source={image}
+                style={[
+                  styles.exerciseImage,
+                  { opacity: currentImageIndex === index ? 1 : 0 },
+                ]}
+                resizeMode="cover"
+              />
+            ))}
+          </View>
+        )}
+
+        {/* Exercise Name (center) */}
         <View className="flex-1 items-center">
           <Text
             className="text-2xl font-pbold text-center"
@@ -130,10 +205,35 @@ const ActiveWorkoutCard: React.FC<Props> = ({
             {exercise.name}
           </Text>
         </View>
+
+        {/* Options button (right) */}
         <TouchableOpacity onPress={() => onOpenOptions(exIdx)}>
           <MaterialCommunityIcons name="dots-vertical" size={20} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
+
+      {/* Notes section (if notes exist) */}
+      {exercise.notes && exercise.notes.trim() && (
+        <View
+          className="mb-3 p-2 rounded-lg"
+          style={{ backgroundColor: "rgba(255,255,255,0.05)" }}
+        >
+          <View className="flex-row items-center mb-1">
+            <MaterialCommunityIcons
+              name="note-text-outline"
+              size={16}
+              color={primaryColor}
+            />
+            <Text
+              className="text-sm font-pmedium ml-1"
+              style={{ color: primaryColor }}
+            >
+              Notes:
+            </Text>
+          </View>
+          <Text className="text-gray-100 text-sm">{exercise.notes}</Text>
+        </View>
+      )}
 
       {/* Table header */}
       <View
@@ -161,7 +261,7 @@ const ActiveWorkoutCard: React.FC<Props> = ({
       {/* Sets list */}
       <ScrollView
         ref={(ref) => { listRef.current = ref; }}
-        style={{ flex: 1, marginBottom: 250 }}
+        style={{ flex: 1, marginBottom: 60 }}
         nestedScrollEnabled
         showsVerticalScrollIndicator={false}
       >
@@ -305,5 +405,27 @@ const ActiveWorkoutCard: React.FC<Props> = ({
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  imageContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+    position: "relative",
+    overflow: "hidden",
+    backgroundColor: "#232533",
+  },
+  exerciseImage: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: "100%",
+    height: "100%",
+    borderRadius: 20,
+  },
+});
 
 export default ActiveWorkoutCard;

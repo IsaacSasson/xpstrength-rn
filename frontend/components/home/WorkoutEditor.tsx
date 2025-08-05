@@ -371,7 +371,20 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
       if (result.success) {
         const action = mode === "create" ? "created" : "updated";
         Alert.alert("Success", `Workout ${action} successfully!`, [
-          { text: "OK", onPress: () => router.back() },
+          { 
+            text: "OK", 
+            onPress: () => {
+              // Add delay to ensure navigation system is ready
+              setTimeout(() => {
+                try {
+                  router.back();
+                } catch (error) {
+                  console.log("Navigation error, using fallback:", error);
+                  router.replace("/(tabs)/home");
+                }
+              }, 100);
+            } 
+          },
         ]);
       } else {
         throw new Error(result.error || "Failed to save workout");

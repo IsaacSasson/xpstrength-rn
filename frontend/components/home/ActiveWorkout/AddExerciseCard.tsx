@@ -1,4 +1,4 @@
-// Path: /components/home/ActiveWorkoutAddCard.tsx
+// Path: /components/home/ActiveWorkout/AddExerciseCard.tsx
 import React from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";

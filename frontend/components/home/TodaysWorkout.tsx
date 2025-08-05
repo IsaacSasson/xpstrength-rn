@@ -37,6 +37,39 @@ const daysOfWeek = [
   "Saturday",
 ];
 
+/* Helper function to handle new exercise data format in TodaysWorkout */
+const processExerciseForDisplay = (ex: any, exerciseDatabase: any[]) => {
+  // Find exercise name from database safely
+  const exerciseDetails = exerciseDatabase.find(e => 
+    e.id === (ex.exercise ? String(ex.exercise) : '')
+  );
+  const exerciseName = exerciseDetails?.name || `Exercise ${ex.exercise || 'Unknown'}`;
+  
+  // Handle new format where sets is an array of {reps, weight} objects
+  if (Array.isArray(ex.sets)) {
+    const setsCount = ex.sets.length;
+    const repsArray = ex.sets.map((set: any) => Number(set.reps) || 0);
+    const minReps = Math.min(...repsArray);
+    const maxReps = Math.max(...repsArray);
+    
+    // Create rep range string
+    const repsDisplay = minReps === maxReps ? String(minReps) : `${minReps}-${maxReps}`;
+    
+    return {
+      name: exerciseName,
+      sets: setsCount,
+      reps: repsDisplay,
+    };
+  } else {
+    // Fallback for old format
+    return {
+      name: exerciseName,
+      sets: ex.sets || 0,
+      reps: String(ex.reps || 0),
+    };
+  }
+};
+
 /* --------------------------- Component --------------------------------- */
 const TodaysWorkout: React.FC<Props> = ({
   workout,
@@ -46,6 +79,7 @@ const TodaysWorkout: React.FC<Props> = ({
   const { primaryColor, tertiaryColor } = useThemeContext();
   const {
     customWorkouts,
+    exerciseDatabase,
     getWorkoutForDay,
     setPlanDay,   // <<< use plan-based day assignment
     refreshData,
@@ -93,12 +127,25 @@ const TodaysWorkout: React.FC<Props> = ({
     // Build a compact preset payload to hydrate ActiveWorkout
     const preset = {
       name: plan.name ?? `${dayName} Workout`,
-      // Ensure numeric reps/sets (server usually sends numbers)
-      exercises: plan.exercises.map((ex: any) => ({
-        id: Number(ex.exercise),
-        reps: typeof ex.reps === "string" ? parseInt(ex.reps, 10) || 0 : Number(ex.reps ?? 0),
-        sets: Number(ex.sets ?? 0),
-      })),
+      // Handle new format where exercises have array of sets
+      exercises: plan.exercises.map((ex: any) => {
+        if (Array.isArray(ex.sets)) {
+          // New format: use first set's reps as representative
+          const reps = ex.sets.length > 0 ? Number(ex.sets[0].reps) || 0 : 0;
+          return {
+            id: Number(ex.exercise),
+            reps: reps,
+            sets: ex.sets.length,
+          };
+        } else {
+          // Old format fallback
+          return {
+            id: Number(ex.exercise),
+            reps: typeof ex.reps === "string" ? parseInt(ex.reps, 10) || 0 : Number(ex.reps ?? 0),
+            sets: Number(ex.sets ?? 0),
+          };
+        }
+      }),
     };
 
     router.push({
@@ -435,7 +482,13 @@ const TodaysWorkout: React.FC<Props> = ({
                     15,
                     Math.round(
                       (w.exercises ?? []).reduce(
-                        (s: number, ex: any) => s + (ex.sets || 0),
+                        (s: number, ex: any) => {
+                          if (Array.isArray(ex.sets)) {
+                            return s + ex.sets.length;
+                          } else {
+                            return s + (ex.sets || 0);
+                          }
+                        },
                         0
                       ) * 2
                     )

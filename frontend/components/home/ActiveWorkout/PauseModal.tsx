@@ -1,4 +1,4 @@
-// Path: /components/home/modals/PauseModal.tsx
+// Path: /components/home/ActiveWorkout/PauseModal.tsx
 import React from "react";
 import { Modal, View, Text, TouchableOpacity } from "react-native";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";

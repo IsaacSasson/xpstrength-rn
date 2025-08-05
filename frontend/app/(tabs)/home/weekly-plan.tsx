@@ -31,6 +31,39 @@ const daysOfWeek = [
   "Saturday",
 ];
 
+/* Helper function to handle new exercise data format */
+const processExerciseData = (ex: any, exerciseDatabase: any[]) => {
+  // Find exercise name from database safely
+  const exerciseDetails = exerciseDatabase.find(
+    (e) => e.id === (ex.exercise ? String(ex.exercise) : '')
+  );
+  const exerciseName = exerciseDetails?.name || `Exercise ${ex.exercise || 'Unknown'}`;
+
+  // Handle new format where sets is an array of {reps, weight} objects
+  if (Array.isArray(ex.sets)) {
+    const setsCount = ex.sets.length;
+    const repsArray = ex.sets.map((set: any) => Number(set.reps) || 0);
+    const minReps = Math.min(...repsArray);
+    const maxReps = Math.max(...repsArray);
+    
+    // Create rep range string
+    const repsDisplay = minReps === maxReps ? String(minReps) : `${minReps}-${maxReps}`;
+    
+    return {
+      name: exerciseName,
+      sets: setsCount,
+      reps: repsDisplay,
+    };
+  } else {
+    // Fallback for old format
+    return {
+      name: exerciseName,
+      sets: ex.sets || 0,
+      reps: String(ex.reps || 0),
+    };
+  }
+};
+
 export default function WeeklyPlan() {
   const { primaryColor, tertiaryColor } = useThemeContext();
   const {
@@ -147,23 +180,20 @@ export default function WeeklyPlan() {
         };
       }
 
-      // Transform exercises to expected format
-      const exercises = (workout.exercises ?? []).map((ex: any) => {
-        const exerciseDetails = exerciseDatabase.find(
-          (e) => e.id === ex.exercise.toString()
-        );
-        const exerciseName = exerciseDetails?.name || `Exercise ${ex.exercise}`;
-
-        return {
-          name: exerciseName,
-          sets: ex.sets,
-          reps: String(ex.reps),
-        };
-      });
+      // Transform exercises to expected format with rep ranges
+      const exercises = (workout.exercises ?? []).map((ex: any) => 
+        processExerciseData(ex, exerciseDatabase)
+      );
 
       // Estimate workout time (2-3 minutes per set)
       const totalSets = (workout.exercises ?? []).reduce(
-        (sum: number, ex: any) => sum + (ex.sets || 0),
+        (sum: number, ex: any) => {
+          if (Array.isArray(ex.sets)) {
+            return sum + ex.sets.length;
+          } else {
+            return sum + (ex.sets || 0);
+          }
+        },
         0
       );
       const estimatedMinutes = Math.max(15, Math.round(totalSets * 2.5));
@@ -466,7 +496,13 @@ export default function WeeklyPlan() {
                       15,
                       Math.round(
                         (w.exercises ?? []).reduce(
-                          (s: number, ex: any) => s + (ex.sets || 0),
+                          (s: number, ex: any) => {
+                            if (Array.isArray(ex.sets)) {
+                              return s + ex.sets.length;
+                            } else {
+                              return s + (ex.sets || 0);
+                            }
+                          },
                           0
                         ) * 2
                       )

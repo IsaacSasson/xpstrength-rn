@@ -11,13 +11,13 @@ import {
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import * as Haptics from "expo-haptics";
-import { Exercise } from "./ExerciseCard";
+import { loadExercises } from "@/utils/loadExercises";
 
 interface ReorderModalProps {
   visible: boolean;
   onClose: () => void;
-  exercises: Exercise[];
-  onReorderComplete: (reorderedExercises: Exercise[]) => void;
+  exercises: any[];
+  onReorderComplete: (reorderedExercises: any[]) => void;
   primaryColor: string;
   tertiaryColor: string;
 }
@@ -31,7 +31,27 @@ const ReorderModal: React.FC<ReorderModalProps> = ({
   tertiaryColor,
 }) => {
   // Local state to manage exercises within the modal
-  const [localExercises, setLocalExercises] = useState<Exercise[]>(exercises);
+  const [localExercises, setLocalExercises] = useState<any[]>(exercises);
+  const [exerciseImages, setExerciseImages] = useState<{ [key: string]: number[] }>({});
+
+  // Load exercise images for display
+  useEffect(() => {
+    const allExercises = loadExercises();
+    const imageMap: { [key: string]: number[] } = {};
+    
+    exercises.forEach((exercise) => {
+      if (exercise.originalExerciseId) {
+        const originalExercise = allExercises.find(
+          (ex: any) => ex.id === exercise.originalExerciseId
+        );
+        if (originalExercise && originalExercise.images) {
+          imageMap[exercise.id] = originalExercise.images;
+        }
+      }
+    });
+    
+    setExerciseImages(imageMap);
+  }, [exercises]);
 
   // Update local state when modal opens with new exercises
   useEffect(() => {
@@ -141,23 +161,35 @@ const ReorderModal: React.FC<ReorderModalProps> = ({
                 alignItems: "center",
               }}
             >
-              {/* Exercise Number & Info */}
+              {/* Exercise Image or Number Badge */}
               <View
                 style={{
                   width: 32,
                   height: 32,
                   borderRadius: 16,
+                  marginRight: 12,
+                  overflow: "hidden",
                   backgroundColor: primaryColor,
                   alignItems: "center",
                   justifyContent: "center",
-                  marginRight: 12,
                 }}
               >
-                <Text
-                  style={{ color: "white", fontSize: 14, fontWeight: "600" }}
-                >
-                  {index + 1}
-                </Text>
+                {exerciseImages[exercise.id] && exerciseImages[exercise.id].length > 0 ? (
+                  <Image
+                    source={exerciseImages[exercise.id][0]}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                    }}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Text
+                    style={{ color: "white", fontSize: 14, fontWeight: "600" }}
+                  >
+                    {index + 1}
+                  </Text>
+                )}
               </View>
 
               <View style={{ flex: 1 }}>

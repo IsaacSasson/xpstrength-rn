@@ -20,18 +20,24 @@ const extractPlan = (result: any): number[] | null => {
 /* ------------------------- Transformers -------------------------- */
 // Component Exercise -> API exerciseObj2
 export const transformExerciseToAPI = (exercise: any) => {
-  const weights = exercise.sets.map((set: any) => {
-    const match = set.weight.match(/(\d+(?:\.\d+)?)/);
-    return match ? parseFloat(match[1]) : 0;
+  // Transform each set to the expected format: {reps: Number, weight: Number}
+  const sets = exercise.sets.map((set: any) => {
+    // Extract numeric weight from string like "25.5 lbs"
+    const weightMatch = set.weight.match(/(\d+(?:\.\d+)?)/);
+    const weight = weightMatch ? parseFloat(weightMatch[1]) : 0;
+    
+    // Parse reps as integer
+    const reps = parseInt(set.reps) || 0;
+    
+    return {
+      reps: Math.max(0, reps),     // Ensure non-negative
+      weight: Math.max(0, weight)  // Ensure non-negative
+    };
   });
-
-  const reps = exercise.sets.map((set: any) => parseInt(set.reps) || 0);
 
   const transformed = {
     exercise: toNum(exercise.originalExerciseId),
-    weight: Math.max(...weights, 0),
-    reps: Math.max(...reps, 0),
-    sets: exercise.sets.length,
+    sets: sets,  // Now sending array of {reps, weight} objects
     cooldown: 60,
   };
 
@@ -52,10 +58,22 @@ export const transformExerciseFromAPI = (
     (ex) => toNum(ex.id) === toNum(apiExercise.exercise)
   );
 
-  const sets = Array.from({ length: apiExercise.sets }, () => ({
-    reps: String(apiExercise.reps),
-    weight: `${apiExercise.weight} lbs`,
-  }));
+  // Handle both old and new format for backwards compatibility
+  let sets;
+  if (Array.isArray(apiExercise.sets)) {
+    // New format: sets is array of {reps, weight} objects
+    sets = apiExercise.sets.map((set: any) => ({
+      reps: String(set.reps || 0),
+      weight: `${set.weight || 0} lbs`,
+    }));
+  } else {
+    // Old format: sets is number, reps/weight are single values
+    // This provides backwards compatibility in case old data still exists
+    sets = Array.from({ length: apiExercise.sets || 1 }, () => ({
+      reps: String(apiExercise.reps || 0),
+      weight: `${apiExercise.weight || 0} lbs`,
+    }));
+  }
 
   return {
     id: `ex_${Date.now()}_${Math.floor(Math.random() * 1000)}`,

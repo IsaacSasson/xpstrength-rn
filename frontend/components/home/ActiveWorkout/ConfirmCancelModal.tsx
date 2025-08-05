@@ -1,4 +1,4 @@
-// Path: /components/home/modals/ConfirmCancelModal.tsx
+// Path: /components/home/ActiveWorkout/ConfirmCancelModal.tsx
 import React from "react";
 import { Modal, View, Text, TouchableOpacity, Dimensions } from "react-native";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";

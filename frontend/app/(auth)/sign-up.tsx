@@ -1,3 +1,4 @@
+// Path: /sign-up.tsx
 import { View, ScrollView, Image, Text, Alert } from "react-native";
 import React, { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -47,6 +48,11 @@ const SignUp = () => {
 
       // Backend logs the user in right away
       const { data } = await response.json();
+      console.log('📥 Register response data:', { 
+        hasAccessToken: !!data?.accessToken,
+        hasRefreshToken: !!data?.refreshToken,
+        user: data?.user?.username
+      });
       
       if (!data?.accessToken) {
         Alert.alert("Sign-up Error", "No access token received");
@@ -55,13 +61,15 @@ const SignUp = () => {
 
       // Create user object with the data we have
       const userData = {
-        id: data.user?.id?.toString() || '',
+        id: data.user?.id ? String(data.user.id) : Date.now().toString(),
         username: data.user?.username || form.username.trim(),
         email: data.user?.email || form.email.trim(),
       };
 
-      // Use the atomic signIn function from AuthContext
-      signIn(userData, data.accessToken, data.refreshToken);
+      // FIXED: Await the atomic signIn function from AuthContext
+      console.log('🔐 Calling signIn with refresh token:', !!data.refreshToken);
+      await signIn(userData, data.accessToken, data.refreshToken);
+      console.log('✅ SignIn completed, navigating to home');
 
       // Navigate to home - the WorkoutContext will handle fetching workout data
       router.replace('/(tabs)/home');

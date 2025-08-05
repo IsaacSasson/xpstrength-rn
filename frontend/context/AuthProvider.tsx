@@ -22,7 +22,7 @@ interface AuthContextType {
   setUser: (user: User | null) => void;
   setAccessToken: (token: string | null) => void;
   setRefreshToken: (token: string | null) => Promise<void>;
-  signIn: (userData: User, accessToken: string, refreshToken?: string) => void;
+  signIn: (userData: User, accessToken: string, refreshToken?: string) => Promise<void>; // Made async
   logout: () => Promise<void>;
   clearAuth: () => Promise<void>;
 }
@@ -63,6 +63,7 @@ const createAuthenticatedFetch = () => {
           
           // Get refresh token from SecureStore
           const refreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+          console.log('🔍 Retrieved refresh token from SecureStore:', !!refreshToken);
           
           if (!refreshToken) {
             console.log('No refresh token found, logging out...');
@@ -81,9 +82,17 @@ const createAuthenticatedFetch = () => {
           if (refreshResponse.ok) {
             const refreshData = await refreshResponse.json();
             const newToken = refreshData.data.accessToken;
+            const newRefreshToken = refreshData.data.refreshToken; // Backend may provide new refresh token
+            
+            console.log('✅ Token refresh successful');
             
             // Update the token in context
             authContext.setAccessToken(newToken);
+            
+            // Update refresh token if provided
+            if (newRefreshToken) {
+              await authContext.setRefreshToken(newRefreshToken);
+            }
             
             // Retry the original request with the new token
             headers.set('Authorization', `Bearer ${newToken}`);
@@ -92,7 +101,7 @@ const createAuthenticatedFetch = () => {
             response = await originalFetch(input, requestInit);
           } else {
             // Refresh failed, clear auth and logout
-            console.log('Token refresh failed, logging out...');
+            console.log('❌ Token refresh failed, logging out...');
             await authContext.clearAuth();
           }
         } catch (error) {
@@ -145,15 +154,42 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [user, accessToken]);
 
-  // Atomic function to set both user and token at once - helps with timing issues
-  const signIn = useCallback((userData: User, accessTokenData: string, refreshTokenData?: string) => {
-    console.log('🔐 Atomic sign in:', userData.username);
-    setUser(userData);
-    setAccessTokenState(accessTokenData);
-    if (refreshTokenData) {
-      setRefreshToken(refreshTokenData);
+  const setRefreshToken = async (token: string | null): Promise<void> => {
+    try {
+      if (token) {
+        await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, token);
+        console.log('🔒 Refresh token stored successfully');
+      } else {
+        await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
+        console.log('🔓 Refresh token cleared');
+      }
+    } catch (error) {
+      console.error('❌ Error managing refresh token in SecureStore:', error);
+      throw error; // Re-throw so caller knows it failed
     }
-    setIsLoading(false);
+  };
+
+  // FIXED: Made signIn async and await the refresh token storage
+  const signIn = useCallback(async (userData: User, accessTokenData: string, refreshTokenData?: string) => {
+    try {
+      console.log('🔐 Atomic sign in:', userData.username);
+      setUser(userData);
+      setAccessTokenState(accessTokenData);
+      
+      // IMPORTANT: Await the refresh token storage before continuing
+      if (refreshTokenData) {
+        console.log('💾 Storing refresh token...');
+        await setRefreshToken(refreshTokenData);
+        console.log('✅ Refresh token stored, sign in complete');
+      }
+      
+      setIsLoading(false);
+    } catch (error) {
+      console.error('❌ Error during sign in:', error);
+      // If refresh token storage fails, still complete sign in but log the error
+      setIsLoading(false);
+      throw error;
+    }
   }, []);
 
   // Initialize auth state on app start
@@ -193,20 +229,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }, [user, accessToken, isLoading, isAuthenticated, signIn]);
 
-  const setRefreshToken = async (token: string | null): Promise<void> => {
-    try {
-      if (token) {
-        await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, token);
-        console.log('🔒 Refresh token stored');
-      } else {
-        await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
-        console.log('🔓 Refresh token cleared');
-      }
-    } catch (error) {
-      console.error('Error managing refresh token in SecureStore:', error);
-    }
-  };
-
   const initializeAuth = async () => {
     try {
       setIsLoading(true);
@@ -214,6 +236,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       // Try to get refresh token from SecureStore
       const refreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+      console.log('🔍 Found refresh token on startup:', !!refreshToken);
       
       if (refreshToken) {
         console.log('🔄 Found refresh token, attempting to refresh...');
@@ -228,19 +251,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (response.ok) {
           const result = await response.json();
           const newToken = result.data.accessToken;
+          const newRefreshToken = result.data.refreshToken;
+          
           setAccessTokenState(newToken);
+          
+          // Update refresh token if provided
+          if (newRefreshToken) {
+            await setRefreshToken(newRefreshToken);
+          }
+          
           console.log('✅ Token refreshed on app start');
           
           // Note: We don't have user data here, but that's okay
           // The app will need to handle this state appropriately
           // For now, we'll just have the token without user data
         } else {
-          console.log('❌ Refresh token invalid, clearing...');
+          console.log('❌ Refresh token invalid on startup, clearing...');
           // Refresh token is invalid, clear it
           await setRefreshToken(null);
         }
       } else {
-        console.log('ℹ️ No refresh token found');
+        console.log('ℹ️ No refresh token found on startup');
       }
     } catch (error) {
       console.log('⚠️ No valid session found on startup:', error);

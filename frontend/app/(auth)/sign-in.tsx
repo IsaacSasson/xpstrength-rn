@@ -1,3 +1,4 @@
+// Path: /sign-in.tsx
 import { View, ScrollView, Image, Text, Alert } from "react-native";
 import React, { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -44,6 +45,11 @@ const SignIn = () => {
 
       // Extract token and basic user data from response
       const { data } = await response.json();
+      console.log('📥 Login response data:', { 
+        hasAccessToken: !!data?.accessToken,
+        hasRefreshToken: !!data?.refreshToken,
+        user: data?.user?.username
+      });
       
       if (!data?.accessToken) {
         Alert.alert("Login Error", "No access token received");
@@ -52,13 +58,15 @@ const SignIn = () => {
 
       // Create user object with just the username
       const userData = {
-        id: data.user?.id?.toString() || '',
+        id: data.user?.id ? String(data.user.id) : Date.now().toString(),
         username: data.user?.username || form.username.trim(),
         email: data.user?.email || '',
       };
 
-      // Use the atomic signIn function from AuthContext
-      signIn(userData, data.accessToken, data.refreshToken);
+      // FIXED: Await the atomic signIn function from AuthContext
+      console.log('🔐 Calling signIn with refresh token:', !!data.refreshToken);
+      await signIn(userData, data.accessToken, data.refreshToken);
+      console.log('✅ SignIn completed, navigating to home');
 
       // Navigate to home - the WorkoutContext will handle fetching workout data
       router.replace("/(tabs)/home");

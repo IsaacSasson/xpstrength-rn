@@ -27,6 +27,39 @@ export type WorkoutPlan = {
   sessions: Session[];    // exactly one session per plan for now
 };
 
+/* Helper function to handle new exercise data format */
+const processExerciseData = (ex: any, exerciseDatabase: any[]) => {
+  // Find exercise name from database safely
+  const exerciseDetails = exerciseDatabase.find(
+    (e) => e.id === (ex.exercise ? String(ex.exercise) : '')
+  );
+  const exerciseName = exerciseDetails?.name || `Exercise ${ex.exercise || 'Unknown'}`;
+
+  // Handle new format where sets is an array of {reps, weight} objects
+  if (Array.isArray(ex.sets)) {
+    const setsCount = ex.sets.length;
+    const repsArray = ex.sets.map((set: any) => Number(set.reps) || 0);
+    const minReps = Math.min(...repsArray);
+    const maxReps = Math.max(...repsArray);
+    
+    // Create rep range string
+    const repsDisplay = minReps === maxReps ? String(minReps) : `${minReps}-${maxReps}`;
+    
+    return {
+      name: exerciseName,
+      sets: setsCount,
+      reps: repsDisplay,
+    };
+  } else {
+    // Fallback for old format
+    return {
+      name: exerciseName,
+      sets: ex.sets || 0,
+      reps: String(ex.reps || 0),
+    };
+  }
+};
+
 /* -------------------------------- Screen -------------------------------- */
 const WorkoutPlans = () => {
   const { primaryColor, tertiaryColor } = useThemeContext();
@@ -43,18 +76,9 @@ const WorkoutPlans = () => {
   // Transform API data to UI format (cached; no auto refetch on focus)
   const plans: WorkoutPlan[] = useMemo(() => {
     return customWorkouts.map((workout) => {
-      const exercises: Exercise[] = workout.exercises.map((ex: any) => {
-        const exerciseDetails = exerciseDatabase.find(
-          (e) => e.id === ex.exercise.toString()
-        );
-        const exerciseName = exerciseDetails?.name || `Exercise ${ex.exercise}`;
-
-        return {
-          name: exerciseName,
-          sets: ex.sets,
-          reps: ex.reps.toString(),
-        };
-      });
+      const exercises: Exercise[] = workout.exercises.map((ex: any) => 
+        processExerciseData(ex, exerciseDatabase)
+      );
 
       return {
         id: workout.id.toString(),

@@ -49,6 +49,39 @@ const getHeadingForDate = (selectedDate: Date): string => {
   return `${dayName}'s Workout`;
 };
 
+/* Helper function to handle new exercise data format */
+const processExerciseData = (ex: any, exerciseDatabase: any[]) => {
+  // Find exercise name from database safely
+  const exerciseDetails = exerciseDatabase.find(e => 
+    e.id === (ex.exercise ? String(ex.exercise) : '')
+  );
+  const exerciseName = exerciseDetails?.name || `Exercise ${ex.exercise || 'Unknown'}`;
+  
+  // Handle new format where sets is an array of {reps, weight} objects
+  if (Array.isArray(ex.sets)) {
+    const setsCount = ex.sets.length;
+    const repsArray = ex.sets.map((set: any) => Number(set.reps) || 0);
+    const minReps = Math.min(...repsArray);
+    const maxReps = Math.max(...repsArray);
+    
+    // Create rep range string
+    const repsDisplay = minReps === maxReps ? String(minReps) : `${minReps}-${maxReps}`;
+    
+    return {
+      name: exerciseName,
+      sets: setsCount,
+      reps: repsDisplay,
+    };
+  } else {
+    // Fallback for old format
+    return {
+      name: exerciseName,
+      sets: ex.sets || 0,
+      reps: String(ex.reps || 0),
+    };
+  }
+};
+
 export default function Home() {
   const { primaryColor, tertiaryColor } = useThemeContext();
   const { user } = useAuth();
@@ -93,22 +126,14 @@ export default function Home() {
       
       const workout = getWorkoutForDay(i);
       if (workout) {
-        // Transform API workout to UI format with proper exercise names
+        // Transform API workout to UI format with proper exercise names and rep ranges
         workoutMap[key] = {
           exists: true,
           name: workout.name,
           calories: Math.round(workout.exercises.length * 50 + Math.random() * 100), // Estimate
-          exercises: workout.exercises.slice(0, 4).map((ex: any) => {
-            // Find exercise name from database
-            const exerciseDetails = exerciseDatabase.find(e => e.id === ex.exercise.toString());
-            const exerciseName = exerciseDetails?.name || `Exercise ${ex.exercise}`;
-            
-            return {
-              name: exerciseName,
-              sets: ex.sets,
-              reps: ex.reps.toString(),
-            };
-          }),
+          exercises: workout.exercises.slice(0, 4).map((ex: any) => 
+            processExerciseData(ex, exerciseDatabase)
+          ),
         };
       }
     }
