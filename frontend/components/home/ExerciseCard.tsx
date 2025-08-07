@@ -16,6 +16,7 @@ import * as Haptics from "expo-haptics";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useThemeContext } from "@/context/ThemeContext";
+import { useWorkouts } from "@/context/WorkoutContext";
 import { router } from "expo-router";
 import { loadExercises } from "@/utils/loadExercises";
 import ReorderModal from "./ReorderModal";
@@ -97,6 +98,8 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
   allExercises,
 }) => {
   const { primaryColor, tertiaryColor } = useThemeContext();
+  const { unit } = useWorkouts();
+  const unitLabel = unit === "imperial" ? "lbs" : "kg";
   const [isExpanded, setIsExpanded] = useState(false);
   const [showOptionsModal, setShowOptionsModal] = useState(false);
   const [showReorderModal, setShowReorderModal] = useState(false);
@@ -172,7 +175,7 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
 
   const handleAddSet = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const newSets = [...exercise.sets, { reps: "10", weight: "0 lbs" }];
+    const newSets = [...exercise.sets, { reps: "10", weight: `0 ${unitLabel}` }];
     onUpdate(exercise.id, "sets", newSets);
   };
 
@@ -232,7 +235,7 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
     const weightDisplay =
       minWeight === maxWeight ? `${minWeight}` : `${minWeight}-${maxWeight}`;
 
-    return `${exercise.sets.length} sets • ${repsDisplay} reps • ${weightDisplay} lbs`;
+    return `${exercise.sets.length} sets • ${repsDisplay} reps • ${weightDisplay} ${unitLabel}`;
   };
 
   return (
@@ -478,7 +481,7 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
                             handleSetUpdate(
                               setIndex,
                               "weight",
-                              numericValue ? `${numericValue} lbs` : "0 lbs"
+                              numericValue ? `${numericValue} ${unitLabel}` : `0 ${unitLabel}`
                             );
                           }}
                           keyboardType="numeric"
@@ -492,7 +495,7 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
                             marginTop: 2,
                           }}
                         >
-                          weight (lbs)
+                          weight ({unitLabel})
                         </Text>
                       </View>
                     </View>

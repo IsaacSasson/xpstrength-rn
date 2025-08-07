@@ -10,8 +10,11 @@ import {
   StyleSheet,
 } from "react-native";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { useWorkouts } from "@/context/WorkoutContext";
 
 const MAX_FIELD_VALUE = 9999;
+const lbsToKg = (lbs: number) => lbs / 2.20462;
+const kgToLbs = (kg: number) => kg * 2.20462;
 
 export interface SetItem {
   id: number;
@@ -79,6 +82,8 @@ const ActiveWorkoutCard: React.FC<Props> = ({
 }) => {
   const editableBg = "rgba(255,255,255,0.08)";
   const listRef = useRef<ScrollView | null>(null);
+  const { unit } = useWorkouts();
+  const unitLabel = unit === "imperial" ? "lbs" : "kg";
 
   // Local editing controller (UI only; values saved via onUpdateSetField)
   const [editing, setEditing] = useState<EditingState>(null);
@@ -101,7 +106,8 @@ const ActiveWorkoutCard: React.FC<Props> = ({
 
   const beginEdit = (setIdx: number, field: "reps" | "lbs", current: number) => {
     setEditing({ setIdx, field });
-    setEditingValue(String(current));
+    const displayVal = field === "lbs" && unit === "metric" ? Math.round(lbsToKg(current)) : current;
+    setEditingValue(String(displayVal));
   };
 
   const commitEdit = () => {
@@ -113,6 +119,9 @@ const ActiveWorkoutCard: React.FC<Props> = ({
       return;
     }
     num = Math.max(0, Math.min(num, MAX_FIELD_VALUE));
+    if (editing.field === "lbs" && unit === "metric") {
+      num = Math.round(kgToLbs(num));
+    }
     onUpdateSetField(exIdx, editing.setIdx, editing.field, num);
     setEditing(null);
     setEditingValue("");
@@ -376,7 +385,7 @@ const ActiveWorkoutCard: React.FC<Props> = ({
                   }}
                 >
                   <Text className="text-gray-100" style={{ textAlign: "center" }}>
-                    {s.lbs} lbs
+                    {unit === "imperial" ? s.lbs : Math.round(lbsToKg(s.lbs))} {unitLabel}
                   </Text>
                 </TouchableOpacity>
               )}

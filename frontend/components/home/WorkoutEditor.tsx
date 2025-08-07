@@ -77,7 +77,9 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
     createWorkout,
     updateWorkout,
     isLoading: contextLoading,
+    unit,
   } = useWorkouts();
+  const unitLabel = unit === "imperial" ? "lbs" : "kg";
 
   const [workout, setWorkout] = useState<Workout>({
     name: "",
@@ -152,7 +154,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
             setExistingWorkoutId(existingWorkout.id);
 
             const transformedExercises = existingWorkout.exercises.map((ex) =>
-              transformExerciseFromAPI(ex, exerciseDatabase)
+              transformExerciseFromAPI(ex, exerciseDatabase, unit)
             );
 
             const derivedDays = deriveDaysForWorkout(existingWorkout);
@@ -175,7 +177,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
             setExistingWorkoutId(existingWorkout.id);
 
             const transformedExercises = existingWorkout.exercises.map((ex) =>
-              transformExerciseFromAPI(ex, exerciseDatabase)
+              transformExerciseFromAPI(ex, exerciseDatabase, unit)
             );
 
             // UPDATED: include ALL days this workout appears on, not just dayParam
@@ -240,9 +242,9 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
       id: generateId(),
       name: ex.name,
       sets: [
-        { reps: "10", weight: "0 lbs" },
-        { reps: "10", weight: "0 lbs" },
-        { reps: "10", weight: "0 lbs" },
+        { reps: "10", weight: `0 ${unitLabel}` },
+        { reps: "10", weight: `0 ${unitLabel}` },
+        { reps: "10", weight: `0 ${unitLabel}` },
       ],
       notes: "",
       originalExerciseId: ex.id,
@@ -259,9 +261,9 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
       id: exerciseId, // Keep the same ID
       name: newExerciseData.name,
       sets: [
-        { reps: "10", weight: "0 lbs" },
-        { reps: "10", weight: "0 lbs" },
-        { reps: "10", weight: "0 lbs" },
+        { reps: "10", weight: `0 ${unitLabel}` },
+        { reps: "10", weight: `0 ${unitLabel}` },
+        { reps: "10", weight: `0 ${unitLabel}` },
       ],
       notes: "",
       originalExerciseId: newExerciseData.id,

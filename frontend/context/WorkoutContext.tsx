@@ -10,6 +10,7 @@ import React, {
 import { workoutApi } from "@/services/workoutApi";
 import { loadExercises } from "@/utils/loadExercises";
 import { useAuth } from "@/context/AuthProvider";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 /* ----------------------------- Types ----------------------------- */
 export interface CustomWorkout {
@@ -31,6 +32,10 @@ export interface WorkoutContextType {
   isLoading: boolean;
   isRefreshing: boolean;
   error: string | null;
+
+  // Unit preference
+  unit: "imperial" | "metric";
+  setUnitPreference: (u: "imperial" | "metric") => Promise<void>;
 
   // Actions
   refreshData: () => Promise<void>;
@@ -61,6 +66,7 @@ export interface WorkoutContextType {
 const REST = -1;
 const UNASSIGNED = 0;
 const EMPTY_PLAN = Array(7).fill(UNASSIGNED) as number[];
+const UNIT_KEY = "unit_preference";
 
 const DAY_TO_INDEX: Record<string, number> = {
   Sunday: 0,
@@ -102,6 +108,28 @@ export const WorkoutProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasInitialized, setHasInitialized] = useState(false);
+  const [unit, setUnit] = useState<"imperial" | "metric">("imperial");
+
+  // Load saved unit preference
+  useEffect(() => {
+    (async () => {
+      try {
+        const saved = await AsyncStorage.getItem(UNIT_KEY);
+        if (saved === "imperial" || saved === "metric") setUnit(saved);
+      } catch (e) {
+        console.error("Failed to load unit preference", e);
+      }
+    })();
+  }, []);
+
+  const setUnitPreference = useCallback(async (u: "imperial" | "metric") => {
+    try {
+      setUnit(u);
+      await AsyncStorage.setItem(UNIT_KEY, u);
+    } catch (e) {
+      console.error("Failed to save unit preference", e);
+    }
+  }, []);
 
   /* ----------------------------- Data Loading ----------------------------- */
   const loadData = useCallback(
@@ -198,7 +226,7 @@ export const WorkoutProvider: React.FC<{ children: ReactNode }> = ({ children })
 
       try {
         console.log("🆕 Creating workout:", name, "with", exercises.length, "exercises");
-        const result = await workoutApi.createCustomWorkout(name, exercises);
+        const result = await workoutApi.createCustomWorkout(name, exercises, unit);
 
         if (result.success && result.workout) {
           const newWorkout: CustomWorkout = {
@@ -240,7 +268,7 @@ export const WorkoutProvider: React.FC<{ children: ReactNode }> = ({ children })
         return { success: false, error: "Failed to create workout" };
       }
     },
-    [isAuthenticated]
+    [isAuthenticated, unit]
   );
 
   const updateWorkout = useCallback(
@@ -254,7 +282,7 @@ export const WorkoutProvider: React.FC<{ children: ReactNode }> = ({ children })
 
       try {
         console.log("📝 Updating workout:", id, name);
-        const result = await workoutApi.updateCustomWorkout(id, name, exercises);
+        const result = await workoutApi.updateCustomWorkout(id, name, exercises, unit);
 
         if (result.success && result.workout) {
           const updatedWorkout: CustomWorkout = {
@@ -301,7 +329,7 @@ export const WorkoutProvider: React.FC<{ children: ReactNode }> = ({ children })
         return { success: false, error: "Failed to update workout" };
       }
     },
-    [isAuthenticated]
+    [isAuthenticated, unit]
   );
 
   const deleteWorkout = useCallback(
@@ -449,6 +477,8 @@ export const WorkoutProvider: React.FC<{ children: ReactNode }> = ({ children })
     isLoading,
     isRefreshing,
     error,
+    unit,
+    setUnitPreference,
     refreshData,
     createWorkout,
     updateWorkout,

@@ -17,6 +17,7 @@ import { useThemeContext } from "@/context/ThemeContext";
 import Header from "@/components/Header";
 import DraggableBottomSheet from "@/components/DraggableBottomSheet";
 import pfptest from "@/assets/images/favicon.png";
+import { useWorkouts } from "@/context/WorkoutContext";
 
 /* ------------------------------------------------------------------ */
 /*                               Utils                                */
@@ -49,6 +50,8 @@ const ProgressBar: React.FC<{
 /* ------------------------------------------------------------------ */
 const FriendProfile = () => {
   const { primaryColor, secondaryColor, tertiaryColor } = useThemeContext();
+  const { unit } = useWorkouts();
+  const unitLabel = unit === "imperial" ? "lbs" : "kg";
 
   /* ---- params from FriendCard ---- */
   const {
@@ -79,6 +82,7 @@ const FriendProfile = () => {
   const xpNext      = (levelNum + 1) * 250;
   const workoutsNum = Number(workouts);
   const oneRmNum    = Number(oneRm);
+  const oneRmDisplay = unit === "imperial" ? oneRmNum : Math.round(oneRmNum / 2.20462);
   const friendsNum  = Number(friends);
 
   /* ---- options sheet ---- */
@@ -205,7 +209,7 @@ const FriendProfile = () => {
               className="text-white font-psemibold text-lg"
               style={{ color: primaryColor }}
             >
-              {oneRmNum} lbs
+              {oneRmDisplay} {unitLabel}
             </Text>
           </View>
         </View>

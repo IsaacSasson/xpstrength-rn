@@ -4,6 +4,8 @@ import { handleApiError } from "@/utils/handleApiError";
 
 /* ---------------------------- Helpers ---------------------------- */
 const toNum = (v: any) => Number(v);
+const lbsToKg = (lbs: number) => lbs / 2.20462;
+const kgToLbs = (kg: number) => kg * 2.20462;
 
 const extractPlan = (result: any): number[] | null => {
   const candidates = [
@@ -19,25 +21,29 @@ const extractPlan = (result: any): number[] | null => {
 
 /* ------------------------- Transformers -------------------------- */
 // Component Exercise -> API exerciseObj2
-export const transformExerciseToAPI = (exercise: any) => {
+export const transformExerciseToAPI = (
+  exercise: any,
+  unit: "imperial" | "metric"
+) => {
   // Transform each set to the expected format: {reps: Number, weight: Number}
   const sets = exercise.sets.map((set: any) => {
-    // Extract numeric weight from string like "25.5 lbs"
-    const weightMatch = set.weight.match(/(\d+(?:\.\d+)?)/);
-    const weight = weightMatch ? parseFloat(weightMatch[1]) : 0;
-    
+    // Extract numeric weight from string like "25.5 lbs" or "12 kg"
+    const weightMatch = set.weight?.match(/(\d+(?:\.\d+)?)/);
+    let weight = weightMatch ? parseFloat(weightMatch[1]) : 0;
+    if (unit === "metric") weight = kgToLbs(weight);
+
     // Parse reps as integer
     const reps = parseInt(set.reps) || 0;
-    
+
     return {
-      reps: Math.max(0, reps),     // Ensure non-negative
-      weight: Math.max(0, weight)  // Ensure non-negative
+      reps: Math.max(0, reps),
+      weight: Math.max(0, weight),
     };
   });
 
   const transformed = {
     exercise: toNum(exercise.originalExerciseId),
-    sets: sets,  // Now sending array of {reps, weight} objects
+    sets,
     cooldown: 60,
   };
 
@@ -52,7 +58,8 @@ export const transformExerciseToAPI = (exercise: any) => {
 // API exerciseObj2 -> Component Exercise
 export const transformExerciseFromAPI = (
   apiExercise: any,
-  exerciseDatabase: any[]
+  exerciseDatabase: any[],
+  unit: "imperial" | "metric"
 ) => {
   const exerciseDetails = exerciseDatabase.find(
     (ex) => toNum(ex.id) === toNum(apiExercise.exercise)
@@ -62,17 +69,23 @@ export const transformExerciseFromAPI = (
   let sets;
   if (Array.isArray(apiExercise.sets)) {
     // New format: sets is array of {reps, weight} objects
-    sets = apiExercise.sets.map((set: any) => ({
-      reps: String(set.reps || 0),
-      weight: `${set.weight || 0} lbs`,
-    }));
+    sets = apiExercise.sets.map((set: any) => {
+      const w = unit === "imperial" ? set.weight || 0 : Math.round(lbsToKg(set.weight || 0));
+      return {
+        reps: String(set.reps || 0),
+        weight: `${w} ${unit === "imperial" ? "lbs" : "kg"}`,
+      };
+    });
   } else {
     // Old format: sets is number, reps/weight are single values
     // This provides backwards compatibility in case old data still exists
-    sets = Array.from({ length: apiExercise.sets || 1 }, () => ({
-      reps: String(apiExercise.reps || 0),
-      weight: `${apiExercise.weight || 0} lbs`,
-    }));
+    sets = Array.from({ length: apiExercise.sets || 1 }, () => {
+      const w = unit === "imperial" ? apiExercise.weight || 0 : Math.round(lbsToKg(apiExercise.weight || 0));
+      return {
+        reps: String(apiExercise.reps || 0),
+        weight: `${w} ${unit === "imperial" ? "lbs" : "kg"}`,
+      };
+    });
   }
 
   return {
@@ -99,7 +112,8 @@ export const workoutApi = {
   /* ----------- Custom Workouts ----------- */
   async createCustomWorkout(
     name: string,
-    exercises: any[]
+    exercises: any[],
+    unit: "imperial" | "metric"
   ): Promise<{ success: boolean; workout?: CustomWorkout; error?: string }> {
     try {
       const validExercises = exercises.filter((ex) => ex.originalExerciseId);
@@ -111,7 +125,9 @@ export const workoutApi = {
         };
       }
 
-      const transformedExercises = validExercises.map(transformExerciseToAPI);
+      const transformedExercises = validExercises.map((ex) =>
+        transformExerciseToAPI(ex, unit)
+      );
 
       console.log("Creating workout with data:", {
         name,
@@ -164,7 +180,8 @@ export const workoutApi = {
   async updateCustomWorkout(
     id: number,
     name: string,
-    exercises: any[]
+    exercises: any[],
+    unit: "imperial" | "metric"
   ): Promise<{ success: boolean; workout?: CustomWorkout; error?: string }> {
     try {
       const validExercises = exercises.filter((ex) => ex.originalExerciseId);
@@ -176,7 +193,9 @@ export const workoutApi = {
         };
       }
 
-      const transformedExercises = validExercises.map(transformExerciseToAPI);
+      const transformedExercises = validExercises.map((ex) =>
+        transformExerciseToAPI(ex, unit)
+      );
 
       console.log("Updating workout with data:", {
         id,

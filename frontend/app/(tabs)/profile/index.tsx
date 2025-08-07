@@ -16,6 +16,7 @@ import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useThemeContext } from "@/context/ThemeContext";
 import { useUser } from "@/context/UserProvider";
 import { useAuth } from "@/context/AuthProvider";
+import { useWorkouts } from "@/context/WorkoutContext";
 import TopBar from "@/components/TopBar";
 import defaultPfp from "@/assets/images/favicon.png";
 import { router } from "expo-router";
@@ -98,6 +99,9 @@ const ErrorCard: React.FC<{
 const Profile = () => {
   const { primaryColor, secondaryColor, tertiaryColor } = useThemeContext();
   const { user } = useAuth();
+  const { unit } = useWorkouts();
+  const unitLabel = unit === "imperial" ? "lbs" : "kg";
+  const benchWeight = unit === "imperial" ? 225 : Math.round(225 / 2.20462);
   const {
     profile,
     profilePictureUri,
@@ -320,7 +324,7 @@ const Profile = () => {
               className="text-white font-psemibold text-lg"
               style={{ color: primaryColor }}
             >
-              225 lbs
+              {benchWeight} {unitLabel}
             </Text>
           </View>
         </View>

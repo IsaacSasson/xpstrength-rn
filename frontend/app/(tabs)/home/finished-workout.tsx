@@ -13,6 +13,7 @@ import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useThemeContext } from "@/context/ThemeContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import pfptest from "@/assets/images/favicon.png";
+import { useWorkouts } from "@/context/WorkoutContext";
 
 /* ------------------------------------------------------------------ */
 /*                           Types & Helpers                          */
@@ -52,6 +53,8 @@ const ProgressBar: React.FC<{
 const FinishedWorkout = () => {
   const { primaryColor, secondaryColor, tertiaryColor } = useThemeContext();
   const insets = useSafeAreaInsets();
+  const { unit } = useWorkouts();
+  const unitLabel = unit === "imperial" ? "lbs" : "kg";
 
   /* ------------------- params (mock fallback) ------------------- */
   const {
@@ -81,6 +84,7 @@ const FinishedWorkout = () => {
   const xpNextNum = Number(xpNext);
   const xpGainNum = Number(xpGained);
   const volumeNum = Number(volume);
+  const volumeDisplay = unit === "imperial" ? volumeNum : Math.round(volumeNum / 2.20462);
   const elapsedNum = Number(elapsed);
   const achievements: {
     id: string;
@@ -136,7 +140,7 @@ const FinishedWorkout = () => {
                 color={primaryColor}
               />
               <Text className="text-white mt-1 font-pmedium">
-                {volumeNum.toLocaleString()} lbs
+                {volumeDisplay.toLocaleString()} {unitLabel}
               </Text>
               <Text className="text-gray-100 text-xs">Total Volume</Text>
             </View>
@@ -237,7 +241,9 @@ const FinishedWorkout = () => {
                 >
                   <Text className="text-gray-100">Set {idx + 1}</Text>
                   <Text className="text-gray-100">{set.reps} reps</Text>
-                  <Text className="text-gray-100">{set.lbs} lbs</Text>
+                  <Text className="text-gray-100">
+                    {unit === "imperial" ? set.lbs : Math.round(set.lbs / 2.20462)} {unitLabel}
+                  </Text>
                   {set.isPR && (
                     <FontAwesome5
                       name="trophy"

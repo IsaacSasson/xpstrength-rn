@@ -2,8 +2,12 @@ import { View, Text } from "react-native";
 import React from "react";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import { useThemeContext } from "@/context/ThemeContext";
+import { useWorkouts } from "@/context/WorkoutContext";
 export default function ActivityView() {
   const { primaryColor, tertiaryColor } = useThemeContext();
+  const { unit } = useWorkouts();
+  const unitLabel = unit === "imperial" ? "lbs" : "kg";
+  const benchWeight = unit === "imperial" ? 225 : Math.round(225 / 2.20462);
 
   return (
     <View>
@@ -23,7 +27,7 @@ export default function ActivityView() {
         </View>
         <View className="flex-1">
           <Text className="text-white font-pmedium">New Personal Best!</Text>
-          <Text className="text-gray-100">Bench Press: 225 lbs × 8 reps</Text>
+          <Text className="text-gray-100">Bench Press: {benchWeight} {unitLabel} × 8 reps</Text>
           <Text className="text-gray-100 text-xs mt-1">
             Yesterday at 7:24 PM
           </Text>
