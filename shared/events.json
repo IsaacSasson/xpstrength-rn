@@ -3,7 +3,7 @@
   "friend-request-accepted",
   "friend-request-declined",
   "friend-status-updated",
-  "friend-profile-updated",
+  "known-user-profile-updated",
   "friend-removed",
   "userLevelUp",
   "muscleLevelUp",

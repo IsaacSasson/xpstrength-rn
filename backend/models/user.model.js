@@ -5,7 +5,11 @@ import bcrypt from "bcrypt";
 import dotenv from "dotenv";
 
 //Models and Config
-import Friend from "./friend.model.js";
+import Friend from "./friends.model.js";
+import IncomingRequests from "./incomingRequests.model.js";
+import OutgoingRequests from "./outgoingRequests.model.js";
+import Blocked from "./blocked.model.js";
+import Reports from "./reports.model.js";
 import Milestone from "./milestone.model.js";
 import Goal from "./goal.model.js";
 import CustomWorkout from "./customWorkout.model.js";
@@ -244,18 +248,6 @@ User.beforeSave("Validate Images", async (user, options) => {
   }
 });
 
-User.afterCreate("Create Associating Friends Row", async (user, options) => {
-  await Friend.create(
-    {
-      userId: user.id,
-      incomingRequests: [],
-      outgoingRequests: [],
-      friends: [],
-    },
-    { transaction: options.transaction }
-  );
-});
-
 User.afterCreate("Create Associating Milestones Row", async (user, options) => {
   await Milestone.create(
     {
@@ -317,12 +309,6 @@ User.afterCreate("Create Associating Auth Row", async (user, options) => {
   );
 });
 
-//TODO when a user gets deleted make sure to unfriend all friends, cancel all outgoing requests and deny all incoming requests (When Event Queue is formed and webhooks start this)
-
-// User-Friend Relationships
-User.hasOne(Friend, { foreignKey: "userId" });
-Friend.belongsTo(User, { foreignKey: "userId" });
-
 // User-Milestone Relationships
 User.hasOne(Milestone, { foreignKey: "userId" });
 Milestone.belongsTo(User, { foreignKey: "userId" });
@@ -363,6 +349,31 @@ History.belongsTo(User, { foreignKey: "userId" });
 User.hasMany(Event, { foreignKey: "userId" });
 Event.belongsTo(User, { foreignKey: "userId" });
 Event.belongsTo(User, { foreignKey: "actorId" }); //Only one User has many Events tied to their name, but an Event can partially belong to the actor so if the actor is gone, the event is also gone.
+
+// User-Friend Relationships
+User.hasMany(Friend, { foreignKey: "userId" });
+Friend.belongsTo(User, { foreignKey: "userId" });
+Friend.belongsTo(User, { foreignKey: "friendId" });
+
+// User-OutgoingRequests Relationships
+User.hasMany(OutgoingRequests, { foreignKey: "userId" });
+OutgoingRequests.belongsTo(User, { foreignKey: "userId" });
+OutgoingRequests.belongsTo(User, { foreignKey: "outgoingId" });
+
+// User-IncomingRequests Relationships
+User.hasMany(IncomingRequests, { foreignKey: "userId" });
+IncomingRequests.belongsTo(User, { foreignKey: "userId" });
+IncomingRequests.belongsTo(User, { foreignKey: "incomingId" });
+
+// User-Blocked Relationships
+User.hasMany(Blocked, { foreignKey: "userId" });
+Blocked.belongsTo(User, { foreignKey: "userId" });
+Blocked.belongsTo(User, { foreignKey: "blockedId" });
+
+// User-Reports Relationships
+User.hasMany(Reports, { foreignKey: "userId" });
+Reports.belongsTo(User, { foreignKey: "userId" });
+Reports.belongsTo(User, { foreignKey: "offenderId" });
 
 //User-Auth Relationships
 User.hasOne(Auth, { foreignKey: "userId" });
