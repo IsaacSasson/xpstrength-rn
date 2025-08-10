@@ -1,4 +1,3 @@
-// Path: /components/home/ActiveWorkout/Header.tsx
 import React from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -14,6 +13,8 @@ interface Props {
   onPause: () => void; // Add pause handler
   onFinish: () => void;
 }
+
+const SLOT_WIDTH = 104; // symmetric left/right slots to keep center perfectly centered
 
 const ActiveWorkoutHeader: React.FC<Props> = ({
   title,
@@ -32,35 +33,32 @@ const ActiveWorkoutHeader: React.FC<Props> = ({
     )}`;
 
   return (
-    <SafeAreaView
-      edges={["top"]}
-      style={{ backgroundColor: tertiaryColor }}
-    >
-      <View
-        className="px-4 py-3"
-        style={{ backgroundColor: tertiaryColor }}
-      >
-        <View className="flex-row items-center justify-between">
-          {/* Left: Cancel button */}
-          <TouchableOpacity
-            onPress={onCancel}
-            className="px-3 py-2 rounded-lg"
-            style={{ backgroundColor: "rgba(255,255,255,0.1)" }}
-          >
-            <Text className="text-white font-pmedium">Cancel</Text>
-          </TouchableOpacity>
+    <SafeAreaView edges={["top"]} style={{ backgroundColor: tertiaryColor }}>
+      <View className="px-4 py-3" style={{ backgroundColor: tertiaryColor }}>
+        {/* Symmetric 3-column header: left + center + right */}
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          {/* Left Slot (fixed width) */}
+          <View style={{ width: SLOT_WIDTH, alignItems: "flex-start" }}>
+            <TouchableOpacity
+              onPress={onCancel}
+              className="px-3 py-2 rounded-lg"
+              style={{ backgroundColor: "rgba(255,255,255,0.1)" }}
+            >
+              <Text className="text-white font-pmedium">Cancel</Text>
+            </TouchableOpacity>
+          </View>
 
-          {/* Center: Title and Timer with Pause */}
-          <View className="flex-1 items-center">
+          {/* Center Slot (flex) — truly screen-centered */}
+          <View style={{ flex: 1, alignItems: "center" }}>
             <Text
               className="text-lg font-psemibold"
               style={{ color: secondaryColor }}
             >
               {title}
             </Text>
+
             <View className="flex-row items-center mt-1">
-              {/* Pause button as icon */}
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={onPause}
                 className="mr-2 p-1"
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -71,8 +69,7 @@ const ActiveWorkoutHeader: React.FC<Props> = ({
                   color={primaryColor}
                 />
               </TouchableOpacity>
-              
-              {/* Timer */}
+
               <Text
                 className="text-lg font-pmedium"
                 style={{ color: primaryColor }}
@@ -82,14 +79,16 @@ const ActiveWorkoutHeader: React.FC<Props> = ({
             </View>
           </View>
 
-          {/* Right: Finish button */}
-          <TouchableOpacity
-            onPress={onFinish}
-            className="px-3 py-2 rounded-lg"
-            style={{ backgroundColor: primaryColor }}
-          >
-            <Text className="text-white font-pmedium">Finish</Text>
-          </TouchableOpacity>
+          {/* Right Slot (fixed width) */}
+          <View style={{ width: SLOT_WIDTH, alignItems: "flex-end" }}>
+            <TouchableOpacity
+              onPress={onFinish}
+              className="px-3 py-2 rounded-lg"
+              style={{ backgroundColor: primaryColor }}
+            >
+              <Text className="text-white font-pmedium">Finish</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </SafeAreaView>

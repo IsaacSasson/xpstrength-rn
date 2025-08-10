@@ -1,5 +1,5 @@
 // Path: /app/(tabs)/ActiveWorkout.tsx
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   View,
   StatusBar,
@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   Text,
 } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import DraggableBottomSheet from "@/components/DraggableBottomSheet";
 import { useThemeContext } from "@/context/ThemeContext";
@@ -27,6 +27,9 @@ import { useWorkouts } from "@/context/WorkoutContext";
 import PauseModal from "@/components/home/ActiveWorkout/PauseModal";
 import ConfirmCancelModal from "@/components/home/ActiveWorkout/ConfirmCancelModal";
 import InstructionsModal from "@/components/home/ActiveWorkout/InstructionsModal";
+
+// NEW: buffer helpers (same flow used in the editor)
+import { getTempExercises } from "@/utils/exerciseBuffer";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_PREVIEW_SCALE = 0.9;
@@ -125,6 +128,9 @@ const ActiveWorkout = () => {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [selectedExerciseIdx, setSelectedExerciseIdx] = useState<number | null>(null);
 
+  // NEW: keep track if we’re replacing a specific exercise
+  const [pendingReplaceIdx, setPendingReplaceIdx] = useState<number | null>(null);
+
   // Notes state
   const [notesModalVisible, setNotesModalVisible] = useState(false);
   const [currentNotes, setCurrentNotes] = useState("");
@@ -154,12 +160,13 @@ const ActiveWorkout = () => {
         const dbEntry = exerciseDatabase?.find((d: any) => d.id === String(ex.id));
         const baseName = dbEntry?.name || `Exercise ${ex.id}`;
 
-        // We'll build a minimal ExerciseData-compatible object.
         const baseExercise: ExerciseData = {
-          id: ex.id,
+          id: ex.id as any,
           name: baseName,
           images: dbEntry?.images || [],
           instructions: dbEntry?.instructions || "",
+          primaryMuscles: dbEntry?.primaryMuscles,
+          secondaryMuscles: dbEntry?.secondaryMuscles,
         } as any;
 
         const repsNum = Number.isFinite(ex.reps) ? ex.reps : parseInt(String(ex.reps), 10) || 0;
@@ -263,7 +270,6 @@ const ActiveWorkout = () => {
           : ex
       )
     );
-    // Start rest timer when checking off a set
     if (willCheck) startRest();
     else resetRest();
   };
@@ -309,21 +315,18 @@ const ActiveWorkout = () => {
     setNotesModalVisible(false);
   };
 
-  // Replace workout functionality
-  const handleReplaceWorkout = () => {
-    Alert.alert(
-      "Replace Workout",
-      "Go to workout selection to choose a different workout?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Go to Workouts",
-          onPress: () => {
-            router.replace("/home");
-          },
-        },
-      ]
-    );
+  // NEW: Replace exercise via Exercise List
+  const handleReplaceExercise = () => {
+    if (selectedExerciseIdx === null) {
+      Alert.alert("No exercise selected", "Select an exercise first.");
+      return;
+    }
+    setPendingReplaceIdx(selectedExerciseIdx);
+    setShowOptionsSheet(false);
+    router.push({
+      pathname: "/home/exercise-list",
+      params: { action: "replace", returnTo: "active-workout" },
+    });
   };
 
   // Reorder exercises functionality
@@ -350,6 +353,66 @@ const ActiveWorkout = () => {
     });
     setShowOptionsSheet(false);
   };
+
+  /* ───────── Buffer intake (add/replace) ───────── */
+  const makeLocalExerciseFromList = (ex: any): Exercise => {
+    // ex matches the ExerciseList interface
+    const newId = `aw_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    return {
+      id: newId as any,
+      name: ex.name,
+      images: ex.images || [],
+      instructions: ex.instructions || "",
+      primaryMuscles: ex.primaryMuscles,
+      secondaryMuscles: ex.secondaryMuscles,
+      sets: [
+        { id: 1, reps: 10, lbs: 0, checked: false },
+        { id: 2, reps: 10, lbs: 0, checked: false },
+      ],
+      notes: "",
+    } as Exercise;
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      const buffered = getTempExercises();
+      if (!buffered || buffered.length === 0) return;
+
+      // Replace mode
+      if (pendingReplaceIdx !== null) {
+        const src = buffered[0];
+        setExercises((prev) => {
+          const next = [...prev];
+          if (!next[pendingReplaceIdx]) return prev;
+
+          // keep existing sets count but reset checked
+          const existingSets = next[pendingReplaceIdx].sets;
+          const newInfo = makeLocalExerciseFromList(src);
+
+          next[pendingReplaceIdx] = {
+            ...newInfo,
+            sets: existingSets.map((s, i) => ({
+              id: i + 1,
+              reps: s.reps,
+              lbs: s.lbs,
+              checked: false,
+            })),
+            // keep notes with the slot (optional)
+            notes: next[pendingReplaceIdx].notes || "",
+          };
+          return next;
+        });
+        setPendingReplaceIdx(null);
+        return;
+      }
+
+      // Add mode: append all
+      setExercises((prev) => [
+        ...prev,
+        ...buffered.map((b: any) => makeLocalExerciseFromList(b)),
+      ]);
+    }, [pendingReplaceIdx])
+  );
 
   /* ───────── Animated scroll logic ───────── */
   const scrollX = useRef(new Animated.Value(0)).current;
@@ -379,7 +442,7 @@ const ActiveWorkout = () => {
         secondaryColor={secondaryColor}
         tertiaryColor={tertiaryColor}
         onCancel={showConfirmCancel}
-        onPause={handlePause} // Add pause handler
+        onPause={handlePause}
         onFinish={() => {
           const summaries = exercises.map((ex) => ({
             id: (ex as any).id,
@@ -441,7 +504,7 @@ const ActiveWorkout = () => {
               }}
             >
               <ActiveWorkoutCard
-                exercise={ex}
+                exercise={ex as any}
                 exIdx={exIdx}
                 primaryColor={primaryColor}
                 secondaryColor={secondaryColor}
@@ -639,9 +702,9 @@ const ActiveWorkout = () => {
             onPress: handleNotesPress,
           },
           {
-            label: "Replace Workout",
+            label: "Replace Exercise", // <- updated
             icon: "swap-horizontal",
-            onPress: handleReplaceWorkout,
+            onPress: handleReplaceExercise, // <- updated
           },
           {
             label: "Reorder Exercises",
@@ -671,11 +734,11 @@ const ActiveWorkout = () => {
             <MaterialCommunityIcons
               name={opt.icon as any}
               size={24}
-              color={opt.danger ? "#FF4D4D" : primaryColor}
+              color={(opt as any).danger ? "#FF4D4D" : primaryColor}
             />
             <Text
               className="text-lg font-pmedium ml-3"
-              style={{ color: opt.danger ? "#FF4D4D" : "white" }}
+              style={{ color: (opt as any).danger ? "#FF4D4D" : "white" }}
             >
               {opt.label}
             </Text>
