@@ -1,7 +1,9 @@
 import React, { useMemo, useState } from "react";
-import { View, Text } from "react-native";
+import { View, Text, TouchableOpacity } from "react-native";
 import { router } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import FrontSvg from "@/assets/svg/front.svg";
+import BackSvg from "@/assets/svg/back.svg";
 import { injectHandlersIntoSvg } from "@/utils/inject-svg-handlers";
 
 interface RecoveryProps {
@@ -14,16 +16,20 @@ const DEBUG_SVG = false;
 // Default unified fill for target groups' leaf paths
 const DEFAULT_MUSCLE_FILL = "#ccccccff";
 
-const Recovery: React.FC<RecoveryProps> = ({ color }) => {
+const Recovery: React.FC<RecoveryProps> = ({ color, tertiaryColor }) => {
   const daysSinceLastWorkout: number = 2;
   const freshMuscleGroups: number = 5;
   const totalMuscleGroups: number = 8;
 
-  const [side] = useState<"front" | "back">("front");
+  const [side, setSide] = useState<"front" | "back">("front");
 
   const navigateToGroup = (muscleGroupId: string) => {
     const cleanId = muscleGroupId.replace(/^muscle-/, "");
     router.push(`/(tabs)/stats/muscle-group?group=${cleanId}`);
+  };
+
+  const toggleSide = () => {
+    setSide(prev => prev === "front" ? "back" : "front");
   };
 
   const frontHandlers = useMemo(
@@ -40,7 +46,24 @@ const Recovery: React.FC<RecoveryProps> = ({ color }) => {
     []
   );
 
-  const SvgWithHandlers = useMemo(() => {
+  const backHandlers = useMemo(
+    () => ({
+      "muscle-abductors": () => navigateToGroup("muscle-abductors"),
+      "muscle-adductors": () => navigateToGroup("muscle-adductors"),
+      "muscle-calves": () => navigateToGroup("muscle-calves"),
+      "muscle-glutes": () => navigateToGroup("muscle-glutes"),
+      "muscle-hamstrings": () => navigateToGroup("muscle-hamstrings"),
+      "muscle-lats": () => navigateToGroup("muscle-lats"),
+      "muscle-lower-back": () => navigateToGroup("muscle-lower-back"),
+      "muscle-middle-back": () => navigateToGroup("muscle-middle-back"),
+      "muscle-shoulders": () => navigateToGroup("muscle-shoulders"),
+      "muscle-traps": () => navigateToGroup("muscle-traps"),
+      "muscle-triceps": () => navigateToGroup("muscle-triceps"),
+    }),
+    []
+  );
+
+  const FrontSvgWithHandlers = useMemo(() => {
     return injectHandlersIntoSvg(
       <FrontSvg width="100%" height="100%" preserveAspectRatio="xMidYMid meet" />,
       frontHandlers,
@@ -48,10 +71,23 @@ const Recovery: React.FC<RecoveryProps> = ({ color }) => {
         debug: DEBUG_SVG,
         fillColor: DEFAULT_MUSCLE_FILL,
         forceFill: true, // ensure consistent gray even if original fills differ
-        // onCollectedIds: (ids) => console.log("[SVG ids found]", ids), // uncomment if needed
+        // onCollectedIds: (ids) => console.log("[Front SVG ids found]", ids), // uncomment if needed
       }
     );
   }, [frontHandlers]);
+
+  const BackSvgWithHandlers = useMemo(() => {
+    return injectHandlersIntoSvg(
+      <BackSvg width="100%" height="100%" preserveAspectRatio="xMidYMid meet" />,
+      backHandlers,
+      {
+        debug: DEBUG_SVG,
+        fillColor: DEFAULT_MUSCLE_FILL,
+        forceFill: true, // ensure consistent gray even if original fills differ
+        // onCollectedIds: (ids) => console.log("[Back SVG ids found]", ids), // uncomment if needed
+      }
+    );
+  }, [backHandlers]);
 
   const labelColor = "#A1A1AA";
   const numberColor = color;
@@ -59,7 +95,7 @@ const Recovery: React.FC<RecoveryProps> = ({ color }) => {
   return (
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
       <View style={{ flex: 1, position: "relative" }}>
-        {side === "front" && SvgWithHandlers}
+        {side === "front" ? FrontSvgWithHandlers : BackSvgWithHandlers}
 
         {/* Top-left tiny overlay */}
         <View style={{ position: "absolute", top: 8, left: 10 }}>
@@ -101,6 +137,45 @@ const Recovery: React.FC<RecoveryProps> = ({ color }) => {
               }}
             />
           </View>
+        </View>
+
+        {/* Flip button - positioned in bottom center */}
+        <View style={{ 
+          position: "absolute", 
+          bottom: 20, 
+          left: 0, 
+          right: 0, 
+          alignItems: "center" 
+        }}>
+          <TouchableOpacity
+            onPress={toggleSide}
+            style={{
+              backgroundColor: tertiaryColor,
+              borderRadius: 25,
+              padding: 12,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.3,
+              shadowRadius: 4,
+              elevation: 5,
+            }}
+          >
+            <Ionicons 
+              name="sync" 
+              size={24} 
+              color={color} 
+            />
+          </TouchableOpacity>
+          
+          {/* Optional label below the button */}
+          <Text style={{ 
+            color: labelColor, 
+            fontSize: 10, 
+            marginTop: 4,
+            textAlign: "center"
+          }}>
+            {side === "front" ? "View Back" : "View Front"}
+          </Text>
         </View>
       </View>
     </View>
