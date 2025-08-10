@@ -150,35 +150,6 @@ const ActiveWorkoutCard: React.FC<Props> = ({
     >
       {/* Card header with rest timer, image, and name */}
       <View className="flex-row items-center mb-4">
-        {/* Rest Timer (left side) */}
-        <View className="mr-3">
-          {restRunning ? (
-            <View className="items-center">
-              <Text
-                className="text-sm font-pmedium"
-                style={{ color: primaryColor }}
-              >
-                REST
-              </Text>
-              <Text
-                className="text-lg font-pbold"
-                style={{ color: primaryColor }}
-              >
-                {formatTime(restLeft)}
-              </Text>
-            </View>
-          ) : (
-            <View className="items-center">
-              <MaterialCommunityIcons
-                name="timer-outline"
-                size={20}
-                color="#666"
-              />
-              <Text className="text-xs text-gray-500">Ready</Text>
-            </View>
-          )}
-        </View>
-
         {/* Exercise Image (small, flickering) */}
         {exercise.images && exercise.images.length > 0 && (
           <View style={styles.imageContainer}>

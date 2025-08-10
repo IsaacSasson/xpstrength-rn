@@ -134,6 +134,11 @@ const Settings = () => {
           onPress={() => setUnitModalVisible(true)}
         />
         <Row
+          label="Blocked Users"
+          icon="user-slash"
+          onPress={() => router.push("/profile/blocked-users")}
+        />
+        <Row
           label="Support"
           icon="life-ring"
           onPress={() => router.push("/profile/support")}

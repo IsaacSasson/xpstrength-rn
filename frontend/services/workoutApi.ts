@@ -1,9 +1,22 @@
 // Path: /services/workoutApi.ts
 import { api } from "@/utils/api";
 import { handleApiError } from "@/utils/handleApiError";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 /* ---------------------------- Helpers ---------------------------- */
 const toNum = (v: any) => Number(v);
+
+const UNIT_KEY = "unit_preference";
+
+// Load unit preference (imperial by default)
+const getUnitPreference = async (): Promise<"imperial" | "metric"> => {
+  const saved = await AsyncStorage.getItem(UNIT_KEY);
+  return saved === "metric" ? "metric" : "imperial";
+};
+
+// Convert kg <-> lbs
+const lbsToKg = (lbs: number) => lbs * 0.453592;
+const kgToLbs = (kg: number) => kg / 0.453592;
 
 const extractPlan = (result: any): number[] | null => {
   const candidates = [
@@ -11,7 +24,7 @@ const extractPlan = (result: any): number[] | null => {
     result?.data?.plan,
     result?.data?.weeklyPlan?.plan,
     result?.weeklyPlan?.plan,
-    result?.data?.newPlan,            // deleteCustomWorkout response
+    result?.data?.newPlan, // deleteCustomWorkout response
   ];
   const arr = candidates.find((c: any) => Array.isArray(c));
   return arr ? arr.map(toNum) : null;
@@ -20,59 +33,79 @@ const extractPlan = (result: any): number[] | null => {
 /* ------------------------- Transformers -------------------------- */
 // Component Exercise -> API exerciseObj2
 export const transformExerciseToAPI = (exercise: any) => {
-  // Transform each set to the expected format: {reps: Number, weight: Number}
-  const sets = exercise.sets.map((set: any) => {
-    // Extract numeric weight from string like "25.5 lbs"
-    const weightMatch = set.weight.match(/(\d+(?:\.\d+)?)/);
-    const weight = weightMatch ? parseFloat(weightMatch[1]) : 0;
-    
-    // Parse reps as integer
-    const reps = parseInt(set.reps) || 0;
-    
-    return {
-      reps: Math.max(0, reps),     // Ensure non-negative
-      weight: Math.max(0, weight)  // Ensure non-negative
-    };
-  });
+  return {
+    ...exercise,
+    __transform__: async () => {
+      const unit = await getUnitPreference();
+      const sets = exercise.sets.map((set: any) => {
+        // Extract numeric weight from string like "25.5 lbs" or "12 kg"
+        const weightMatch = set.weight.match(/(\d+(?:\.\d+)?)/);
+        let weight = weightMatch ? parseFloat(weightMatch[1]) : 0;
 
-  const transformed = {
-    exercise: toNum(exercise.originalExerciseId),
-    sets: sets,  // Now sending array of {reps, weight} objects
-    cooldown: 60,
+        // If metric, convert kg -> lbs before sending
+        if (unit === "metric") {
+          weight = kgToLbs(weight);
+        }
+
+        const reps = parseInt(set.reps) || 0;
+
+        return {
+          reps: Math.max(0, reps),
+          weight: Math.max(0, weight),
+        };
+      });
+
+      const transformed = {
+        exercise: toNum(exercise.originalExerciseId),
+        sets,
+        cooldown: 60,
+      };
+
+      console.log(`Transforming exercise "${exercise.name}":`, {
+        original: exercise,
+        transformed,
+      });
+
+      return transformed;
+    },
   };
-
-  console.log(`Transforming exercise "${exercise.name}":`, {
-    original: exercise,
-    transformed,
-  });
-
-  return transformed;
 };
 
 // API exerciseObj2 -> Component Exercise
-export const transformExerciseFromAPI = (
+export const transformExerciseFromAPI = async (
   apiExercise: any,
   exerciseDatabase: any[]
 ) => {
+  const unit = await getUnitPreference();
+
   const exerciseDetails = exerciseDatabase.find(
     (ex) => toNum(ex.id) === toNum(apiExercise.exercise)
   );
 
-  // Handle both old and new format for backwards compatibility
   let sets;
   if (Array.isArray(apiExercise.sets)) {
-    // New format: sets is array of {reps, weight} objects
-    sets = apiExercise.sets.map((set: any) => ({
-      reps: String(set.reps || 0),
-      weight: `${set.weight || 0} lbs`,
-    }));
+    sets = apiExercise.sets.map((set: any) => {
+      let weight = set.weight || 0;
+      // Convert lbs -> kg if metric
+      if (unit === "metric") {
+        weight = lbsToKg(weight);
+      }
+      return {
+        reps: String(set.reps || 0),
+        weight: `${unit === "metric" ? weight.toFixed(1) + " kg" : weight + " lbs"}`,
+      };
+    });
   } else {
-    // Old format: sets is number, reps/weight are single values
-    // This provides backwards compatibility in case old data still exists
-    sets = Array.from({ length: apiExercise.sets || 1 }, () => ({
-      reps: String(apiExercise.reps || 0),
-      weight: `${apiExercise.weight || 0} lbs`,
-    }));
+    sets = Array.from({ length: apiExercise.sets || 1 }, () => {
+      let weight = apiExercise.weight || 0;
+      if (unit === "metric") {
+        weight = lbsToKg(weight);
+      }
+      return {
+        reps: String(apiExercise.reps || 0),
+        weight: `${unit === "metric" ? weight.toFixed(1) + " kg" : weight + " lbs"}`,
+      };
+    });
   }
 
   return {
@@ -111,7 +144,10 @@ export const workoutApi = {
         };
       }
 
-      const transformedExercises = validExercises.map(transformExerciseToAPI);
+      const transformedExercises = [];
+      for (const ex of validExercises) {
+        transformedExercises.push(await transformExerciseToAPI(ex).__transform__());
+      }
 
       console.log("Creating workout with data:", {
         name,
@@ -134,7 +170,8 @@ export const workoutApi = {
       console.log("Create workout API response:", result);
 
       let workoutData;
-      if (result.data?.newCustomWorkout) workoutData = result.data.newCustomWorkout;
+      if (result.data?.newCustomWorkout)
+        workoutData = result.data.newCustomWorkout;
       else if (result.workout) workoutData = result.workout;
       else if (result.data) workoutData = result.data;
       else workoutData = result;
@@ -148,7 +185,8 @@ export const workoutApi = {
         id: toNum(workoutData.id),
         name: workoutData.name,
         exercises: workoutData.exercises || [],
-        userId: workoutData.userId != null ? toNum(workoutData.userId) : undefined,
+        userId:
+          workoutData.userId != null ? toNum(workoutData.userId) : undefined,
         createdAt: workoutData.createdAt,
         updatedAt: workoutData.updatedAt,
       };
@@ -176,7 +214,10 @@ export const workoutApi = {
         };
       }
 
-      const transformedExercises = validExercises.map(transformExerciseToAPI);
+      const transformedExercises = [];
+      for (const ex of validExercises) {
+        transformedExercises.push(await transformExerciseToAPI(ex).__transform__());
+      }
 
       console.log("Updating workout with data:", {
         id,
@@ -200,8 +241,10 @@ export const workoutApi = {
       console.log("Update workout API response:", result);
 
       let workoutData;
-      if (result.data?.updatedCustomWorkout) workoutData = result.data.updatedCustomWorkout;
-      else if (result.data?.newCustomWorkout) workoutData = result.data.newCustomWorkout;
+      if (result.data?.updatedCustomWorkout)
+        workoutData = result.data.updatedCustomWorkout;
+      else if (result.data?.newCustomWorkout)
+        workoutData = result.data.newCustomWorkout;
       else if (result.workout) workoutData = result.workout;
       else if (result.data) workoutData = result.data;
       else workoutData = { id, name, exercises: [] };
@@ -210,7 +253,8 @@ export const workoutApi = {
         id: toNum(workoutData.id ?? id),
         name: workoutData.name ?? name,
         exercises: workoutData.exercises || [],
-        userId: workoutData.userId != null ? toNum(workoutData.userId) : undefined,
+        userId:
+          workoutData.userId != null ? toNum(workoutData.userId) : undefined,
         createdAt: workoutData.createdAt,
         updatedAt: workoutData.updatedAt,
       };
@@ -261,7 +305,9 @@ export const workoutApi = {
     }
   },
 
-  async deleteCustomWorkout(id: number): Promise<{ success: boolean; plan?: number[]; error?: string }> {
+  async deleteCustomWorkout(
+    id: number
+  ): Promise<{ success: boolean; plan?: number[]; error?: string }> {
     try {
       const response = await api.delete("/api/v1/user/custom-workout", {
         body: JSON.stringify({ data: { id } }),
@@ -269,13 +315,15 @@ export const workoutApi = {
 
       if (!response.ok) {
         const errorDetails = await handleApiError(response);
-        return { success: false, error: errorDetails.error || "Failed to delete workout" };
+        return {
+          success: false,
+          error: errorDetails.error || "Failed to delete workout",
+        };
       }
 
       const result = await response.json();
       console.log("Delete workout response:", result);
 
-      // Server returns newPlan after delete
       const planArr = extractPlan(result) ?? null;
       return { success: true, plan: planArr || undefined };
     } catch (error) {
@@ -285,13 +333,20 @@ export const workoutApi = {
   },
 
   /* --------------- Workout Plan --------------- */
-  async getWorkoutPlan(): Promise<{ success: boolean; plan?: number[]; error?: string }> {
+  async getWorkoutPlan(): Promise<{
+    success: boolean;
+    plan?: number[];
+    error?: string;
+  }> {
     try {
       const response = await api.get("/api/v1/user/workout-plan");
 
       if (!response.ok) {
         const errorDetails = await handleApiError(response);
-        return { success: false, error: errorDetails.error || "Failed to fetch workout plan" };
+        return {
+          success: false,
+          error: errorDetails.error || "Failed to fetch workout plan",
+        };
       }
 
       const result = await response.json();
@@ -309,19 +364,24 @@ export const workoutApi = {
     }
   },
 
-  async updateWorkoutPlan(plan: number[]): Promise<{ success: boolean; plan?: number[]; error?: string }> {
+  async updateWorkoutPlan(
+    plan: number[]
+  ): Promise<{ success: boolean; plan?: number[]; error?: string }> {
     try {
       const normalized = plan.map(toNum);
       console.log("Updating workout plan with:", normalized);
 
       const response = await api.put("/api/v1/user/workout-plan", {
-        data: { newPlan: normalized }, // <-- backend expects newPlan
+        data: { newPlan: normalized },
       });
 
       if (!response.ok) {
         const errorDetails = await handleApiError(response);
         console.error("Workout plan update failed:", errorDetails);
-        return { success: false, error: errorDetails.error || "Failed to update workout plan" };
+        return {
+          success: false,
+          error: errorDetails.error || "Failed to update workout plan",
+        };
       }
 
       const result = await response.json();

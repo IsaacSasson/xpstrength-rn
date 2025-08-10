@@ -34,7 +34,7 @@ const CARD_SPACING = 14;
 const CARD_WIDTH = SCREEN_WIDTH * 0.8;
 const SIDE_PADDING = (SCREEN_WIDTH - CARD_WIDTH) / 2;
 const COL_WIDTH = 80;
-const CARD_HEIGHT = 550;
+const CARD_HEIGHT = 540;
 const CHECK_COL_WIDTH = 32;
 
 interface Set {
