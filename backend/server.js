@@ -9,13 +9,10 @@ import rateLimiter from "./middleware/rateLimit.middleware.js";
 import { assertDatabaseConnected, sequelize } from "./config/db.config.js";
 import { requestLogger } from "./middleware/log.middleware.js";
 import cookieParser from "cookie-parser";
-import { WebSocketServer } from "ws";
-import { verifyWebSocketToken } from "./utils/security.js";
-import { getFriendData } from "./utils/GetFriendData.js";
-import { AVLTree } from "avl";
-import { handleClientMessage } from "./utils/serverWebSocketManager.js";
 import { fileURLToPath } from "url";
 import path from "path";
+import { createIo } from "./io/index.js";
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // ----------------- Config
@@ -58,122 +55,14 @@ app.use(rateLimiter.speedLimiter);
 //  Routes
 app.use("/api/v1", requestLogger, v1Router);
 
-//Websocket Server
+//Serving the Websocket Test Client
+app.use(express.static(path.join(__dirname, "public")));
+
+//HTTP Server
 const server = http.createServer(app);
-const wss = new WebSocketServer({ server, path: "/socket" });
-const connections = new Map();
 
-//Websocket will have "changes" where you update the client with all the changes in the database events, and grab all fresh data from DB into the websocket, then do a hash comparison of the data
-//if the hash passes nothing
-//if the hash failes, send client websocket data to store and then rerun changes
-
-//Executive decision all data will be stored and cached, we will not have a write through cache
-
-//On initilization websocket will grab all data for the initialized user and set timeouts for the websocket auth
-//User can get websocket auth token on network/websocket-token
-//On the inital handshake the token should be send in to /socket with the token in the appropiate querying
-//In the future we will set up https and wss
-
-//After succesful handshake do an event sync immediatly, client assumes empty arrays for everything as the start
-
-wss.on("connection", async (ws, req) => {
-  const url = new URL(req.url, `http://${req.headers.host}`);
-  let token = url.searchParams.get("token");
-  if (!token) {
-    return ws.close(4001, "Missing token");
-  }
-
-  //Verify Token Validity
-  try {
-    const { user, payload } = await verifyWebSocketToken(token);
-  } catch (err) {
-    return ws.close(4002, "Invalid token");
-  }
-
-  //Grab Friend Data
-  try {
-    const friendData = await getFriendData(user);
-  } catch (err) {
-    return ws.close(4004, "Friend data not found");
-  }
-
-  //Serialize friend data into usable balanced BST instance, set Timeout and set client Map
-  try {
-    const msUntilExpiry = payload.exp * 1000 - Date.now();
-    if (msUntilExpiry <= 0) {
-      return ws.close(4003, "Token already expired");
-    }
-
-    const expiryTimer = setTimeout(() => {
-      ws.close(4003, "Token expired");
-    }, msUntilExpiry);
-
-    const Friends = new AVLTree();
-    Friends.load(friendData.friends);
-
-    const IncomingRequests = new AVLTree();
-    IncomingRequests.load(friendData.incomingRequests);
-
-    const OutgoingRequests = new AVLTree();
-    OutgoingRequests.load(friendData.outgoingRequests);
-
-    const key = user.id;
-    const value = {
-      friends: Friends,
-      incomingRequests: IncomingRequests,
-      outgoingRequests: OutgoingRequests,
-      expiration: expiryTimer,
-      socket: ws,
-    };
-
-    if (connections.has(key)) {
-      clearTimeout(connections.get(key).expiration);
-      connections.set(key, value);
-    } else {
-      connections.set(key, value);
-    }
-  } catch (err) {
-    return ws.close(5000, "Failed to initalize connection with server");
-  }
-
-  ws.on("message", async (raw) => {
-    let msg;
-    try {
-      msg = JSON.parse(raw);
-    } catch {
-      return ws.send(JSON.stringify({ error: "Bad Json" }));
-    }
-
-    //Is their a token on the message?
-    const incomingToken = msg.token;
-    if (!incomingToken) {
-      clearTimeout(expiration);
-      connections.delete(key);
-      return ws.close(4001, "Missing token on message");
-    }
-
-    //is the token valid?
-    try {
-      const { user, payload } = await verifyWebSocketToken(token);
-    } catch (err) {
-      clearTimeout(expiration);
-      connections.delete(key);
-      return ws.close(4002, "Invalid token");
-    }
-
-    handleClientMessage(connections, ws, msg, key);
-  });
-
-  ws.on("close", () => {
-    clearTimeout(expiration);
-    connections.delete(key);
-  });
-
-  //message is for logging purpose for server, action is a requestedAction to the other party, payload has the data for sending
-  ws.send(
-    JSON.stringify({ message: "Succesful connection", event: "requestSync" })
-  );
-});
+//Websocket Server
+createIo(server);
 
 //  Boot sequence
 async function start() {

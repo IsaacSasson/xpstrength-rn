@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Socket.IO Test Client</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        margin: 20px;
+      }
+      input,
+      button {
+        padding: 6px 10px;
+        margin: 4px 0;
+      }
+      #log {
+        white-space: pre-wrap;
+        background: #f6f8fa;
+        padding: 10px;
+        border-radius: 6px;
+        height: 300px;
+        overflow: auto;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Socket.IO Test</h1>
+
+    <div class="row">
+      <label>Token:</label>
+      <input id="token" placeholder="demo (if no ACCESS_SECRET)" size="40" />
+      <button id="connectBtn">Connect</button>
+      <button id="disconnectBtn" disabled>Disconnect</button>
+    </div>
+
+    <div class="row">
+      <button id="syncBtn" disabled>Sync Now</button>
+      <button id="pingBtn" disabled>Ping</button>
+    </div>
+
+    <h3>Log</h3>
+    <div id="log"></div>
+
+    <!-- Socket.IO client from CDN (no SRI for dev) -->
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+    <script>
+      let socket;
+
+      const logEl = document.getElementById("log");
+      function log(...args) {
+        const line = args
+          .map((a) => (typeof a === "string" ? a : JSON.stringify(a)))
+          .join(" ");
+        logEl.textContent += line + "\n";
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+
+      const connectBtn = document.getElementById("connectBtn");
+      const disconnectBtn = document.getElementById("disconnectBtn");
+      const syncBtn = document.getElementById("syncBtn");
+      const pingBtn = document.getElementById("pingBtn");
+
+      connectBtn.onclick = () => {
+        const token = document.getElementById("token").value.trim();
+        if (!token) return alert("Enter a token");
+
+        // Point this to your Socket.IO server/port
+        socket = io("http://localhost:4000", {
+          path: "/socket",
+          auth: { token },
+        });
+
+        //Default IO Socket Callbacks
+        socket.on("connect", () => {
+          //When you have a succesful connection sends this
+          log("connected", { id: socket.id });
+          connectBtn.disabled = true;
+          disconnectBtn.disabled = false;
+          syncBtn.disabled = false;
+          pingBtn.disabled = false;
+        });
+
+        socket.on("connect_error", (err) =>
+          //On a failed connection sends this with our custom error we handled in the error middleware (First sends to an app error, then the next sends it to the connect error by scoekt)
+          log("connect_error", { message: err.message })
+        );
+
+        //Custom Error callback, we send errors back on this callback
+        socket.on("error", (err) => log("socket_error", err));
+
+        //Everytime someone disconects, socketIO sends this event with their reason
+        socket.on("disconnect", (reason) => {
+          log("disconnected", { reason });
+          connectBtn.disabled = false;
+          disconnectBtn.disabled = true;
+          syncBtn.disabled = true;
+          pingBtn.disabled = true;
+        });
+
+        //Custom Pong Event
+        socket.on("pong", (payload) => log("pong", payload));
+      };
+
+      disconnectBtn.onclick = () => socket?.disconnect();
+      syncBtn.onclick = () => socket?.emit("syncNow");
+      pingBtn.onclick = () => socket?.emit("ping");
+    </script>
+  </body>
+</html>
