@@ -16,19 +16,44 @@ const MuscleGroupDetail = () => {
   // Normalize "group" to a simple string key
   const groupKey = Array.isArray(group) ? group[0] : group ?? "";
 
-  // Map muscle group IDs to display names
+  // Map muscle group IDs to display names - includes all front and back muscle groups
   const muscleGroupNames: Record<string, string> = {
+    // Front muscle groups
     abdominals: "Abdominals",
-    biceps: "Biceps",
+    biceps: "Biceps", 
     chest: "Chest",
     forearms: "Forearms",
     neck: "Neck",
     quadriceps: "Quadriceps",
     shoulders: "Shoulders",
     traps: "Traps",
+    
+    // Back muscle groups
+    abductors: "Abductors",
+    adductors: "Adductors", 
+    calves: "Calves",
+    glutes: "Glutes",
+    hamstrings: "Hamstrings",
+    lats: "Latissimus Dorsi",
+    "lower-back": "Lower Back",
+    "middle-back": "Middle Back",
+    triceps: "Triceps",
   };
 
   const muscleGroupName = muscleGroupNames[groupKey] || "Unknown Muscle Group";
+
+  // Get muscle group category for contextual data
+  const getMuscleGroupCategory = (key: string): "upper" | "lower" | "core" => {
+    const upperBody = ["biceps", "chest", "forearms", "neck", "shoulders", "traps", "lats", "middle-back", "triceps"];
+    const lowerBody = ["quadriceps", "abductors", "adductors", "calves", "glutes", "hamstrings", "lower-back"];
+    const core = ["abdominals"];
+    
+    if (upperBody.includes(key)) return "upper";
+    if (lowerBody.includes(key)) return "lower";
+    return "core";
+  };
+
+  const muscleCategory = getMuscleGroupCategory(groupKey);
 
   // Boilerplate data - replace with real data later
   const recoveryStatus: "Fresh" | "Recovering" | "Fatigued" | string = "Fresh";
@@ -50,27 +75,35 @@ const MuscleGroupDetail = () => {
     }
   };
 
-  const recoveryTips =
-    recoveryStatus === "Fresh"
-      ? [
-          "Ready for intense training",
-          "Consider progressive overload",
-          "Focus on compound movements",
-          "Maintain proper form",
-        ]
-      : recoveryStatus === "Recovering"
-      ? [
-          "Light to moderate intensity",
-          "Focus on technique refinement",
-          "Consider active recovery",
-          "Ensure adequate protein intake",
-        ]
-      : [
-          "Prioritize rest and recovery",
-          "Light stretching or mobility work",
-          "Avoid high-intensity training",
-          "Focus on sleep and nutrition",
-        ];
+  // Get sample exercises based on muscle group
+  const getSampleExercises = (key: string): string[] => {
+    const exerciseMap: Record<string, string[]> = {
+      // Front
+      abdominals: ["Plank", "Crunches", "Russian Twists"],
+      biceps: ["Bicep Curls", "Hammer Curls", "Chin-ups"],
+      chest: ["Bench Press", "Push-ups", "Chest Flyes"],
+      forearms: ["Wrist Curls", "Farmer's Walk", "Dead Hangs"], 
+      neck: ["Neck Bridges", "Resistance Band Pulls", "Isometric Holds"],
+      quadriceps: ["Squats", "Lunges", "Leg Press"],
+      shoulders: ["Shoulder Press", "Lateral Raises", "Upright Rows"],
+      traps: ["Shrugs", "Face Pulls", "Upright Rows"],
+      
+      // Back
+      abductors: ["Side Leg Raises", "Clamshells", "Monster Walks"],
+      adductors: ["Inner Thigh Squeezes", "Sumo Squats", "Side Lunges"],
+      calves: ["Calf Raises", "Jump Rope", "Walking"],
+      glutes: ["Hip Thrusts", "Glute Bridges", "Bulgarian Split Squats"],
+      hamstrings: ["Romanian Deadlifts", "Leg Curls", "Good Mornings"],
+      lats: ["Pull-ups", "Lat Pulldowns", "Rows"],
+      "lower-back": ["Deadlifts", "Back Extensions", "Superman"],
+      "middle-back": ["Bent-over Rows", "T-Bar Rows", "Reverse Flyes"],
+      triceps: ["Tricep Dips", "Close-grip Push-ups", "Overhead Press"],
+    };
+    
+    return exerciseMap[key] || ["Exercise 1", "Exercise 2", "Exercise 3"];
+  };
+
+  const sampleExercises = getSampleExercises(groupKey);
 
   return (
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
@@ -81,7 +114,7 @@ const MuscleGroupDetail = () => {
         <View className="px-4 pt-6">
           <View className="flex-row items-center justify-between mb-4">
             {/* Middle: Title / Subtitle using your Header component */}
-            <Header MText={muscleGroupName} SText={`Level ${level}`} />
+            <Header MText={muscleGroupName} SText={`Level ${level} • ${muscleCategory.toUpperCase()}`} />
 
             {/* Right: spacer (keeps header visually centered, like your other screen with a right action) */}
             <View style={{ width: 36 }} />
@@ -130,9 +163,9 @@ const MuscleGroupDetail = () => {
           <Text className="text-white font-psemibold text-lg mb-3">Recent Workouts</Text>
 
           {[
-            { date: "Jan 15", exercises: ["Bench Press", "Incline DB Press"], volume: "2,850 lbs" },
-            { date: "Jan 12", exercises: ["Push-ups", "Chest Flyes"], volume: "2,200 lbs" },
-            { date: "Jan 9", exercises: ["Bench Press", "Dips"], volume: "2,650 lbs" },
+            { date: "Jan 15", exercises: sampleExercises.slice(0, 2), volume: "2,850 lbs" },
+            { date: "Jan 12", exercises: [sampleExercises[2], sampleExercises[0]], volume: "2,200 lbs" },
+            { date: "Jan 9", exercises: sampleExercises.slice(0, 2), volume: "2,650 lbs" },
           ].map((workout, index) => (
             <View key={index} className="p-4 rounded-xl mb-2" style={{ backgroundColor: "#1A1925" }}>
               <View className="flex-row justify-between items-center mb-2">
