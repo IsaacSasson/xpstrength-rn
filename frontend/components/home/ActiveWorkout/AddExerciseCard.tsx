@@ -42,7 +42,12 @@ const ActiveWorkoutAddCard: React.FC<Props> = ({
 
       {/* Big round add button */}
       <TouchableOpacity
-        onPress={() => router.push("/home/exercise-list")}
+        onPress={() =>
+          router.push({
+            pathname: "/home/exercise-list",
+            params: { action: "add", returnTo: "active-workout" },
+          })
+        }
         className="items-center justify-center"
         style={{
           width: 84,
@@ -50,6 +55,7 @@ const ActiveWorkoutAddCard: React.FC<Props> = ({
           borderRadius: 42,
           backgroundColor: primaryColor,
         }}
+        activeOpacity={0.7}
       >
         <MaterialCommunityIcons name="plus" size={38} color="#FFFFFF" />
       </TouchableOpacity>

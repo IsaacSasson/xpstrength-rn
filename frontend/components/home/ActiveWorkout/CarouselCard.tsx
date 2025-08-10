@@ -1,5 +1,4 @@
-// Path: /components/home/ActiveWorkout/CarouselCard.tsx
-import React, { useMemo, useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,13 +9,19 @@ import {
   StyleSheet,
 } from "react-native";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import ExerciseAnatomy from "@/components/home/ActiveWorkout/ExerciseAnatomy";
+/**
+ * ✅ NEW: pull unit preference from your WorkoutContext
+ * If your hook lives elsewhere, adjust the import path.
+ * This file only *reads* the unit; all callbacks still come from props.
+ */
 import { useWorkouts } from "@/context/WorkoutContext";
 
 const MAX_FIELD_VALUE = 9999;
 
 export interface SetItem {
   id: number;
-  lbs: number;
+  lbs: number; // internal base stays in lbs
   reps: number;
   checked?: boolean;
 }
@@ -28,6 +33,8 @@ export interface ExerciseItem {
   images?: number[];
   sets: SetItem[];
   notes?: string;
+  primaryMuscles?: string | string[] | null;
+  secondaryMuscles?: string | string[] | null;
 }
 
 interface Props {
@@ -53,7 +60,7 @@ interface Props {
     exIdx: number,
     setIdx: number,
     field: "reps" | "lbs",
-    value: number
+    value: number // value always passed back in INTERNAL BASE (lbs for weight)
   ) => void;
   onAddSet: (exIdx: number) => void;
   onRemoveSet: (exIdx: number) => void;
@@ -78,9 +85,23 @@ const ActiveWorkoutCard: React.FC<Props> = ({
   onAddSet,
   onRemoveSet,
 }) => {
-  const { convertWeight, formatWeight, parseWeight, unitSystem } = useWorkouts();
   const editableBg = "rgba(255,255,255,0.08)";
   const listRef = useRef<ScrollView | null>(null);
+
+  // ✅ Unit preference from context (defaults if not present)
+  const workoutsCtx = useWorkouts();
+  const unitPref = (workoutsCtx as any)?.unit ?? (workoutsCtx as any)?.weightUnit ?? "lbs";
+  const unitLabel = unitPref === "kg" || unitPref === "metric" ? "kg" : "lbs";
+
+  // Convert helpers (internal base stays lbs)
+  const toDisplayWeight = (lbs: number) => {
+    if (unitLabel === "kg") return Math.round((lbs / 2.20462) * 10) / 10; // 1 decimal
+    return lbs;
+  };
+  const fromDisplayWeightToLbs = (displayVal: number) => {
+    if (unitLabel === "kg") return Math.round(displayVal * 2.20462);
+    return displayVal;
+  };
 
   // Local editing controller (UI only; values saved via onUpdateSetField)
   const [editing, setEditing] = useState<EditingState>(null);
@@ -93,42 +114,44 @@ const ActiveWorkoutCard: React.FC<Props> = ({
   useEffect(() => {
     if (exercise.images && exercise.images.length > 1) {
       const interval = setInterval(() => {
-        setCurrentImageIndex((prev) => 
+        setCurrentImageIndex((prev) =>
           prev === exercise.images!.length - 1 ? 0 : prev + 1
         );
-      }, 1500); // Flicker every 1.5 seconds
+      }, 1500);
       return () => clearInterval(interval);
     }
   }, [exercise.images]);
 
   const beginEdit = (setIdx: number, field: "reps" | "lbs", current: number) => {
     setEditing({ setIdx, field });
-    if (field === "lbs") {
-      // Convert the stored value (always in lbs) to display value in user's preferred unit
-      const convertedValue = convertWeight(current, "imperial", unitSystem);
-      setEditingValue(String(Math.round(convertedValue * 10) / 10)); // Round to 1 decimal
-    } else {
-      setEditingValue(String(current));
-    }
+    setEditingValue(String(current));
   };
 
   const commitEdit = () => {
     if (!editing) return;
-    let num = parseFloat(editingValue);
+
+    // clamp numeric value
+    let num = Number(editingValue.replace(/[^\d.]/g, "")); // allow decimal for kg display
     if (isNaN(num)) {
       setEditing(null);
       setEditingValue("");
       return;
     }
-    
+
+    // For display we cap within MAX, then convert (for weight)
+    const cappedDisplay = Math.max(0, Math.min(num, MAX_FIELD_VALUE));
+
     if (editing.field === "lbs") {
-      // Convert the display value back to lbs for storage
-      const convertedValue = convertWeight(num, unitSystem, "imperial");
-      num = convertedValue;
+      // convert back to internal lbs before saving
+      const internalLbs = fromDisplayWeightToLbs(cappedDisplay);
+      const clampedInternal = Math.max(0, Math.min(internalLbs, MAX_FIELD_VALUE));
+      onUpdateSetField(exIdx, editing.setIdx, "lbs", clampedInternal);
+    } else {
+      // reps save directly
+      const clampedReps = Math.round(Math.max(0, Math.min(cappedDisplay, MAX_FIELD_VALUE)));
+      onUpdateSetField(exIdx, editing.setIdx, "reps", clampedReps);
     }
-    
-    num = Math.max(0, Math.min(num, MAX_FIELD_VALUE));
-    onUpdateSetField(exIdx, editing.setIdx, editing.field, num);
+
     setEditing(null);
     setEditingValue("");
   };
@@ -138,18 +161,14 @@ const ActiveWorkoutCard: React.FC<Props> = ({
     onAddSet(exIdx);
     const after = before + 1;
     if (after > 4) {
-      // Let React commit, then scroll
       requestAnimationFrame(() => {
         setTimeout(() => listRef.current?.scrollToEnd?.({ animated: true }), 60);
       });
     }
   };
 
-  const formatTime = (seconds: number) =>
-    `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
-
-  // Get the weight unit label for display
-  const weightUnit = unitSystem === "metric" ? "kg" : "lbs";
+  // Reserve ~half the card height for anatomy (rest of space becomes sets area)
+  const ANATOMY_HEIGHT = Math.max(120, Math.floor(CARD_HEIGHT * 0.4));
 
   return (
     <View
@@ -166,11 +185,11 @@ const ActiveWorkoutCard: React.FC<Props> = ({
         height: CARD_HEIGHT,
       }}
     >
-      {/* Card header with rest timer, image, and name */}
-      <View className="flex-row items-center mb-4">
-        {/* Exercise Image (small, flickering) */}
+      {/* Header row - with properly centered exercise name */}
+      <View style={{ position: "relative", height: 48, marginBottom: 16, justifyContent: "center" }}>
+        {/* Exercise Image (positioned absolutely on left) */}
         {exercise.images && exercise.images.length > 0 && (
-          <View style={styles.imageContainer}>
+          <View style={[styles.imageContainer, { position: "absolute", left: 0, top: 4 }]}>
             {exercise.images.map((image, index) => (
               <Image
                 key={index}
@@ -185,38 +204,30 @@ const ActiveWorkoutCard: React.FC<Props> = ({
           </View>
         )}
 
-        {/* Exercise Name (center) */}
-        <View className="flex-1 items-center">
+        {/* Exercise Name (truly centered) */}
+        <View style={{ alignItems: "center", justifyContent: "center", paddingHorizontal: 60 }}>
           <Text
             className="text-2xl font-pbold text-center"
             style={{ color: secondaryColor }}
+            numberOfLines={1}
+            ellipsizeMode="tail"
           >
             {exercise.name}
           </Text>
         </View>
 
-        {/* Options button (right) */}
-        <TouchableOpacity onPress={() => onOpenOptions(exIdx)}>
+        {/* Options button (positioned absolutely on right) */}
+        <TouchableOpacity onPress={() => onOpenOptions(exIdx)} style={{ position: "absolute", right: 0, top: 14 }}>
           <MaterialCommunityIcons name="dots-vertical" size={20} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
 
-      {/* Notes section (if notes exist) */}
+      {/* Notes */}
       {exercise.notes && exercise.notes.trim() && (
-        <View
-          className="mb-3 p-2 rounded-lg"
-          style={{ backgroundColor: "rgba(255,255,255,0.05)" }}
-        >
+        <View className="mb-3 p-2 rounded-lg" style={{ backgroundColor: "rgba(255,255,255,0.05)" }}>
           <View className="flex-row items-center mb-1">
-            <MaterialCommunityIcons
-              name="note-text-outline"
-              size={16}
-              color={primaryColor}
-            />
-            <Text
-              className="text-sm font-pmedium ml-1"
-              style={{ color: primaryColor }}
-            >
+            <MaterialCommunityIcons name="note-text-outline" size={16} color={primaryColor} />
+            <Text className="text-sm font-pmedium ml-1" style={{ color: primaryColor }}>
               Notes:
             </Text>
           </View>
@@ -224,165 +235,164 @@ const ActiveWorkoutCard: React.FC<Props> = ({
         </View>
       )}
 
-      {/* Table header */}
-      <View
-        className="flex-row py-1 mb-2 rounded-lg"
-        style={{ borderColor: secondaryColor, borderWidth: 0.3 }}
-      >
+      {/* Table header - aligned with data columns */}
+      <View className="flex-row py-1 mb-2 rounded-lg" style={{ borderColor: secondaryColor, borderWidth: 0.3 }}>
         <View style={{ width: CHECK_COL_WIDTH }} />
-        <Text style={{ width: COL_WIDTH }} className="text-white font-pmedium">
-          SET
-        </Text>
-        <Text
-          style={{ flex: 1, textAlign: "center", marginRight: 15 }}
-          className="text-white font-pmedium"
-        >
-          REPS
-        </Text>
-        <Text
-          style={{ width: COL_WIDTH, textAlign: "right", marginRight: 15 }}
-          className="text-white font-pmedium"
-        >
-          WEIGHT
-        </Text>
+        <View style={{ width: COL_WIDTH, alignItems: "center" }}>
+          <Text className="text-white font-pmedium">SET</Text>
+        </View>
+        <View style={{ flex: 1, alignItems: "center" }}>
+          <Text className="text-white font-pmedium">REPS</Text>
+        </View>
+        <View style={{ width: COL_WIDTH, alignItems: "center" }}>
+          <Text className="text-white font-pmedium">
+            WEIGHT ({unitLabel.toUpperCase()})
+          </Text>
+        </View>
       </View>
 
-      {/* Sets list */}
-      <ScrollView
-        ref={(ref) => { listRef.current = ref; }}
-        style={{ flex: 1, marginBottom: 60 }}
-        nestedScrollEnabled
-        showsVerticalScrollIndicator={false}
-      >
-        {exercise.sets.map((s, setIdx) => {
-          // Convert weight for display (stored value is always in lbs)
-          const displayWeight = convertWeight(s.lbs, "imperial", unitSystem);
-          const formattedDisplayWeight = unitSystem === "metric" 
-            ? `${displayWeight.toFixed(1)} ${weightUnit}`
-            : `${Math.round(displayWeight)} ${weightUnit}`;
+      {/* ===== TOP REGION: Sets (scrollable, fills remaining space) ===== */}
+      <View style={{ flex: 1 }}>
+        <ScrollView
+          ref={(ref) => {
+            listRef.current = ref;
+          }}
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingBottom: 8 }}
+          nestedScrollEnabled
+          showsVerticalScrollIndicator={false}
+        >
+          {exercise.sets.map((s, setIdx) => {
+            const displayWeight = toDisplayWeight(s.lbs);
 
-          return (
-            <View
-              key={s.id}
-              className="flex-row mb-2"
-              style={{ minHeight: 32, alignItems: "center" }}
-            >
-              {/* Checkmark */}
+            return (
               <View
-                style={{
-                  width: CHECK_COL_WIDTH,
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
+                key={s.id}
+                className="flex-row mb-2"
+                style={{ minHeight: 32, alignItems: "center" }}
               >
-                <TouchableOpacity
-                  onPress={() => onToggleSetChecked(exIdx, setIdx)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                {/* Checkmark */}
+                <View
+                  style={{
+                    width: CHECK_COL_WIDTH,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
                 >
-                  <MaterialCommunityIcons
-                    name={
-                      s.checked
-                        ? "check-circle"
-                        : "checkbox-blank-circle-outline"
-                    }
-                    size={22}
-                    color={s.checked ? primaryColor : "#9CA3AF"}
-                  />
-                </TouchableOpacity>
-              </View>
-
-              {/* Set # */}
-              <View style={{ width: COL_WIDTH, alignItems: "center" }}>
-                <Text className="text-gray-100">{s.id}</Text>
-              </View>
-
-              {/* Reps */}
-              <View style={{ flex: 1, alignItems: "center" }}>
-                {editing &&
-                editing.setIdx === setIdx &&
-                editing.field === "reps" ? (
-                  <TextInput
-                    value={editingValue}
-                    onChangeText={setEditingValue}
-                    onBlur={commitEdit}
-                    onSubmitEditing={commitEdit}
-                    keyboardType="numeric"
-                    autoFocus
-                    maxLength={4}
-                    style={{
-                      color: "#FFFFFF",
-                      backgroundColor: editableBg,
-                      paddingVertical: 2,
-                      paddingHorizontal: 6,
-                      borderRadius: 10,
-                      minWidth: 60,
-                      textAlign: "center",
-                    }}
-                  />
-                ) : (
                   <TouchableOpacity
-                    onPress={() => beginEdit(setIdx, "reps", s.reps)}
-                    style={{
-                      backgroundColor: editableBg,
-                      paddingVertical: 2,
-                      paddingHorizontal: 6,
-                      borderRadius: 10,
-                      minWidth: 60,
-                    }}
+                    onPress={() => onToggleSetChecked(exIdx, setIdx)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <Text className="text-gray-100" style={{ textAlign: "center" }}>
-                      {s.reps}
-                    </Text>
+                    <MaterialCommunityIcons
+                      name={s.checked ? "check-circle" : "checkbox-blank-circle-outline"}
+                      size={22}
+                      color={s.checked ? primaryColor : "#9CA3AF"}
+                    />
                   </TouchableOpacity>
-                )}
-              </View>
+                </View>
 
-              {/* Weight */}
-              <View style={{ width: COL_WIDTH, alignItems: "center" }}>
-                {editing &&
-                editing.setIdx === setIdx &&
-                editing.field === "lbs" ? (
-                  <TextInput
-                    value={editingValue}
-                    onChangeText={setEditingValue}
-                    onBlur={commitEdit}
-                    onSubmitEditing={commitEdit}
-                    keyboardType="numeric"
-                    autoFocus
-                    maxLength={6}
-                    style={{
-                      color: "#FFFFFF",
-                      backgroundColor: editableBg,
-                      paddingVertical: 2,
-                      paddingHorizontal: 6,
-                      borderRadius: 10,
-                      minWidth: 60,
-                      textAlign: "center",
-                    }}
-                  />
-                ) : (
-                  <TouchableOpacity
-                    onPress={() => beginEdit(setIdx, "lbs", s.lbs)}
-                    style={{
-                      backgroundColor: editableBg,
-                      paddingVertical: 2,
-                      paddingHorizontal: 6,
-                      borderRadius: 10,
-                      minWidth: 60,
-                    }}
-                  >
-                    <Text className="text-gray-100" style={{ textAlign: "center" }}>
-                      {formattedDisplayWeight}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-          );
-        })}
-      </ScrollView>
+                {/* Set # */}
+                <View style={{ width: COL_WIDTH, alignItems: "center" }}>
+                  <Text className="text-gray-100">{s.id}</Text>
+                </View>
 
-      {/* Add / Remove buttons */}
+                {/* Reps */}
+                <View style={{ flex: 1, alignItems: "center" }}>
+                  {editing && editing.setIdx === setIdx && editing.field === "reps" ? (
+                    <TextInput
+                      value={editingValue}
+                      onChangeText={setEditingValue}
+                      onBlur={commitEdit}
+                      onSubmitEditing={commitEdit}
+                      keyboardType="numeric"
+                      autoFocus
+                      maxLength={4}
+                      style={{
+                        color: "#FFFFFF",
+                        backgroundColor: editableBg,
+                        paddingVertical: 2,
+                        paddingHorizontal: 6,
+                        borderRadius: 10,
+                        minWidth: 60,
+                        textAlign: "center",
+                      }}
+                    />
+                  ) : (
+                    <TouchableOpacity
+                      onPress={() => beginEdit(setIdx, "reps", s.reps)}
+                      style={{
+                        backgroundColor: editableBg,
+                        paddingVertical: 2,
+                        paddingHorizontal: 6,
+                        borderRadius: 10,
+                        minWidth: 60,
+                      }}
+                    >
+                      <Text className="text-gray-100" style={{ textAlign: "center" }}>
+                        {s.reps}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {/* Weight (unit-aware) */}
+                <View style={{ width: COL_WIDTH, alignItems: "center" }}>
+                  {editing && editing.setIdx === setIdx && editing.field === "lbs" ? (
+                    <TextInput
+                      value={editingValue}
+                      onChangeText={setEditingValue}
+                      onBlur={commitEdit}
+                      onSubmitEditing={commitEdit}
+                      keyboardType="numeric"
+                      autoFocus
+                      maxLength={5} // allow one decimal in kg
+                      style={{
+                        color: "#FFFFFF",
+                        backgroundColor: editableBg,
+                        paddingVertical: 2,
+                        paddingHorizontal: 6,
+                        borderRadius: 10,
+                        minWidth: 60,
+                        textAlign: "center",
+                      }}
+                    />
+                  ) : (
+                    <TouchableOpacity
+                      onPress={() => beginEdit(setIdx, "lbs", displayWeight)}
+                      style={{
+                        backgroundColor: editableBg,
+                        paddingVertical: 2,
+                        paddingHorizontal: 6,
+                        borderRadius: 10,
+                        minWidth: 60,
+                      }}
+                    >
+                      <Text className="text-gray-100" style={{ textAlign: "center" }}>
+                        {displayWeight}
+                        {" "}
+                        {unitLabel}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            );
+          })}
+        </ScrollView>
+      </View>
+
+      {/* ===== BOTTOM REGION: Anatomy (fixed, no scroll) ===== */}
+      <View style={{ height: ANATOMY_HEIGHT, marginTop: 6, marginBottom: 10 }}>
+        <ExerciseAnatomy
+          primaryColor={primaryColor}
+          secondaryColor={secondaryColor}
+          primaryMuscles={exercise.primaryMuscles}
+          secondaryMuscles={exercise.secondaryMuscles}
+          height={ANATOMY_HEIGHT}
+        />
+      </View>
+
+      {/* Add / Remove buttons — stay pinned at the very bottom */}
       <View className="flex-row justify-between">
         <TouchableOpacity
           onPress={() => onRemoveSet(exIdx)}
@@ -408,7 +418,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    marginRight: 12,
     position: "relative",
     overflow: "hidden",
     backgroundColor: "#232533",
