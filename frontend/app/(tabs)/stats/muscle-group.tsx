@@ -80,25 +80,6 @@ const MuscleGroupDetail = () => {
       <SafeAreaView edges={["top"]} className="bg-primary">
         <View className="px-4 pt-6">
           <View className="flex-row items-center justify-between mb-4">
-            {/* Left: Back button */}
-            <TouchableOpacity
-              onPress={() => router.back()}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              style={{
-                height: 36,
-                width: 36,
-                alignItems: "center",
-                justifyContent: "center",
-                borderRadius: 10,
-                backgroundColor: "rgba(255,255,255,0.06)",
-                borderWidth: 1,
-                borderColor: "rgba(255,255,255,0.08)",
-              }}
-              activeOpacity={0.9}
-            >
-              <MaterialCommunityIcons name="chevron-left" size={24} color="#fff" />
-            </TouchableOpacity>
-
             {/* Middle: Title / Subtitle using your Header component */}
             <Header MText={muscleGroupName} SText={`Level ${level}`} />
 
