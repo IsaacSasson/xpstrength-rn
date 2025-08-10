@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -12,8 +12,7 @@ import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import ExerciseAnatomy from "@/components/home/ActiveWorkout/ExerciseAnatomy";
 /**
  * ✅ NEW: pull unit preference from your WorkoutContext
- * If your hook lives elsewhere, adjust the import path.
- * This file only *reads* the unit; all callbacks still come from props.
+ * Works with unit, weightUnit, or even nested objects ({ weight: 'kg' } / { system: 'metric' }).
  */
 import { useWorkouts } from "@/context/WorkoutContext";
 
@@ -88,20 +87,50 @@ const ActiveWorkoutCard: React.FC<Props> = ({
   const editableBg = "rgba(255,255,255,0.08)";
   const listRef = useRef<ScrollView | null>(null);
 
-  // ✅ Unit preference from context (defaults if not present)
-  const workoutsCtx = useWorkouts();
-  const unitPref = (workoutsCtx as any)?.unit ?? (workoutsCtx as any)?.weightUnit ?? "lbs";
-  const unitLabel = unitPref === "kg" || unitPref === "metric" ? "kg" : "lbs";
+  // ===== Unit preference from context (robust & reactive) =====
+  const workoutsCtx = useWorkouts() as any;
+
+  const unitLabel = useMemo<"kg" | "lbs">(() => {
+    // Pull candidates from common spots
+    let raw =
+      workoutsCtx?.unit ??
+      workoutsCtx?.weightUnit ??
+      workoutsCtx?.preferences?.unit ??
+      workoutsCtx?.preferences?.weightUnit ??
+      workoutsCtx?.settings?.unit ??
+      workoutsCtx?.settings?.weightUnit ??
+      "lbs";
+
+    // If someone stores an object like { weight: 'kg', system: 'metric' }
+    if (raw && typeof raw === "object") {
+      raw = raw.weight ?? raw.system ?? raw.unit ?? "lbs";
+    }
+
+    const s = String(raw).trim().toLowerCase();
+    if (["kg", "kgs", "kilogram", "kilograms", "metric"].includes(s)) return "kg";
+    // default
+    return "lbs";
+  }, [workoutsCtx?.unit, workoutsCtx?.weightUnit, workoutsCtx?.preferences, workoutsCtx?.settings]);
 
   // Convert helpers (internal base stays lbs)
-  const toDisplayWeight = (lbs: number) => {
-    if (unitLabel === "kg") return Math.round((lbs / 2.20462) * 10) / 10; // 1 decimal
-    return lbs;
-  };
-  const fromDisplayWeightToLbs = (displayVal: number) => {
-    if (unitLabel === "kg") return Math.round(displayVal * 2.20462);
-    return displayVal;
-  };
+  const toDisplayWeight = useCallback(
+    (lbs: number) => {
+      if (unitLabel === "kg") {
+        // 1 decimal for kg display
+        return Math.round((lbs / 2.20462) * 10) / 10;
+      }
+      return lbs;
+    },
+    [unitLabel]
+  );
+
+  const fromDisplayWeightToLbs = useCallback(
+    (displayVal: number) => {
+      if (unitLabel === "kg") return Math.round(displayVal * 2.20462);
+      return displayVal;
+    },
+    [unitLabel]
+  );
 
   // Local editing controller (UI only; values saved via onUpdateSetField)
   const [editing, setEditing] = useState<EditingState>(null);
@@ -245,9 +274,7 @@ const ActiveWorkoutCard: React.FC<Props> = ({
           <Text className="text-white font-pmedium">REPS</Text>
         </View>
         <View style={{ width: COL_WIDTH, alignItems: "center" }}>
-          <Text className="text-white font-pmedium">
-            WEIGHT ({unitLabel.toUpperCase()})
-          </Text>
+          <Text className="text-white font-pmedium">WEIGHT</Text>
         </View>
       </View>
 
@@ -368,9 +395,7 @@ const ActiveWorkoutCard: React.FC<Props> = ({
                       }}
                     >
                       <Text className="text-gray-100" style={{ textAlign: "center" }}>
-                        {displayWeight}
-                        {" "}
-                        {unitLabel}
+                        {displayWeight} {unitLabel}
                       </Text>
                     </TouchableOpacity>
                   )}
