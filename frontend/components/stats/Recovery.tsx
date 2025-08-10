@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import React, { useMemo, useState, useRef } from "react";
+import { View, Text, TouchableOpacity, Animated } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import FrontSvg from "@/assets/svg/front.svg";
@@ -22,6 +22,11 @@ const Recovery: React.FC<RecoveryProps> = ({ color, tertiaryColor }) => {
   const totalMuscleGroups: number = 8;
 
   const [side, setSide] = useState<"front" | "back">("front");
+  const [isAnimating, setIsAnimating] = useState(false);
+  
+  // Animation values for scale and opacity
+  const scaleAnimation = useRef(new Animated.Value(1)).current;
+  const opacityAnimation = useRef(new Animated.Value(1)).current;
 
   const navigateToGroup = (muscleGroupId: string) => {
     const cleanId = muscleGroupId.replace(/^muscle-/, "");
@@ -29,7 +34,42 @@ const Recovery: React.FC<RecoveryProps> = ({ color, tertiaryColor }) => {
   };
 
   const toggleSide = () => {
-    setSide(prev => prev === "front" ? "back" : "front");
+    if (isAnimating) return;
+    
+    setIsAnimating(true);
+    
+    // First phase: Scale down and fade out
+    Animated.parallel([
+      Animated.timing(scaleAnimation, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacityAnimation, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      })
+    ]).start(() => {
+      // Switch content at the midpoint
+      setSide(prev => prev === "front" ? "back" : "front");
+      
+      // Second phase: Scale up and fade in
+      Animated.parallel([
+        Animated.timing(scaleAnimation, {
+          toValue: 1,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacityAnimation, {
+          toValue: 1,
+          duration: 150,
+          useNativeDriver: true,
+        })
+      ]).start(() => {
+        setIsAnimating(false);
+      });
+    });
   };
 
   const frontHandlers = useMemo(
@@ -70,8 +110,7 @@ const Recovery: React.FC<RecoveryProps> = ({ color, tertiaryColor }) => {
       {
         debug: DEBUG_SVG,
         fillColor: DEFAULT_MUSCLE_FILL,
-        forceFill: true, // ensure consistent gray even if original fills differ
-        // onCollectedIds: (ids) => console.log("[Front SVG ids found]", ids), // uncomment if needed
+        forceFill: true,
       }
     );
   }, [frontHandlers]);
@@ -83,11 +122,18 @@ const Recovery: React.FC<RecoveryProps> = ({ color, tertiaryColor }) => {
       {
         debug: DEBUG_SVG,
         fillColor: DEFAULT_MUSCLE_FILL,
-        forceFill: true, // ensure consistent gray even if original fills differ
-        // onCollectedIds: (ids) => console.log("[Back SVG ids found]", ids), // uncomment if needed
+        forceFill: true,
       }
     );
   }, [backHandlers]);
+
+  const animatedStyle = {
+    transform: [
+      { scaleX: scaleAnimation },
+      { scaleY: scaleAnimation }
+    ],
+    opacity: opacityAnimation,
+  };
 
   const labelColor = "#A1A1AA";
   const numberColor = color;
@@ -95,7 +141,9 @@ const Recovery: React.FC<RecoveryProps> = ({ color, tertiaryColor }) => {
   return (
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
       <View style={{ flex: 1, position: "relative" }}>
-        {side === "front" ? FrontSvgWithHandlers : BackSvgWithHandlers}
+        <Animated.View style={[{ flex: 1 }, animatedStyle]}>
+          {side === "front" ? FrontSvgWithHandlers : BackSvgWithHandlers}
+        </Animated.View>
 
         {/* Top-left tiny overlay */}
         <View style={{ position: "absolute", top: 8, left: 10 }}>
@@ -149,6 +197,7 @@ const Recovery: React.FC<RecoveryProps> = ({ color, tertiaryColor }) => {
         }}>
           <TouchableOpacity
             onPress={toggleSide}
+            disabled={isAnimating}
             style={{
               backgroundColor: tertiaryColor,
               borderRadius: 25,
@@ -158,6 +207,7 @@ const Recovery: React.FC<RecoveryProps> = ({ color, tertiaryColor }) => {
               shadowOpacity: 0.3,
               shadowRadius: 4,
               elevation: 5,
+              opacity: isAnimating ? 0.7 : 1,
             }}
           >
             <Ionicons 

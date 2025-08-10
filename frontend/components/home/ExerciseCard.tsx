@@ -8,7 +8,6 @@ import {
   Alert,
   Animated,
   LayoutChangeEvent,
-  Modal,
   ScrollView,
   Image,
 } from "react-native";
@@ -20,6 +19,7 @@ import { useWorkouts } from "@/context/WorkoutContext";
 import { router } from "expo-router";
 import { loadExercises } from "@/utils/loadExercises";
 import ReorderModal from "./ReorderModal";
+import DraggableBottomSheet from "../DraggableBottomSheet";
 
 /* -------------------------------------------------------------------------- */
 /*                                   Types                                    */
@@ -568,165 +568,56 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
         </View>
       </Animated.View>
 
-      {/* Options Modal */}
-      <Modal
+      {/* Options Bottom Sheet */}
+      <DraggableBottomSheet
         visible={showOptionsModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowOptionsModal(false)}
+        onClose={() => setShowOptionsModal(false)}
+        heightRatio={0.45}
+        primaryColor={primaryColor}
+        scrollable
       >
-        <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: 16,
-              paddingTop: 60,
-              backgroundColor: tertiaryColor,
-              borderBottomWidth: 1,
-              borderBottomColor: "#232533",
-            }}
+        {[
+          {
+            label: "View Exercise Instructions",
+            icon: "information-outline",
+            onPress: handleViewInstructions,
+          },
+          {
+            label: "Replace Exercise",
+            icon: "swap-horizontal",
+            onPress: handleReplace,
+          },
+          ...(totalExercises > 1 ? [{
+            label: "Reorder Exercises",
+            icon: "sort-variant",
+            onPress: handleShowReorder,
+          }] : []),
+          {
+            label: "Remove Exercise",
+            icon: "delete-outline",
+            onPress: handleRemove,
+            danger: true,
+          },
+        ].map((opt) => (
+          <TouchableOpacity
+            key={opt.label}
+            className="flex-row items-center p-4 border-b border-black-200"
+            onPress={opt.onPress}
           >
-            <Text style={{ color: "white", fontSize: 18, fontWeight: "600" }}>
-              {exercise.name}
+            <MaterialCommunityIcons
+              name={opt.icon as any}
+              size={24}
+              color={(opt as any).danger ? "#FF4D4D" : primaryColor}
+            />
+            <Text
+              className="text-lg font-pmedium ml-3"
+              style={{ color: (opt as any).danger ? "#FF4D4D" : "white" }}
+            >
+              {opt.label}
             </Text>
-            <TouchableOpacity
-              onPress={() => setShowOptionsModal(false)}
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 16,
-                backgroundColor: "#CDCDE020",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <FontAwesome5 name="times" size={14} color="#CDCDE0" />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={{ flex: 1, padding: 16 }}>
-            {/* View Instructions */}
-            <TouchableOpacity
-              onPress={handleViewInstructions}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                backgroundColor: tertiaryColor,
-                borderRadius: 12,
-                padding: 16,
-                marginBottom: 16,
-              }}
-              activeOpacity={0.7}
-            >
-              <MaterialCommunityIcons
-                name="information"
-                size={20}
-                color={primaryColor}
-              />
-              <Text
-                style={{
-                  color: "white",
-                  fontSize: 16,
-                  fontWeight: "500",
-                  marginLeft: 12,
-                  flex: 1,
-                }}
-              >
-                View Exercise Instructions
-              </Text>
-              <FontAwesome5 name="chevron-right" size={14} color="#CDCDE0" />
-            </TouchableOpacity>
-
-            {/* Replace Exercise */}
-            <TouchableOpacity
-              onPress={handleReplace}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                backgroundColor: tertiaryColor,
-                borderRadius: 12,
-                padding: 16,
-                marginBottom: 16,
-              }}
-              activeOpacity={0.7}
-            >
-              <FontAwesome5 name="exchange-alt" size={16} color={primaryColor} />
-              <Text
-                style={{
-                  color: "white",
-                  fontSize: 16,
-                  fontWeight: "500",
-                  marginLeft: 12,
-                  flex: 1,
-                }}
-              >
-                Replace Exercise
-              </Text>
-              <FontAwesome5 name="chevron-right" size={14} color="#CDCDE0" />
-            </TouchableOpacity>
-
-            {/* Reorder Exercises */}
-            {totalExercises > 1 && (
-              <TouchableOpacity
-                onPress={handleShowReorder}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  backgroundColor: tertiaryColor,
-                  borderRadius: 12,
-                  padding: 16,
-                  marginBottom: 16,
-                }}
-                activeOpacity={0.7}
-              >
-                <FontAwesome5 name="sort" size={16} color={primaryColor} />
-                <Text
-                  style={{
-                    color: "white",
-                    fontSize: 16,
-                    fontWeight: "500",
-                    marginLeft: 12,
-                    flex: 1,
-                  }}
-                >
-                  Reorder Exercises
-                </Text>
-                <FontAwesome5 name="chevron-right" size={14} color="#CDCDE0" />
-              </TouchableOpacity>
-            )}
-
-            {/* Remove Exercise */}
-            <TouchableOpacity
-              onPress={handleRemove}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                backgroundColor: "#FF4D4D15",
-                borderRadius: 12,
-                padding: 16,
-                marginBottom: 16,
-              }}
-              activeOpacity={0.7}
-            >
-              <FontAwesome5 name="trash" size={16} color="#FF4D4D" />
-              <Text
-                style={{
-                  color: "#FF4D4D",
-                  fontSize: 16,
-                  fontWeight: "500",
-                  marginLeft: 12,
-                  flex: 1,
-                }}
-              >
-                Remove Exercise
-              </Text>
-              <FontAwesome5 name="chevron-right" size={14} color="#FF4D4D" />
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
-      </Modal>
+          </TouchableOpacity>
+        ))}
+      </DraggableBottomSheet>
 
       {/* Reorder Modal */}
       <ReorderModal
