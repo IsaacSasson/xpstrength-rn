@@ -9,7 +9,7 @@ import {
   Image,
 } from "react-native";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
-import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+// NOTE: MaterialCommunityIcons import removed because it's not used here.
 import * as Haptics from "expo-haptics";
 import { loadExercises } from "@/utils/loadExercises";
 
@@ -32,24 +32,49 @@ const ReorderModal: React.FC<ReorderModalProps> = ({
 }) => {
   // Local state to manage exercises within the modal
   const [localExercises, setLocalExercises] = useState<any[]>(exercises);
-  const [exerciseImages, setExerciseImages] = useState<{ [key: string]: number[] }>({});
+
+  /**
+   * Map of exercise.id -> first image source (number).
+   * We resolve by:
+   *  1) originalExerciseId exact match
+   *  2) name match (case/trim-insensitive)
+   */
+  const [exerciseImages, setExerciseImages] = useState<{ [key: string]: number | undefined }>({});
 
   // Load exercise images for display
   useEffect(() => {
     const allExercises = loadExercises();
-    const imageMap: { [key: string]: number[] } = {};
-    
-    exercises.forEach((exercise) => {
-      if (exercise.originalExerciseId) {
-        const originalExercise = allExercises.find(
-          (ex: any) => ex.id === exercise.originalExerciseId
-        );
-        if (originalExercise && originalExercise.images) {
-          imageMap[exercise.id] = originalExercise.images;
-        }
+    const imageMap: { [key: string]: number | undefined } = {};
+
+    // Pre-index by id and by normalized name for faster lookups
+    const byId = new Map<any, any>();
+    const byName = new Map<string, any>();
+    for (const ex of allExercises) {
+      byId.set(ex.id, ex);
+      if (ex?.name) {
+        byName.set(String(ex.name).trim().toLowerCase(), ex);
       }
+    }
+
+    exercises.forEach((exercise) => {
+      let resolvedImage: number | undefined;
+
+      // 1) Try originalExerciseId
+      if (exercise.originalExerciseId && byId.has(exercise.originalExerciseId)) {
+        const original = byId.get(exercise.originalExerciseId);
+        if (original?.images?.length) resolvedImage = original.images[0];
+      }
+
+      // 2) Fallback by name (case-insensitive, trimmed)
+      if (!resolvedImage && exercise?.name) {
+        const key = String(exercise.name).trim().toLowerCase();
+        const nameMatch = byName.get(key);
+        if (nameMatch?.images?.length) resolvedImage = nameMatch.images[0];
+      }
+
+      imageMap[exercise.id] = resolvedImage;
     });
-    
+
     setExerciseImages(imageMap);
   }, [exercises]);
 
@@ -149,158 +174,159 @@ const ReorderModal: React.FC<ReorderModalProps> = ({
 
         {/* Exercise List */}
         <ScrollView style={{ flex: 1, padding: 16 }}>
-          {localExercises.map((exercise, index) => (
-            <View
-              key={exercise.id}
-              style={{
-                backgroundColor: tertiaryColor,
-                borderRadius: 12,
-                padding: 16,
-                marginBottom: 12,
-                flexDirection: "row",
-                alignItems: "center",
-              }}
-            >
-              {/* Exercise Image or Number Badge */}
+          {localExercises.map((exercise, index) => {
+            const imgSrc = exerciseImages[exercise.id];
+
+            return (
               <View
+                key={exercise.id}
                 style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 16,
-                  marginRight: 12,
-                  overflow: "hidden",
-                  backgroundColor: primaryColor,
+                  backgroundColor: tertiaryColor,
+                  borderRadius: 12,
+                  padding: 16,
+                  marginBottom: 12,
+                  flexDirection: "row",
                   alignItems: "center",
-                  justifyContent: "center",
                 }}
               >
-                {exerciseImages[exercise.id] && exerciseImages[exercise.id].length > 0 ? (
-                  <Image
-                    source={exerciseImages[exercise.id][0]}
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                    }}
-                    resizeMode="cover"
-                  />
-                ) : (
+                {/* Image-only avatar (no numeric fallback) */}
+                <View
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 16,
+                    marginRight: 12,
+                    overflow: "hidden",
+                    // Keep subtle bg to avoid layout jump even if image missing
+                    backgroundColor: primaryColor,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {imgSrc ? (
+                    <Image
+                      source={imgSrc}
+                      style={{ width: "100%", height: "100%" }}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    // No index text fallback—leave empty to honor "images only"
+                    <></>
+                  )}
+                </View>
+
+                <View style={{ flex: 1 }}>
                   <Text
-                    style={{ color: "white", fontSize: 14, fontWeight: "600" }}
+                    style={{
+                      color: "white",
+                      fontSize: 16,
+                      fontWeight: "600",
+                      marginBottom: 2,
+                    }}
+                    numberOfLines={1}
                   >
-                    {index + 1}
+                    {exercise.name}
                   </Text>
-                )}
+                  <Text style={{ color: "#CDCDE0", fontSize: 12 }}>
+                    {exercise.sets.length} sets
+                  </Text>
+                </View>
+
+                {/* Control Buttons */}
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  {/* Move to Top */}
+                  <TouchableOpacity
+                    onPress={() => handleMoveToTop(index)}
+                    disabled={index === 0}
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 18,
+                      backgroundColor: index === 0 ? "#CDCDE020" : primaryColor + "20",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      opacity: index === 0 ? 0.5 : 1,
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <FontAwesome5
+                      name="angle-double-up"
+                      size={14}
+                      color={index === 0 ? "#CDCDE0" : primaryColor}
+                    />
+                  </TouchableOpacity>
+
+                  {/* Move Up */}
+                  <TouchableOpacity
+                    onPress={() => handleMoveUp(index)}
+                    disabled={index === 0}
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 18,
+                      backgroundColor: index === 0 ? "#CDCDE020" : primaryColor + "20",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      opacity: index === 0 ? 0.5 : 1,
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <FontAwesome5
+                      name="chevron-up"
+                      size={14}
+                      color={index === 0 ? "#CDCDE0" : primaryColor}
+                    />
+                  </TouchableOpacity>
+
+                  {/* Move Down */}
+                  <TouchableOpacity
+                    onPress={() => handleMoveDown(index)}
+                    disabled={index === localExercises.length - 1}
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 18,
+                      backgroundColor:
+                        index === localExercises.length - 1 ? "#CDCDE020" : primaryColor + "20",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      opacity: index === localExercises.length - 1 ? 0.5 : 1,
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <FontAwesome5
+                      name="chevron-down"
+                      size={14}
+                      color={index === localExercises.length - 1 ? "#CDCDE0" : primaryColor}
+                    />
+                  </TouchableOpacity>
+
+                  {/* Move to Bottom */}
+                  <TouchableOpacity
+                    onPress={() => handleMoveToBottom(index)}
+                    disabled={index === localExercises.length - 1}
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 18,
+                      backgroundColor:
+                        index === localExercises.length - 1 ? "#CDCDE020" : primaryColor + "20",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      opacity: index === localExercises.length - 1 ? 0.5 : 1,
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <FontAwesome5
+                      name="angle-double-down"
+                      size={14}
+                      color={index === localExercises.length - 1 ? "#CDCDE0" : primaryColor}
+                    />
+                  </TouchableOpacity>
+                </View>
               </View>
-
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={{
-                    color: "white",
-                    fontSize: 16,
-                    fontWeight: "600",
-                    marginBottom: 2,
-                  }}
-                  numberOfLines={1}
-                >
-                  {exercise.name}
-                </Text>
-                <Text style={{ color: "#CDCDE0", fontSize: 12 }}>
-                  {exercise.sets.length} sets
-                </Text>
-              </View>
-
-              {/* Control Buttons */}
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                {/* Move to Top */}
-                <TouchableOpacity
-                  onPress={() => handleMoveToTop(index)}
-                  disabled={index === 0}
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 18,
-                    backgroundColor: index === 0 ? "#CDCDE020" : primaryColor + "20",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    opacity: index === 0 ? 0.5 : 1,
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <FontAwesome5 
-                    name="angle-double-up" 
-                    size={14} 
-                    color={index === 0 ? "#CDCDE0" : primaryColor} 
-                  />
-                </TouchableOpacity>
-
-                {/* Move Up */}
-                <TouchableOpacity
-                  onPress={() => handleMoveUp(index)}
-                  disabled={index === 0}
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 18,
-                    backgroundColor: index === 0 ? "#CDCDE020" : primaryColor + "20",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    opacity: index === 0 ? 0.5 : 1,
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <FontAwesome5 
-                    name="chevron-up" 
-                    size={14} 
-                    color={index === 0 ? "#CDCDE0" : primaryColor} 
-                  />
-                </TouchableOpacity>
-
-                {/* Move Down */}
-                <TouchableOpacity
-                  onPress={() => handleMoveDown(index)}
-                  disabled={index === localExercises.length - 1}
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 18,
-                    backgroundColor: index === localExercises.length - 1 ? "#CDCDE020" : primaryColor + "20",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    opacity: index === localExercises.length - 1 ? 0.5 : 1,
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <FontAwesome5 
-                    name="chevron-down" 
-                    size={14} 
-                    color={index === localExercises.length - 1 ? "#CDCDE0" : primaryColor} 
-                  />
-                </TouchableOpacity>
-
-                {/* Move to Bottom */}
-                <TouchableOpacity
-                  onPress={() => handleMoveToBottom(index)}
-                  disabled={index === localExercises.length - 1}
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 18,
-                    backgroundColor: index === localExercises.length - 1 ? "#CDCDE020" : primaryColor + "20",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    opacity: index === localExercises.length - 1 ? 0.5 : 1,
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <FontAwesome5 
-                    name="angle-double-down" 
-                    size={14} 
-                    color={index === localExercises.length - 1 ? "#CDCDE0" : primaryColor} 
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))}
+            );
+          })}
         </ScrollView>
 
         {/* Done Button */}

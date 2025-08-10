@@ -10,6 +10,7 @@ import React, {
 import { workoutApi } from "@/services/workoutApi";
 import { loadExercises } from "@/utils/loadExercises";
 import { useAuth } from "@/context/AuthProvider";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 /* ----------------------------- Types ----------------------------- */
 export interface CustomWorkout {
@@ -21,11 +22,23 @@ export interface CustomWorkout {
   updatedAt?: string;
 }
 
+export type UnitSystem = "imperial" | "metric";
+
 export interface WorkoutContextType {
   // Data
   workoutPlan: number[]; // -1=rest, 0=unassigned, >0=workoutId
   customWorkouts: CustomWorkout[];
   exerciseDatabase: any[];
+
+  // Unit System
+  unitSystem: UnitSystem;
+  setUnitSystem: (unit: UnitSystem) => Promise<void>;
+
+  // Weight Conversion Functions (context-aware defaults)
+  convertWeight: (weight: number, fromUnit: UnitSystem, toUnit: UnitSystem) => number;
+  formatWeight: (weight: number, unit?: UnitSystem) => string;
+  parseWeight: (weightString: string) => { value: number; unit: UnitSystem };
+  convertWeightString: (weightString: string, targetUnit?: UnitSystem) => string;
 
   // Loading states
   isLoading: boolean;
@@ -61,6 +74,11 @@ export interface WorkoutContextType {
 const REST = -1;
 const UNASSIGNED = 0;
 const EMPTY_PLAN = Array(7).fill(UNASSIGNED) as number[];
+const UNIT_KEY = "unit_preference";
+
+// High precision conversion factor for exact conversions
+const LBS_TO_KG_FACTOR = 0.45359237;
+const KG_TO_LBS_FACTOR = 1 / LBS_TO_KG_FACTOR;
 
 const DAY_TO_INDEX: Record<string, number> = {
   Sunday: 0,
@@ -74,7 +92,64 @@ const DAY_TO_INDEX: Record<string, number> = {
 
 const WorkoutContext = createContext<WorkoutContextType | undefined>(undefined);
 
-/* ----------------------------- Helpers ----------------------------- */
+/* ------------------------------------------------------------------
+   MODULE-SCOPE PURE HELPERS (exported)
+   These are safe to import directly anywhere:
+   import { parseWeight, formatWeight, convertWeight, convertWeightString } from "@/context/WorkoutContext";
+-------------------------------------------------------------------*/
+
+// Convert value between units (pure)
+export const convertWeight = (weight: number, fromUnit: UnitSystem, toUnit: UnitSystem): number => {
+  if (fromUnit === toUnit) return weight;
+  if (fromUnit === "imperial" && toUnit === "metric") {
+    return Number((weight * LBS_TO_KG_FACTOR).toFixed(1));
+  }
+  if (fromUnit === "metric" && toUnit === "imperial") {
+    return Number((weight * KG_TO_LBS_FACTOR).toFixed(1));
+  }
+  return weight;
+};
+
+// Format value with unit (pure). If unit omitted, defaults to "imperial"
+export const formatWeight = (weight: number, unit: UnitSystem = "imperial"): string => {
+  const rounded = Number(weight.toFixed(1));
+  return unit === "metric" ? `${rounded} kg` : `${Math.round(rounded)} lbs`;
+};
+
+// Parse a weight string like "135", "135 lbs", "60 kg"
+// Fallback unit can be provided; defaults to "imperial" if omitted.
+export const parseWeight = (
+  weightString: string,
+  fallbackUnit: UnitSystem = "imperial"
+): { value: number; unit: UnitSystem } => {
+  const s = (weightString || "").toString().trim();
+  const match = s.match(/(\d+(?:\.\d+)?)\s*(lbs?|kgs?|kg|lb)?/i);
+
+  if (match) {
+    const value = parseFloat(match[1]);
+    const raw = (match[2] || "").toLowerCase();
+    if (raw) {
+      const unit: UnitSystem = raw.startsWith("kg") ? "metric" : "imperial";
+      return { value, unit };
+    }
+    return { value, unit: fallbackUnit };
+  }
+
+  // No number found; return zero with fallback unit
+  return { value: 0, unit: fallbackUnit };
+};
+
+// Convert a weight string to a target unit (pure)
+export const convertWeightString = (
+  weightString: string,
+  targetUnit: UnitSystem = "imperial"
+): string => {
+  const { value, unit } = parseWeight(weightString, targetUnit);
+  const converted = convertWeight(value, unit, targetUnit);
+  return formatWeight(converted, targetUnit);
+};
+
+/* ----------------------------- Internal Helpers ----------------------------- */
 const extractPlanArray = (res: any): number[] | null => {
   const candidates = [
     res?.plan,
@@ -98,10 +173,52 @@ export const WorkoutProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [workoutPlan, setWorkoutPlan] = useState<number[]>(EMPTY_PLAN);
   const [customWorkouts, setCustomWorkouts] = useState<CustomWorkout[]>([]);
   const [exerciseDatabase, setExerciseDatabase] = useState<any[]>([]);
+  const [unitSystem, setUnitSystemState] = useState<UnitSystem>("imperial");
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasInitialized, setHasInitialized] = useState(false);
+
+  /* ----------------------------- Unit System Functions ----------------------------- */
+
+  // Load unit preference from storage
+  const loadUnitPreference = useCallback(async () => {
+    try {
+      const saved = await AsyncStorage.getItem(UNIT_KEY);
+      if (saved === "imperial" || saved === "metric") {
+        setUnitSystemState(saved);
+      }
+    } catch (error) {
+      console.error("Failed to load unit preference:", error);
+    }
+  }, []);
+
+  // Save unit preference and update state
+  const setUnitSystem = useCallback(async (unit: UnitSystem) => {
+    try {
+      await AsyncStorage.setItem(UNIT_KEY, unit);
+      setUnitSystemState(unit);
+    } catch (error) {
+      console.error("Failed to save unit preference:", error);
+    }
+  }, []);
+
+  // Context-facing wrappers that **default to current unitSystem** where relevant
+  const formatWeightCtx = useCallback(
+    (weight: number, unit?: UnitSystem) => formatWeight(weight, unit ?? unitSystem),
+    [unitSystem]
+  );
+
+  const parseWeightCtx = useCallback(
+    (weightString: string) => parseWeight(weightString, unitSystem),
+    [unitSystem]
+  );
+
+  const convertWeightStringCtx = useCallback(
+    (weightString: string, targetUnit?: UnitSystem) =>
+      convertWeightString(weightString, targetUnit ?? unitSystem),
+    [unitSystem]
+  );
 
   /* ----------------------------- Data Loading ----------------------------- */
   const loadData = useCallback(
@@ -412,6 +529,13 @@ export const WorkoutProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   const clearError = useCallback(() => setError(null), []);
 
+  /* ----------------------------- Initialization Effects ----------------------------- */
+
+  // Load unit preference on mount
+  useEffect(() => {
+    loadUnitPreference();
+  }, [loadUnitPreference]);
+
   /* ----------------------------- Auth Effect ----------------------------- */
   useEffect(() => {
     console.log("🔍 WorkoutContext auth effect:", {
@@ -446,6 +570,16 @@ export const WorkoutProvider: React.FC<{ children: ReactNode }> = ({ children })
     workoutPlan,
     customWorkouts,
     exerciseDatabase,
+    unitSystem,
+    setUnitSystem,
+
+    // Note: we expose the pure convertWeight directly (no defaulting)
+    convertWeight,
+    // but context wrappers for these to apply current unitSystem defaults
+    formatWeight: formatWeightCtx,
+    parseWeight: parseWeightCtx,
+    convertWeightString: convertWeightStringCtx,
+
     isLoading,
     isRefreshing,
     error,

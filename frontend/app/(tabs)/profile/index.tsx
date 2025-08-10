@@ -16,6 +16,7 @@ import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useThemeContext } from "@/context/ThemeContext";
 import { useUser } from "@/context/UserProvider";
 import { useAuth } from "@/context/AuthProvider";
+import { useWorkouts } from "@/context/WorkoutContext";
 import TopBar from "@/components/TopBar";
 import defaultPfp from "@/assets/images/favicon.png";
 import { router } from "expo-router";
@@ -98,6 +99,7 @@ const ErrorCard: React.FC<{
 const Profile = () => {
   const { primaryColor, secondaryColor, tertiaryColor } = useThemeContext();
   const { user } = useAuth();
+  const { convertWeight, formatWeight, unitSystem } = useWorkouts();
   const {
     profile,
     profilePictureUri,
@@ -115,6 +117,11 @@ const Profile = () => {
     
     return calculateXpProgress(profile.level, profile.xp);
   }, [profile]);
+
+  // Convert the spotlight exercise weight (assuming it comes in lbs from backend)
+  const spotlightWeight = 225; // This could come from profile data in the future
+  const convertedSpotlightWeight = convertWeight(spotlightWeight, "imperial", unitSystem);
+  const formattedSpotlightWeight = formatWeight(convertedSpotlightWeight);
 
   // Handle pull to refresh
   const handleRefresh = async () => {
@@ -320,7 +327,7 @@ const Profile = () => {
               className="text-white font-psemibold text-lg"
               style={{ color: primaryColor }}
             >
-              225 lbs
+              {formattedSpotlightWeight}
             </Text>
           </View>
         </View>

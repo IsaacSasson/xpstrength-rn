@@ -14,6 +14,7 @@ import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useThemeContext } from "@/context/ThemeContext";
+import { useWorkouts } from "@/context/WorkoutContext";
 import Header from "@/components/Header";
 import DraggableBottomSheet from "@/components/DraggableBottomSheet";
 import pfptest from "@/assets/images/favicon.png";
@@ -49,6 +50,7 @@ const ProgressBar: React.FC<{
 /* ------------------------------------------------------------------ */
 const FriendProfile = () => {
   const { primaryColor, secondaryColor, tertiaryColor } = useThemeContext();
+  const { convertWeight, formatWeight, unitSystem } = useWorkouts();
 
   /* ---- params from FriendCard ---- */
   const {
@@ -80,6 +82,10 @@ const FriendProfile = () => {
   const workoutsNum = Number(workouts);
   const oneRmNum    = Number(oneRm);
   const friendsNum  = Number(friends);
+
+  // Convert the weight to user's preferred unit (assuming oneRm comes in lbs from backend)
+  const convertedOneRm = convertWeight(oneRmNum, "imperial", unitSystem);
+  const formattedOneRm = formatWeight(convertedOneRm);
 
   /* ---- options sheet ---- */
   const [sheetVisible, setSheetVisible] = useState(false);
@@ -205,7 +211,7 @@ const FriendProfile = () => {
               className="text-white font-psemibold text-lg"
               style={{ color: primaryColor }}
             >
-              {oneRmNum} lbs
+              {formattedOneRm}
             </Text>
           </View>
         </View>

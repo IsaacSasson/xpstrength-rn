@@ -11,6 +11,7 @@ import { useLocalSearchParams, router } from "expo-router";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useThemeContext } from "@/context/ThemeContext";
+import { useWorkouts } from "@/context/WorkoutContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import pfptest from "@/assets/images/favicon.png";
 
@@ -51,6 +52,7 @@ const ProgressBar: React.FC<{
 /* ------------------------------------------------------------------ */
 const FinishedWorkout = () => {
   const { primaryColor, secondaryColor, tertiaryColor } = useThemeContext();
+  const { convertWeight, formatWeight, unitSystem } = useWorkouts();
   const insets = useSafeAreaInsets();
 
   /* ------------------- params (mock fallback) ------------------- */
@@ -91,6 +93,11 @@ const FinishedWorkout = () => {
     target?: number;
   }[] = JSON.parse(ach as string);
   const exercises: ExerciseSummary[] = JSON.parse(ex as string);
+
+  // Convert volume to user's preferred unit (assuming it comes in lbs)
+  const convertedVolume = convertWeight(volumeNum, "imperial", unitSystem);
+  const formattedVolumeNumber = Math.round(convertedVolume);
+  const volumeUnit = unitSystem === "metric" ? "kg" : "lbs";
 
   /* ---------------------------------------------------------------- */
 
@@ -136,7 +143,7 @@ const FinishedWorkout = () => {
                 color={primaryColor}
               />
               <Text className="text-white mt-1 font-pmedium">
-                {volumeNum.toLocaleString()} lbs
+                {formattedVolumeNumber.toLocaleString()} {volumeUnit}
               </Text>
               <Text className="text-gray-100 text-xs">Total Volume</Text>
             </View>
@@ -230,23 +237,31 @@ const FinishedWorkout = () => {
                 {ex.name}
               </Text>
 
-              {ex.sets.map((set, idx) => (
-                <View
-                  key={idx}
-                  className="flex-row justify-between py-1 border-b border-black-200 last:border-0"
-                >
-                  <Text className="text-gray-100">Set {idx + 1}</Text>
-                  <Text className="text-gray-100">{set.reps} reps</Text>
-                  <Text className="text-gray-100">{set.lbs} lbs</Text>
-                  {set.isPR && (
-                    <FontAwesome5
-                      name="trophy"
-                      size={14}
-                      color={primaryColor}
-                    />
-                  )}
-                </View>
-              ))}
+              {ex.sets.map((set, idx) => {
+                // Convert weight to user's preferred unit (assuming stored in lbs)
+                const convertedWeight = convertWeight(set.lbs, "imperial", unitSystem);
+                const formattedWeight = unitSystem === "metric" 
+                  ? `${convertedWeight.toFixed(1)} kg`
+                  : `${Math.round(convertedWeight)} lbs`;
+
+                return (
+                  <View
+                    key={idx}
+                    className="flex-row justify-between py-1 border-b border-black-200 last:border-0"
+                  >
+                    <Text className="text-gray-100">Set {idx + 1}</Text>
+                    <Text className="text-gray-100">{set.reps} reps</Text>
+                    <Text className="text-gray-100">{formattedWeight}</Text>
+                    {set.isPR && (
+                      <FontAwesome5
+                        name="trophy"
+                        size={14}
+                        color={primaryColor}
+                      />
+                    )}
+                  </View>
+                );
+              })}
             </View>
           ))}
 

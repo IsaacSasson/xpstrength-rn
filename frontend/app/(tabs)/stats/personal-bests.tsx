@@ -12,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useThemeContext } from "@/context/ThemeContext";
+import { useWorkouts } from "@/context/WorkoutContext";
 import { router } from "expo-router";
 import Header from "@/components/Header";
 
@@ -21,7 +22,7 @@ import Header from "@/components/Header";
 interface BestLift {
   id: string;
   exercise: string;
-  weight: number; // 1-rep max in pounds
+  weight: number; // 1-rep max in pounds (stored value)
   date: string; // ISO date of record
   category: string; // muscle group
 }
@@ -190,6 +191,7 @@ const ExpandableSection: React.FC<{
 /* ------------------------------------------------------------------ */
 const PersonalBests = () => {
   const { primaryColor, tertiaryColor } = useThemeContext();
+  const { convertWeight, formatWeight, unitSystem } = useWorkouts();
 
   const [bestLifts, setBestLifts] = useState<BestLift[]>([]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -282,28 +284,34 @@ const PersonalBests = () => {
                     <View className="mb-2">
                       {liftsByCategory[category]
                         .sort((a, b) => b.weight - a.weight) // strongest first
-                        .map((lift) => (
-                          <View
-                            key={lift.id}
-                            className="rounded-xl p-4 mb-3"
-                            style={{ backgroundColor: tertiaryColor }}
-                          >
-                            <View className="flex-row items-center justify-between mb-1">
-                              <Text className="text-white font-pmedium text-base">
-                                {lift.exercise}
-                              </Text>
-                              <Text
-                                className="text-white font-psemibold text-base"
-                                style={{ color: primaryColor }}
-                              >
-                                {lift.weight} lbs
+                        .map((lift) => {
+                          // Convert weight to user's preferred unit (assuming stored in lbs)
+                          const convertedWeight = convertWeight(lift.weight, "imperial", unitSystem);
+                          const formattedWeight = formatWeight(convertedWeight);
+                          
+                          return (
+                            <View
+                              key={lift.id}
+                              className="rounded-xl p-4 mb-3"
+                              style={{ backgroundColor: tertiaryColor }}
+                            >
+                              <View className="flex-row items-center justify-between mb-1">
+                                <Text className="text-white font-pmedium text-base">
+                                  {lift.exercise}
+                                </Text>
+                                <Text
+                                  className="text-white font-psemibold text-base"
+                                  style={{ color: primaryColor }}
+                                >
+                                  {formattedWeight}
+                                </Text>
+                              </View>
+                              <Text className="text-gray-100 text-right text-xs">
+                                {formatDate(lift.date)}
                               </Text>
                             </View>
-                            <Text className="text-gray-100 text-right text-xs">
-                              {formatDate(lift.date)}
-                            </Text>
-                          </View>
-                        ))}
+                          );
+                        })}
                     </View>
                   </ExpandableSection>
                 </View>

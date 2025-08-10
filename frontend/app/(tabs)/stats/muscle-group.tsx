@@ -5,11 +5,13 @@ import { useLocalSearchParams, router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useThemeContext } from "@/context/ThemeContext";
+import { useWorkouts } from "@/context/WorkoutContext";
 import { useUserProgress } from "@/context/UserProvider";
 import Header from "@/components/Header";
 
 const MuscleGroupDetail = () => {
   const { primaryColor } = useThemeContext();
+  const { convertWeight, formatWeight, unitSystem } = useWorkouts();
   const { level } = useUserProgress();
   const { group } = useLocalSearchParams<{ group?: string | string[] }>();
 
@@ -59,7 +61,12 @@ const MuscleGroupDetail = () => {
   const recoveryStatus: "Fresh" | "Recovering" | "Fatigued" | string = "Fresh";
   const lastWorked = "3 days ago";
   const workoutCount = 12;
-  const avgVolume = "2,450 lbs";
+  
+  // Convert average volume to user's preferred unit (assuming stored in lbs)
+  const avgVolumeNumber = 2450;
+  const convertedAvgVolume = convertWeight(avgVolumeNumber, "imperial", unitSystem);
+  const formattedAvgVolume = `${Math.round(convertedAvgVolume).toLocaleString()} ${unitSystem === "metric" ? "kg" : "lbs"}`;
+  
   const strengthGain = "+15%";
 
   const getStatusColor = (status: string) => {
@@ -153,7 +160,7 @@ const MuscleGroupDetail = () => {
 
           <View className="flex-1 p-4 rounded-xl" style={{ backgroundColor: "#1A1925" }}>
             <Text className="text-gray-400 font-pmedium text-sm">Avg Volume</Text>
-            <Text className="text-white font-pbold text-xl mt-1">{avgVolume}</Text>
+            <Text className="text-white font-pbold text-xl mt-1">{formattedAvgVolume}</Text>
             <Text className="text-green-400 font-pmedium text-xs mt-1">{strengthGain} this month</Text>
           </View>
         </View>
@@ -163,20 +170,26 @@ const MuscleGroupDetail = () => {
           <Text className="text-white font-psemibold text-lg mb-3">Recent Workouts</Text>
 
           {[
-            { date: "Jan 15", exercises: sampleExercises.slice(0, 2), volume: "2,850 lbs" },
-            { date: "Jan 12", exercises: [sampleExercises[2], sampleExercises[0]], volume: "2,200 lbs" },
-            { date: "Jan 9", exercises: sampleExercises.slice(0, 2), volume: "2,650 lbs" },
-          ].map((workout, index) => (
-            <View key={index} className="p-4 rounded-xl mb-2" style={{ backgroundColor: "#1A1925" }}>
-              <View className="flex-row justify-between items-center mb-2">
-                <Text className="text-white font-pmedium">{workout.date}</Text>
-                <Text className="text-gray-400 font-pmedium text-sm">{workout.volume}</Text>
+            { date: "Jan 15", exercises: sampleExercises.slice(0, 2), volumeLbs: 2850 },
+            { date: "Jan 12", exercises: [sampleExercises[2], sampleExercises[0]], volumeLbs: 2200 },
+            { date: "Jan 9", exercises: sampleExercises.slice(0, 2), volumeLbs: 2650 },
+          ].map((workout, index) => {
+            // Convert volume to user's preferred unit
+            const convertedVolume = convertWeight(workout.volumeLbs, "imperial", unitSystem);
+            const formattedVolume = `${Math.round(convertedVolume).toLocaleString()} ${unitSystem === "metric" ? "kg" : "lbs"}`;
+
+            return (
+              <View key={index} className="p-4 rounded-xl mb-2" style={{ backgroundColor: "#1A1925" }}>
+                <View className="flex-row justify-between items-center mb-2">
+                  <Text className="text-white font-pmedium">{workout.date}</Text>
+                  <Text className="text-gray-400 font-pmedium text-sm">{formattedVolume}</Text>
+                </View>
+                <Text className="text-gray-400 font-pmedium text-sm">
+                  {workout.exercises.join(" • ")}
+                </Text>
               </View>
-              <Text className="text-gray-400 font-pmedium text-sm">
-                {workout.exercises.join(" • ")}
-              </Text>
-            </View>
-          ))}
+            );
+          })}
         </View>
       </ScrollView>
     </View>

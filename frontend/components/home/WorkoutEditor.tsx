@@ -17,7 +17,7 @@ import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useThemeContext } from "@/context/ThemeContext";
 import { useWorkouts } from "@/context/WorkoutContext";
-import { getTempExercises, clearTempExercises } from "@/utils/exerciseBuffer";
+import { getTempExercises } from "@/utils/exerciseBuffer";
 import { transformExerciseFromAPI } from "@/services/workoutApi";
 import { validateWorkoutForSave, getDetailedValidationMessage } from "@/utils/workoutValidation";
 import Header from "@/components/Header";
@@ -77,6 +77,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
     createWorkout,
     updateWorkout,
     isLoading: contextLoading,
+    unitSystem,
   } = useWorkouts();
 
   const [workout, setWorkout] = useState<Workout>({
@@ -140,23 +141,33 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
 
   /* --------------------------- Load existing workout data -------------------------- */
   useEffect(() => {
-    if (mode === "edit" && !contextLoading) {
-      setIsLoading(true);
+    if (mode !== "edit" || contextLoading) return;
+
+    let cancelled = false;
+    setIsLoading(true);
+
+    (async () => {
       try {
         const workoutIdParam = params.workoutId as string | undefined;
 
         if (workoutIdParam) {
           // Edit by workout ID (from plans list)
-          const existingWorkout = getWorkoutById(parseInt(workoutIdParam));
+          const existingWorkout = getWorkoutById(parseInt(workoutIdParam, 10));
           if (existingWorkout) {
+            if (cancelled) return;
+
             setExistingWorkoutId(existingWorkout.id);
 
-            const transformedExercises = existingWorkout.exercises.map((ex) =>
-              transformExerciseFromAPI(ex, exerciseDatabase)
+            // IMPORTANT: await the async mapping
+            const transformedExercises: Exercise[] = await Promise.all(
+              existingWorkout.exercises.map((ex: any) =>
+                transformExerciseFromAPI(ex, exerciseDatabase)
+              )
             );
 
             const derivedDays = deriveDaysForWorkout(existingWorkout);
 
+            if (cancelled) return;
             setWorkout({
               name: existingWorkout.name,
               days: derivedDays.length > 0 ? derivedDays : [],
@@ -172,15 +183,21 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
           const existingWorkout = getWorkoutForDay(dayIndex);
 
           if (existingWorkout) {
+            if (cancelled) return;
+
             setExistingWorkoutId(existingWorkout.id);
 
-            const transformedExercises = existingWorkout.exercises.map((ex) =>
-              transformExerciseFromAPI(ex, exerciseDatabase)
+            // IMPORTANT: await the async mapping
+            const transformedExercises: Exercise[] = await Promise.all(
+              existingWorkout.exercises.map((ex: any) =>
+                transformExerciseFromAPI(ex, exerciseDatabase)
+              )
             );
 
             // UPDATED: include ALL days this workout appears on, not just dayParam
             const derivedDays = deriveDaysForWorkout(existingWorkout);
 
+            if (cancelled) return;
             setWorkout({
               name: existingWorkout.name,
               days: derivedDays.length > 0 ? derivedDays : [dayParam],
@@ -188,6 +205,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
             });
           } else {
             // No workout for this day - switch to create-like state
+            if (cancelled) return;
             setWorkout((prev) => ({ ...prev, days: [dayParam] }));
           }
         }
@@ -195,9 +213,13 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
         console.error("Error loading workout data:", error);
         Alert.alert("Error", "Failed to load workout data");
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
-    }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [
     mode,
     dayParam,
@@ -236,13 +258,15 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
   const generateId = () => `ex_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
   const addExercisesFromList = (exerciseData: any[]) => {
+    const weightUnit = unitSystem === "metric" ? "kg" : "lbs";
+
     const newExercises: Exercise[] = exerciseData.map((ex) => ({
       id: generateId(),
       name: ex.name,
       sets: [
-        { reps: "10", weight: "0 lbs" },
-        { reps: "10", weight: "0 lbs" },
-        { reps: "10", weight: "0 lbs" },
+        { reps: "10", weight: `0 ${weightUnit}` },
+        { reps: "10", weight: `0 ${weightUnit}` },
+        { reps: "10", weight: `0 ${weightUnit}` },
       ],
       notes: "",
       originalExerciseId: ex.id,
@@ -255,13 +279,15 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
   };
 
   const replaceExerciseWithNew = (exerciseId: string, newExerciseData: any) => {
+    const weightUnit = unitSystem === "metric" ? "kg" : "lbs";
+
     const newExercise: Exercise = {
       id: exerciseId, // Keep the same ID
       name: newExerciseData.name,
       sets: [
-        { reps: "10", weight: "0 lbs" },
-        { reps: "10", weight: "0 lbs" },
-        { reps: "10", weight: "0 lbs" },
+        { reps: "10", weight: `0 ${weightUnit}` },
+        { reps: "10", weight: `0 ${weightUnit}` },
+        { reps: "10", weight: `0 ${weightUnit}` },
       ],
       notes: "",
       originalExerciseId: newExerciseData.id,
@@ -299,7 +325,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
     const newExercises = [...workout.exercises];
     const [movedExercise] = newExercises.splice(fromIndex, 1);
     newExercises.splice(toIndex, 0, movedExercise);
-    
+
     setWorkout({
       ...workout,
       exercises: newExercises,
@@ -371,8 +397,8 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
       if (result.success) {
         const action = mode === "create" ? "created" : "updated";
         Alert.alert("Success", `Workout ${action} successfully!`, [
-          { 
-            text: "OK", 
+          {
+            text: "OK",
             onPress: () => {
               // Add delay to ensure navigation system is ready
               setTimeout(() => {
@@ -383,7 +409,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
                   router.replace("/(tabs)/home");
                 }
               }, 100);
-            } 
+            },
           },
         ]);
       } else {

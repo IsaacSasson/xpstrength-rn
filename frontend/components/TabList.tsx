@@ -1,3 +1,4 @@
+// Path: /components/Tabs.tsx
 import React, { useRef, useEffect, useState } from 'react';
 import {
   View,
@@ -18,7 +19,14 @@ interface TabsProps<T> {
   tertiaryColor?: string;
 }
 
-function Tabs<T>({ tabs, activeTab, onTabChange, isAnimating = false, backgroundColor, tertiaryColor }: TabsProps<T>) {
+function Tabs<T>({
+  tabs,
+  activeTab,
+  onTabChange,
+  isAnimating = false,
+  backgroundColor,
+  tertiaryColor,
+}: TabsProps<T>) {
   // Defensive check: if tabs is undefined or not an array, do not render anything.
   if (!tabs || !Array.isArray(tabs)) {
     console.error('Tabs component requires a valid "tabs" array');
@@ -27,24 +35,23 @@ function Tabs<T>({ tabs, activeTab, onTabChange, isAnimating = false, background
 
   const translateX = useRef(new Animated.Value(0)).current;
   const [containerWidth, setContainerWidth] = useState(0);
-  const [tabsRefs] = useState<Array<View | null>>(new Array(tabs.length).fill(null));
   const [tabWidths, setTabWidths] = useState<number[]>([]);
   const [tabPositions, setTabPositions] = useState<number[]>([]);
-  
+
   // Find the index of the active tab
   const activeIndex = tabs.indexOf(activeTab);
 
   // Measure container width on layout
   const onContainerLayout = (e: LayoutChangeEvent) => {
-    if (e?.nativeEvent?.layout?.width) {
-      setContainerWidth(e.nativeEvent.layout.width);
-      
-      // Initialize with default equal widths
+    const width = e?.nativeEvent?.layout?.width ?? 0;
+    if (width > 0) {
+      setContainerWidth(width);
+
+      // Initialize with default equal widths (first layout only)
       if (tabWidths.length === 0) {
-        setTabWidths(new Array(tabs.length).fill(e.nativeEvent.layout.width / tabs.length));
-        setTabPositions(
-          new Array(tabs.length).fill(0).map((_, i) => i * (e.nativeEvent.layout.width / tabs.length))
-        );
+        const equal = width / Math.max(tabs.length, 1);
+        setTabWidths(new Array(tabs.length).fill(equal));
+        setTabPositions(new Array(tabs.length).fill(0).map((_, i) => i * equal));
       }
     }
   };
@@ -52,23 +59,27 @@ function Tabs<T>({ tabs, activeTab, onTabChange, isAnimating = false, background
   // Measure each tab separately
   const measureTab = (index: number, e: LayoutChangeEvent) => {
     const { width, x } = e.nativeEvent.layout;
-    
-    setTabWidths(prev => {
-      const newWidths = [...prev];
-      newWidths[index] = width;
-      return newWidths;
+
+    setTabWidths((prev) => {
+      const next = prev.slice();
+      next[index] = width;
+      return next;
     });
-    
-    setTabPositions(prev => {
-      const newPositions = [...prev];
-      newPositions[index] = x;
-      return newPositions;
+
+    setTabPositions((prev) => {
+      const next = prev.slice();
+      next[index] = x;
+      return next;
     });
   };
 
   useEffect(() => {
-    if (containerWidth > 0 && activeIndex >= 0 && tabPositions.length > 0) {
-      // Animate to the position of the active tab
+    // Only animate once we have a container, a valid active index,
+    // and positions measured for all tabs.
+    const hasAllPositions =
+      tabPositions.length === tabs.length && tabPositions.every((p) => Number.isFinite(p));
+
+    if (containerWidth > 0 && activeIndex >= 0 && hasAllPositions) {
       Animated.timing(translateX, {
         toValue: tabPositions[activeIndex],
         duration: 250,
@@ -76,23 +87,35 @@ function Tabs<T>({ tabs, activeTab, onTabChange, isAnimating = false, background
         useNativeDriver: false,
       }).start();
     }
-  }, [activeIndex, containerWidth, tabPositions, translateX]);
+  }, [activeIndex, containerWidth, tabPositions, translateX, tabs.length]);
+
+  // Compute current indicator width safely
+  const indicatorWidth =
+    activeIndex >= 0 && tabWidths[activeIndex]
+      ? tabWidths[activeIndex]
+      : containerWidth / Math.max(tabs.length, 1);
+
+  const hasMeasurements =
+    containerWidth > 0 &&
+    tabWidths.length === tabs.length &&
+    tabPositions.length === tabs.length;
 
   return (
     <View
       onLayout={onContainerLayout}
       className="flex-row justify-between rounded-xl p-1 mb-6 relative"
       style={{
-      backgroundColor: tertiaryColor,
+        backgroundColor: tertiaryColor,
       }}
     >
-      {/* Animated background */}
-      {containerWidth > 0 && tabWidths.length > 0 && activeIndex >= 0 && (
+      {/* Animated selection background */}
+      {hasMeasurements && activeIndex >= 0 && (
         <Animated.View
           style={{
             position: 'absolute',
-            width: tabWidths[activeIndex] || containerWidth / tabs.length,
-            height: Platform.OS === 'ios' || Platform.OS === 'android' ? '100%' : '84%',
+            width: indicatorWidth,
+            height:
+              Platform.OS === 'ios' || Platform.OS === 'android' ? '100%' : '84%',
             backgroundColor: backgroundColor || '#A742FF',
             borderRadius: 8,
             top: '7%',
@@ -106,7 +129,6 @@ function Tabs<T>({ tabs, activeTab, onTabChange, isAnimating = false, background
       {tabs.map((tab, index) => (
         <TouchableOpacity
           key={String(tab)}
-          ref={ref => tabsRefs[index] = ref}
           onLayout={(e) => measureTab(index, e)}
           onPress={() => onTabChange(tab)}
           className="flex-1 py-3 px-2 items-center justify-center rounded-lg z-10"

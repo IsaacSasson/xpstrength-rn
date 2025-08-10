@@ -13,15 +13,13 @@ import { router, useLocalSearchParams } from "expo-router";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import DraggableBottomSheet from "@/components/DraggableBottomSheet";
 import { useThemeContext } from "@/context/ThemeContext";
+import { useWorkouts } from "@/context/WorkoutContext";
 import { loadExercises, ExerciseData } from "@/utils/loadExercises";
 import ActiveWorkoutHeader from "@/components/home/ActiveWorkout/Header";
 import ActiveWorkoutFooter from "@/components/home/ActiveWorkout/Footer";
 import ActiveWorkoutCard from "@/components/home/ActiveWorkout/CarouselCard";
 import ActiveWorkoutAddCard from "@/components/home/ActiveWorkout/AddExerciseCard";
 import ReorderModal from "@/components/home/ReorderModal";
-
-// NEW: use exerciseDatabase so we can resolve names by id (same as Home does)
-import { useWorkouts } from "@/context/WorkoutContext";
 
 // Modals still used
 import PauseModal from "@/components/home/ActiveWorkout/PauseModal";
@@ -55,7 +53,7 @@ type PresetParam = {
 
 const ActiveWorkout = () => {
   const { primaryColor, secondaryColor, tertiaryColor } = useThemeContext();
-  const { exerciseDatabase } = useWorkouts();
+  const { exerciseDatabase, convertWeight, parseWeight, formatWeight, unitSystem } = useWorkouts();
   const { preset } = useLocalSearchParams<{ preset?: string }>();
 
   /* ───────── Stopwatch ───────── */
@@ -386,11 +384,14 @@ const ActiveWorkout = () => {
             name: (ex as any).name,
             sets: ex.sets.map((s) => ({ reps: s.reps, lbs: s.lbs })),
           }));
+          
+          // Calculate total volume in current unit, but convert to lbs for storage consistency
           const totalVolume = exercises.reduce(
             (sum, ex) =>
               sum + ex.sets.reduce((acc, s) => acc + s.lbs * s.reps, 0),
             0
           );
+          
           const xpGained = Math.floor(totalVolume / 100);
 
           router.replace({

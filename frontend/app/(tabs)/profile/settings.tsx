@@ -1,5 +1,5 @@
 // Path: /app/settings.tsx
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -15,11 +15,10 @@ import { router } from "expo-router";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import { useThemeContext } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthProvider";
+import { useWorkouts } from "@/context/WorkoutContext";
 import logo from "@/assets/images/logo.png";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const APP_VERSION = "v0.8.3";
-const UNIT_KEY = "unit_preference";
 
 /* ------------------------------------------------------------------ */
 /*                               Row                                  */
@@ -53,24 +52,13 @@ const Row: React.FC<RowProps> = ({ label, icon, onPress }) => {
 const Settings = () => {
   const { primaryColor, secondaryColor, tertiaryColor } = useThemeContext();
   const { logout } = useAuth();
+  const { unitSystem, setUnitSystem } = useWorkouts();
   const [loadingOut, setLoadingOut] = useState(false);
-
-  /* -------- UNITS -------- */
-  const [unit, setUnit] = useState<"imperial" | "metric">("imperial");
   const [unitModalVisible, setUnitModalVisible] = useState(false);
-
-  /** Load saved preference on mount */
-  useEffect(() => {
-    (async () => {
-      const saved = await AsyncStorage.getItem(UNIT_KEY);
-      if (saved === "imperial" || saved === "metric") setUnit(saved);
-    })();
-  }, []);
 
   /** Persist preference and close modal */
   const chooseUnit = async (u: "imperial" | "metric") => {
-    setUnit(u);
-    await AsyncStorage.setItem(UNIT_KEY, u);
+    await setUnitSystem(u);
     setUnitModalVisible(false);
   };
 
@@ -129,7 +117,7 @@ const Settings = () => {
           onPress={() => router.push("/profile/account")}
         />
         <Row
-          label={`Units (${unit === "imperial" ? "lbs" : "kgs"})`}
+          label={`Units (${unitSystem === "imperial" ? "lbs" : "kg"})`}
           icon="weight-hanging"
           onPress={() => setUnitModalVisible(true)}
         />
@@ -205,7 +193,7 @@ const Settings = () => {
             >
               <FontAwesome5
                 name={
-                  unit === "imperial" ? "dot-circle" : "circle"
+                  unitSystem === "imperial" ? "dot-circle" : "circle"
                 }
                 size={20}
                 color={primaryColor}
@@ -223,13 +211,13 @@ const Settings = () => {
             >
               <FontAwesome5
                 name={
-                  unit === "metric" ? "dot-circle" : "circle"
+                  unitSystem === "metric" ? "dot-circle" : "circle"
                 }
                 size={20}
                 color={primaryColor}
               />
               <Text className="text-white font-pmedium text-base ml-3">
-                Metric (kgs)
+                Metric (kg)
               </Text>
             </TouchableOpacity>
           </View>

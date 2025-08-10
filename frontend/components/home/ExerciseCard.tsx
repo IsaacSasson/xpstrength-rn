@@ -16,6 +16,7 @@ import * as Haptics from "expo-haptics";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useThemeContext } from "@/context/ThemeContext";
+import { useWorkouts } from "@/context/WorkoutContext";
 import { router } from "expo-router";
 import { loadExercises } from "@/utils/loadExercises";
 import ReorderModal from "./ReorderModal";
@@ -97,6 +98,7 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
   allExercises,
 }) => {
   const { primaryColor, tertiaryColor } = useThemeContext();
+  const { convertWeight, parseWeight, formatWeight, convertWeightString, unitSystem } = useWorkouts();
   const [isExpanded, setIsExpanded] = useState(false);
   const [showOptionsModal, setShowOptionsModal] = useState(false);
   const [showReorderModal, setShowReorderModal] = useState(false);
@@ -166,13 +168,22 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
     value: string
   ) => {
     const newSets = [...exercise.sets];
-    newSets[setIndex] = { ...newSets[setIndex], [field]: value };
+    
+    if (field === "weight") {
+      // Convert the entered value to the user's preferred unit format
+      const convertedValue = convertWeightString(value, unitSystem);
+      newSets[setIndex] = { ...newSets[setIndex], [field]: convertedValue };
+    } else {
+      newSets[setIndex] = { ...newSets[setIndex], [field]: value };
+    }
+    
     onUpdate(exercise.id, "sets", newSets);
   };
 
   const handleAddSet = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const newSets = [...exercise.sets, { reps: "10", weight: "0 lbs" }];
+    const weightUnit = unitSystem === "metric" ? "kg" : "lbs";
+    const newSets = [...exercise.sets, { reps: "10", weight: `0 ${weightUnit}` }];
     onUpdate(exercise.id, "sets", newSets);
   };
 
@@ -218,8 +229,8 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
   const getStatsDisplay = () => {
     const repsArray = exercise.sets.map((set) => parseInt(set.reps) || 0);
     const weightsArray = exercise.sets.map((set) => {
-      const match = set.weight.match(/(\d+(?:\.\d+)?)/);
-      return match ? parseFloat(match[1]) : 0;
+      const parsed = parseWeight(set.weight);
+      return parsed.value;
     });
 
     const minReps = Math.min(...repsArray);
@@ -229,11 +240,20 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
 
     const repsDisplay =
       minReps === maxReps ? `${minReps}` : `${minReps}-${maxReps}`;
-    const weightDisplay =
-      minWeight === maxWeight ? `${minWeight}` : `${minWeight}-${maxWeight}`;
+    
+    // Format weights in user's preferred unit
+    const minWeightFormatted = formatWeight(minWeight, unitSystem);
+    const maxWeightFormatted = formatWeight(maxWeight, unitSystem);
+    const weightDisplay = minWeight === maxWeight 
+      ? minWeightFormatted.replace(/\s(kg|lbs)/, '')
+      : `${minWeightFormatted.replace(/\s(kg|lbs)/, '')}-${maxWeightFormatted.replace(/\s(kg|lbs)/, '')}`;
+    
+    const weightUnit = unitSystem === "metric" ? "kg" : "lbs";
 
-    return `${exercise.sets.length} sets • ${repsDisplay} reps • ${weightDisplay} lbs`;
+    return `${exercise.sets.length} sets • ${repsDisplay} reps • ${weightDisplay} ${weightUnit}`;
   };
+
+  const weightUnit = unitSystem === "metric" ? "kg" : "lbs";
 
   return (
     <>
@@ -472,14 +492,13 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
                           }}
                           placeholder="0"
                           placeholderTextColor="#7b7b8b"
-                          value={set.weight.replace(/[^0-9\.]/g, "")}
+                          value={parseWeight(set.weight).value.toString()}
                           onChangeText={(text) => {
                             const numericValue = text.replace(/[^0-9\.]/g, "");
-                            handleSetUpdate(
-                              setIndex,
-                              "weight",
-                              numericValue ? `${numericValue} lbs` : "0 lbs"
-                            );
+                            const formattedWeight = numericValue 
+                              ? `${numericValue} ${weightUnit}` 
+                              : `0 ${weightUnit}`;
+                            handleSetUpdate(setIndex, "weight", formattedWeight);
                           }}
                           keyboardType="numeric"
                           selectTextOnFocus
@@ -492,7 +511,7 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
                             marginTop: 2,
                           }}
                         >
-                          weight (lbs)
+                          weight ({weightUnit})
                         </Text>
                       </View>
                     </View>
