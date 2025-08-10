@@ -145,48 +145,6 @@ const MuscleGroupDetail = () => {
             </View>
           ))}
         </View>
-
-        {/* Exercise Recommendations */}
-        <View className="mb-4">
-          <Text className="text-white font-psemibold text-lg mb-3">Recommended Exercises</Text>
-
-          <View className="p-4 rounded-xl" style={{ backgroundColor: "#1A1925" }}>
-            <Text className="text-gray-400 font-pmedium text-sm mb-3">
-              Based on your training history and recovery status:
-            </Text>
-
-            {[
-              "Bench Press - 4 sets of 8-10 reps",
-              "Incline Dumbbell Press - 3 sets of 10-12 reps",
-              "Chest Flyes - 3 sets of 12-15 reps",
-              "Push-ups - 2 sets to failure",
-            ].map((exercise, index) => (
-              <View key={index} className="flex-row items-center mb-2">
-                <View className="w-2 h-2 rounded-full mr-3" style={{ backgroundColor: primaryColor }} />
-                <Text className="text-white font-pmedium text-sm flex-1">{exercise}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* Recovery Tips */}
-        <View className="mb-4">
-          <Text className="text-white font-psemibold text-lg mb-3">Recovery Tips</Text>
-
-          <View className="p-4 rounded-2xl" style={{ backgroundColor: "#1A1925" }}>
-            <Text className="text-gray-400 font-pmedium text-sm mb-3">
-              Your {muscleGroupName.toLowerCase()} are currently {recoveryStatus.toLowerCase()}. Here's
-              what you should focus on:
-            </Text>
-
-            {recoveryTips.map((tip, index) => (
-              <View key={index} className="flex-row items-center mb-2">
-                <Text className="text-gray-400 font-pmedium text-sm mr-2">•</Text>
-                <Text className="text-white font-pmedium text-sm flex-1">{tip}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
       </ScrollView>
     </View>
   );
