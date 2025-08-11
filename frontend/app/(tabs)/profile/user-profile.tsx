@@ -1,5 +1,5 @@
 // Path: /app/(tabs)/profile/user-profile.tsx
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import * as ImagePicker from "expo-image-picker";
 import { Picker } from "@react-native-picker/picker";
 import { useThemeContext } from "@/context/ThemeContext";
+import { useWorkouts } from "@/context/WorkoutContext";
 import defaultPfp from "@/assets/images/icon.png";
 
 /* ------------------------------ field ------------------------------ */
@@ -43,6 +44,17 @@ const Field: React.FC<{
   );
 };
 
+/* ---------------------------- helpers ---------------------------- */
+const inchesFromFtIn = (ft: number, inch: number) => ft * 12 + inch;
+const cmFromFtIn = (ft: number, inch: number) =>
+  Math.round(inchesFromFtIn(ft, inch) * 2.54);
+const ftInFromCm = (cm: number) => {
+  const totalInches = Math.round(cm / 2.54);
+  const ft = Math.floor(totalInches / 12);
+  const inch = totalInches % 12;
+  return { ft, inch };
+};
+
 /* ---------------------------- component ---------------------------- */
 interface FormState {
   username: string;
@@ -51,11 +63,12 @@ interface FormState {
   avatarUri: string | null;
   heightFt: number;
   heightIn: number;
-  weightLb: number;
+  weightLb: number; // store in lbs internally for backend compatibility
 }
 
 const UserProfile = () => {
   const { primaryColor, secondaryColor, tertiaryColor } = useThemeContext();
+  const { unitSystem, convertWeight } = useWorkouts();
 
   const [form, setForm] = useState<FormState>({
     username: "",
@@ -70,6 +83,17 @@ const UserProfile = () => {
 
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
+
+  /* derived display values based on unit preference */
+  const displayHeightCm = useMemo(
+    () => cmFromFtIn(form.heightFt, form.heightIn),
+    [form.heightFt, form.heightIn]
+  );
+
+  const displayWeightKg = useMemo(
+    () => Math.round(convertWeight(form.weightLb, "imperial", "metric")),
+    [form.weightLb, convertWeight]
+  );
 
   /* image picker */
   const pickImage = async () => {
@@ -89,6 +113,7 @@ const UserProfile = () => {
   const onSave = async () => {
     setSaving(true);
     try {
+      // form.weightLb is already lbs, form.heightFt/In are inches-based
       console.log("Submitting profile:", form);
       await new Promise((r) => setTimeout(r, 1500));
       router.back();
@@ -141,12 +166,14 @@ const UserProfile = () => {
               </View>
             </TouchableOpacity>
           </View>
+
           {/* username */}
           <Field
             label="Username"
             value={form.username}
             onChangeText={(v) => update("username", v)}
           />
+
           {/* gender pills */}
           <Text className="text-gray-100 mb-1">Gender</Text>
           <View className="flex-row mb-4">
@@ -173,6 +200,7 @@ const UserProfile = () => {
               );
             })}
           </View>
+
           {/* goal */}
           <Field
             label="Fitness Goal"
@@ -180,7 +208,7 @@ const UserProfile = () => {
             onChangeText={(v) => update("goal", v)}
             placeholder="e.g. Bench 315"
           />
-       
+
           <View
             style={{
               height: 1,
@@ -188,82 +216,118 @@ const UserProfile = () => {
               marginVertical: 20,
             }}
           />
+
           {/* height + weight row */}
           <View className="flex-row">
-            {/* ---- HEIGHT (left half) ---- */}
+            {/* ---- HEIGHT ---- */}
             <View style={{ flex: 1, marginRight: 6 }}>
               <Text className="text-gray-100 text-base mb-1">Height</Text>
-              <View className="flex-row">
+
+              {unitSystem === "metric" ? (
                 <Picker
-                  selectedValue={form.heightFt}
-                  onValueChange={(v: number) => update("heightFt", v)}
-                  style={{ flex: 1, color: "#FFF" }}
+                  selectedValue={displayHeightCm}
+                  onValueChange={(v: number) => {
+                    const { ft, inch } = ftInFromCm(v);
+                    update("heightFt", ft);
+                    update("heightIn", inch);
+                  }}
+                  style={{ color: "#FFF" }}
                   itemStyle={{ color: "#FFF" }}
                 >
-                  {Array.from({ length: 4 }, (_, i) => i + 4).map((ft) => (
-                    <Picker.Item key={ft} label={`${ft} ft`} value={ft} />
-                  ))}
+                  {Array.from({ length: 230 - 120 + 1 }, (_, i) => 120 + i).map(
+                    (cm) => (
+                      <Picker.Item key={cm} label={`${cm} cm`} value={cm} />
+                    )
+                  )}
                 </Picker>
-                <Picker
-                  selectedValue={form.heightIn}
-                  onValueChange={(v: number) => update("heightIn", v)}
-                  style={{ flex: 1, color: "#FFF" }}
-                  itemStyle={{ color: "#FFF" }}
-                >
-                  {Array.from({ length: 12 }, (_, i) => i).map((inch) => (
-                    <Picker.Item key={inch} label={`${inch} in`} value={inch} />
-                  ))}
-                </Picker>
-              </View>
+              ) : (
+                <View className="flex-row">
+                  <Picker
+                    selectedValue={form.heightFt}
+                    onValueChange={(v: number) => update("heightFt", v)}
+                    style={{ flex: 1, color: "#FFF" }}
+                    itemStyle={{ color: "#FFF" }}
+                  >
+                    {Array.from({ length: 4 }, (_, i) => i + 4).map((ft) => (
+                      <Picker.Item key={ft} label={`${ft} ft`} value={ft} />
+                    ))}
+                  </Picker>
+                  <Picker
+                    selectedValue={form.heightIn}
+                    onValueChange={(v: number) => update("heightIn", v)}
+                    style={{ flex: 1, color: "#FFF" }}
+                    itemStyle={{ color: "#FFF" }}
+                  >
+                    {Array.from({ length: 12 }, (_, i) => i).map((inch) => (
+                      <Picker.Item key={inch} label={`${inch} in`} value={inch} />
+                    ))}
+                  </Picker>
+                </View>
+              )}
             </View>
 
-            {/* ---- WEIGHT (right‑half, fixed width) ---- */}
-            <View style={{ width: 120, marginLeft: 6 }}>
+            {/* ---- WEIGHT ---- */}
+            <View style={{ width: 140, marginLeft: 6 }}>
               <Text className="text-gray-100 text-base mb-1">Weight</Text>
-              <Picker
-                selectedValue={form.weightLb}
-                onValueChange={(v: number) => update("weightLb", v)}
-                style={{
-                  width: "100%",
-                  color: "#FFF",
-                  borderRadius: 12,
-                }}
-                itemStyle={{ color: "#FFF" }}
-              >
-                {Array.from({ length: 451 }, (_, i) => i + 50).map((lb) => (
-                  <Picker.Item key={lb} label={`${lb} lb`} value={lb} />
-                ))}
-              </Picker>
+
+              {unitSystem === "metric" ? (
+                <Picker
+                  selectedValue={displayWeightKg}
+                  onValueChange={(kg: number) => {
+                    const lbs = Math.round(
+                      convertWeight(kg, "metric", "imperial")
+                    );
+                    update("weightLb", lbs);
+                  }}
+                  style={{ width: "100%", color: "#FFF", borderRadius: 12 }}
+                  itemStyle={{ color: "#FFF" }}
+                >
+                  {Array.from({ length: 230 - 30 + 1 }, (_, i) => 30 + i).map(
+                    (kg) => (
+                      <Picker.Item key={kg} label={`${kg} kg`} value={kg} />
+                    )
+                  )}
+                </Picker>
+              ) : (
+                <Picker
+                  selectedValue={form.weightLb}
+                  onValueChange={(v: number) => update("weightLb", v)}
+                  style={{ width: "100%", color: "#FFF", borderRadius: 12 }}
+                  itemStyle={{ color: "#FFF" }}
+                >
+                  {Array.from({ length: 451 }, (_, i) => i + 50).map((lb) => (
+                    <Picker.Item key={lb} label={`${lb} lb`} value={lb} />
+                  ))}
+                </Picker>
+              )}
             </View>
           </View>
 
-           {/* save button */}
-      <TouchableOpacity
-        onPress={onSave}
-        disabled={saving}
-        activeOpacity={0.9}
-        className="px-8 py-4 rounded-2xl items-center"
-        style={{
-          backgroundColor: primaryColor,
-          position: "absolute",
-          bottom: 30,
-          left: 0,
-          right: 0,
-          alignSelf: "center",
-          marginHorizontal: 40,
-          opacity: saving ? 0.8 : 1,
-        }}
-      >
-        {saving ? (
-          <ActivityIndicator color="#FFF" />
-        ) : (
-          <Text className="text-white font-pbold text-lg">Save Changes</Text>
-        )}
-      </TouchableOpacity>
+          {/* save button */}
+          <TouchableOpacity
+            onPress={onSave}
+            disabled={saving}
+            activeOpacity={0.9}
+            className="px-8 py-4 rounded-2xl items-center"
+            style={{
+              backgroundColor: primaryColor,
+              position: "absolute",
+              bottom: 30,
+              left: 0,
+              right: 0,
+              alignSelf: "center",
+              marginHorizontal: 40,
+              opacity: saving ? 0.8 : 1,
+            }}
+          >
+            {saving ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <Text className="text-white font-pbold text-lg">Save Changes</Text>
+            )}
+          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
-
-     
     </View>
   );
 };

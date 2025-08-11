@@ -94,10 +94,9 @@ const FinishedWorkout = () => {
   }[] = JSON.parse(ach as string);
   const exercises: ExerciseSummary[] = JSON.parse(ex as string);
 
-  // Convert volume to user's preferred unit (assuming it comes in lbs)
+  // Consistent display: convert lbs -> current unit, then formatWeight
   const convertedVolume = convertWeight(volumeNum, "imperial", unitSystem);
-  const formattedVolumeNumber = Math.round(convertedVolume);
-  const volumeUnit = unitSystem === "metric" ? "kg" : "lbs";
+  const formattedVolume = formatWeight(convertedVolume, unitSystem);
 
   /* ---------------------------------------------------------------- */
 
@@ -143,7 +142,7 @@ const FinishedWorkout = () => {
                 color={primaryColor}
               />
               <Text className="text-white mt-1 font-pmedium">
-                {formattedVolumeNumber.toLocaleString()} {volumeUnit}
+                {formattedVolume}
               </Text>
               <Text className="text-gray-100 text-xs">Total Volume</Text>
             </View>
@@ -238,11 +237,16 @@ const FinishedWorkout = () => {
               </Text>
 
               {ex.sets.map((set, idx) => {
-                // Convert weight to user's preferred unit (assuming stored in lbs)
-                const convertedWeight = convertWeight(set.lbs, "imperial", unitSystem);
-                const formattedWeight = unitSystem === "metric" 
-                  ? `${convertedWeight.toFixed(1)} kg`
-                  : `${Math.round(convertedWeight)} lbs`;
+                // Per-set display stays as before (kg 1-dec, lbs whole)
+                const convertedWeight = convertWeight(
+                  set.lbs,
+                  "imperial",
+                  unitSystem
+                );
+                const formattedWeight =
+                  unitSystem === "metric"
+                    ? `${convertedWeight.toFixed(1)} kg`
+                    : `${Math.round(convertedWeight)} lbs`;
 
                 return (
                   <View

@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useMemo, useCallback } from "react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -10,10 +10,6 @@ import {
 } from "react-native";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import ExerciseAnatomy from "@/components/home/ActiveWorkout/ExerciseAnatomy";
-/**
- * ✅ NEW: pull unit preference from your WorkoutContext
- * Works with unit, weightUnit, or even nested objects ({ weight: 'kg' } / { system: 'metric' }).
- */
 import { useWorkouts } from "@/context/WorkoutContext";
 
 const MAX_FIELD_VALUE = 9999;
@@ -59,7 +55,7 @@ interface Props {
     exIdx: number,
     setIdx: number,
     field: "reps" | "lbs",
-    value: number // value always passed back in INTERNAL BASE (lbs for weight)
+    value: number // value is always passed back in INTERNAL BASE (lbs)
   ) => void;
   onAddSet: (exIdx: number) => void;
   onRemoveSet: (exIdx: number) => void;
@@ -87,59 +83,35 @@ const ActiveWorkoutCard: React.FC<Props> = ({
   const editableBg = "rgba(255,255,255,0.08)";
   const listRef = useRef<ScrollView | null>(null);
 
-  // ===== Unit preference from context (robust & reactive) =====
-  const workoutsCtx = useWorkouts() as any;
+  // Single source of truth for units + helpers
+  const { unitSystem, convertWeight, formatWeight } = useWorkouts();
 
-  const unitLabel = useMemo<"kg" | "lbs">(() => {
-    // Pull candidates from common spots
-    let raw =
-      workoutsCtx?.unit ??
-      workoutsCtx?.weightUnit ??
-      workoutsCtx?.preferences?.unit ??
-      workoutsCtx?.preferences?.weightUnit ??
-      workoutsCtx?.settings?.unit ??
-      workoutsCtx?.settings?.weightUnit ??
-      "lbs";
-
-    // If someone stores an object like { weight: 'kg', system: 'metric' }
-    if (raw && typeof raw === "object") {
-      raw = raw.weight ?? raw.system ?? raw.unit ?? "lbs";
-    }
-
-    const s = String(raw).trim().toLowerCase();
-    if (["kg", "kgs", "kilogram", "kilograms", "metric"].includes(s)) return "kg";
-    // default
-    return "lbs";
-  }, [workoutsCtx?.unit, workoutsCtx?.weightUnit, workoutsCtx?.preferences, workoutsCtx?.settings]);
-
-  // Convert helpers (internal base stays lbs)
+  // Convert internal lbs to the current display unit
   const toDisplayWeight = useCallback(
-    (lbs: number) => {
-      if (unitLabel === "kg") {
-        // 1 decimal for kg display
-        return Math.round((lbs / 2.20462) * 10) / 10;
-      }
-      return lbs;
-    },
-    [unitLabel]
+    (lbs: number) => convertWeight(lbs, "imperial", unitSystem),
+    [convertWeight, unitSystem]
   );
 
-  const fromDisplayWeightToLbs = useCallback(
+  // Convert a value from the display unit back to internal lbs (rounded)
+  const fromDisplayToLbs = useCallback(
     (displayVal: number) => {
-      if (unitLabel === "kg") return Math.round(displayVal * 2.20462);
-      return displayVal;
+      const lbsVal =
+        unitSystem === "metric"
+          ? convertWeight(displayVal, "metric", "imperial")
+          : displayVal;
+      return Math.round(lbsVal);
     },
-    [unitLabel]
+    [convertWeight, unitSystem]
   );
 
-  // Local editing controller (UI only; values saved via onUpdateSetField)
+  // Local editing controller
   const [editing, setEditing] = useState<EditingState>(null);
   const [editingValue, setEditingValue] = useState("");
 
-  // Image flickering state
+  // Image cycling state
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-  // Flicker images if available
+  // Cycle images if present
   useEffect(() => {
     if (exercise.images && exercise.images.length > 1) {
       const interval = setInterval(() => {
@@ -159,24 +131,23 @@ const ActiveWorkoutCard: React.FC<Props> = ({
   const commitEdit = () => {
     if (!editing) return;
 
-    // clamp numeric value
-    let num = Number(editingValue.replace(/[^\d.]/g, "")); // allow decimal for kg display
+    // Allow decimal for kg display input; strip non-numeric except dot.
+    let num = Number(editingValue.replace(/[^\d.]/g, ""));
     if (isNaN(num)) {
       setEditing(null);
       setEditingValue("");
       return;
     }
 
-    // For display we cap within MAX, then convert (for weight)
     const cappedDisplay = Math.max(0, Math.min(num, MAX_FIELD_VALUE));
 
     if (editing.field === "lbs") {
-      // convert back to internal lbs before saving
-      const internalLbs = fromDisplayWeightToLbs(cappedDisplay);
+      // Convert back to internal lbs and clamp, rounding to whole pounds
+      const internalLbs = fromDisplayToLbs(cappedDisplay);
       const clampedInternal = Math.max(0, Math.min(internalLbs, MAX_FIELD_VALUE));
       onUpdateSetField(exIdx, editing.setIdx, "lbs", clampedInternal);
     } else {
-      // reps save directly
+      // Reps are integers
       const clampedReps = Math.round(Math.max(0, Math.min(cappedDisplay, MAX_FIELD_VALUE)));
       onUpdateSetField(exIdx, editing.setIdx, "reps", clampedReps);
     }
@@ -196,7 +167,7 @@ const ActiveWorkoutCard: React.FC<Props> = ({
     }
   };
 
-  // Reserve ~half the card height for anatomy (rest of space becomes sets area)
+  // Reserve ~half the card height for anatomy
   const ANATOMY_HEIGHT = Math.max(120, Math.floor(CARD_HEIGHT * 0.4));
 
   return (
@@ -214,9 +185,9 @@ const ActiveWorkoutCard: React.FC<Props> = ({
         height: CARD_HEIGHT,
       }}
     >
-      {/* Header row - with properly centered exercise name */}
+      {/* Header row with image, centered name, and options */}
       <View style={{ position: "relative", height: 48, marginBottom: 16, justifyContent: "center" }}>
-        {/* Exercise Image (positioned absolutely on left) */}
+        {/* Exercise Image (left) */}
         {exercise.images && exercise.images.length > 0 && (
           <View style={[styles.imageContainer, { position: "absolute", left: 0, top: 4 }]}>
             {exercise.images.map((image, index) => (
@@ -233,7 +204,7 @@ const ActiveWorkoutCard: React.FC<Props> = ({
           </View>
         )}
 
-        {/* Exercise Name (truly centered) */}
+        {/* Exercise Name (center) */}
         <View style={{ alignItems: "center", justifyContent: "center", paddingHorizontal: 60 }}>
           <Text
             className="text-2xl font-pbold text-center"
@@ -245,7 +216,7 @@ const ActiveWorkoutCard: React.FC<Props> = ({
           </Text>
         </View>
 
-        {/* Options button (positioned absolutely on right) */}
+        {/* Options button (right) */}
         <TouchableOpacity onPress={() => onOpenOptions(exIdx)} style={{ position: "absolute", right: 0, top: 14 }}>
           <MaterialCommunityIcons name="dots-vertical" size={20} color="#FFFFFF" />
         </TouchableOpacity>
@@ -264,7 +235,7 @@ const ActiveWorkoutCard: React.FC<Props> = ({
         </View>
       )}
 
-      {/* Table header - aligned with data columns */}
+      {/* Table header */}
       <View className="flex-row py-1 mb-2 rounded-lg" style={{ borderColor: secondaryColor, borderWidth: 0.3 }}>
         <View style={{ width: CHECK_COL_WIDTH }} />
         <View style={{ width: COL_WIDTH, alignItems: "center" }}>
@@ -278,7 +249,7 @@ const ActiveWorkoutCard: React.FC<Props> = ({
         </View>
       </View>
 
-      {/* ===== TOP REGION: Sets (scrollable, fills remaining space) ===== */}
+      {/* Sets list */}
       <View style={{ flex: 1 }}>
         <ScrollView
           ref={(ref) => {
@@ -290,7 +261,10 @@ const ActiveWorkoutCard: React.FC<Props> = ({
           showsVerticalScrollIndicator={false}
         >
           {exercise.sets.map((s, setIdx) => {
+            // Convert internal lbs -> display unit for both label and editor
             const displayWeight = toDisplayWeight(s.lbs);
+            // String with correct unit and rounding via context formatter
+            const displayWeightLabel = formatWeight(displayWeight);
 
             return (
               <View
@@ -362,7 +336,7 @@ const ActiveWorkoutCard: React.FC<Props> = ({
                   )}
                 </View>
 
-                {/* Weight (unit-aware) */}
+                {/* Weight */}
                 <View style={{ width: COL_WIDTH, alignItems: "center" }}>
                   {editing && editing.setIdx === setIdx && editing.field === "lbs" ? (
                     <TextInput
@@ -372,7 +346,7 @@ const ActiveWorkoutCard: React.FC<Props> = ({
                       onSubmitEditing={commitEdit}
                       keyboardType="numeric"
                       autoFocus
-                      maxLength={5} // allow one decimal in kg
+                      maxLength={5} // allow a decimal in kg
                       style={{
                         color: "#FFFFFF",
                         backgroundColor: editableBg,
@@ -395,7 +369,7 @@ const ActiveWorkoutCard: React.FC<Props> = ({
                       }}
                     >
                       <Text className="text-gray-100" style={{ textAlign: "center" }}>
-                        {displayWeight} {unitLabel}
+                        {displayWeightLabel}
                       </Text>
                     </TouchableOpacity>
                   )}
@@ -406,7 +380,7 @@ const ActiveWorkoutCard: React.FC<Props> = ({
         </ScrollView>
       </View>
 
-      {/* ===== BOTTOM REGION: Anatomy (fixed, no scroll) ===== */}
+      {/* Anatomy */}
       <View style={{ height: ANATOMY_HEIGHT, marginTop: 6, marginBottom: 10 }}>
         <ExerciseAnatomy
           primaryColor={primaryColor}
@@ -417,7 +391,7 @@ const ActiveWorkoutCard: React.FC<Props> = ({
         />
       </View>
 
-      {/* Add / Remove buttons — stay pinned at the very bottom */}
+      {/* Add / Remove */}
       <View className="flex-row justify-between">
         <TouchableOpacity
           onPress={() => onRemoveSet(exIdx)}
