@@ -8,7 +8,10 @@ import {
   Alert,
   TouchableOpacity,
   Text,
+  Platform,
+  Vibration,
 } from "react-native";
+import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import DraggableBottomSheet from "@/components/DraggableBottomSheet";
@@ -79,12 +82,38 @@ const ActiveWorkout = () => {
   // Bottom sheet visibility for countdown
   const [restSheetVisible, setRestSheetVisible] = useState(false);
 
+  // Ensure we only buzz once per rest
+  const hasBuzzedRef = useRef(false);
+
+  // Small sleep helper for iOS rhythm
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+  // Rhythmic completion alert (works on silent)
+  const buzzRestComplete = async () => {
+    try {
+      if (Platform.OS === "android") {
+        // pattern: tap, tap — pause — long — pause — short/confirm
+        Vibration.vibrate([0, 70, 70, 70, 160, 140, 120, 110], false);
+        return;
+      }
+      // iOS haptic sequence
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      await sleep(80);
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      await sleep(150);
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      await sleep(130);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {}
+  };
+
   const startRest = () => {
     if (restRunning) return;
     const total = durMin * 60 + durSec;
     setRestLeft(total);
     setRestRunning(true);
     setRestSheetVisible(true);
+    hasBuzzedRef.current = false;
 
     restRef.current = setInterval(() => {
       setRestLeft((t) => {
@@ -103,6 +132,7 @@ const ActiveWorkout = () => {
     setRestRunning(false);
     setRestLeft(durMin * 60 + durSec);
     setRestSheetVisible(false);
+    // do not reset hasBuzzedRef here; a new startRest() will
   };
 
   const resetRest = () => {
@@ -110,7 +140,16 @@ const ActiveWorkout = () => {
     setRestRunning(false);
     setRestLeft(durMin * 60 + durSec);
     setRestSheetVisible(false);
+    // do not reset hasBuzzedRef here; a new startRest() will
   };
+
+  // Fire the rhythm any time restLeft hits 0 (including manual -5 to 0)
+  useEffect(() => {
+    if (restLeft === 0 && !hasBuzzedRef.current) {
+      hasBuzzedRef.current = true;
+      buzzRestComplete();
+    }
+  }, [restLeft]);
 
   /* ───────── Picker sheet state ───────── */
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -253,23 +292,65 @@ const ActiveWorkout = () => {
       )
     );
 
-  // toggle a set's checkmark and control the rest timer + sheet
+  // ---------- Sequential completion helpers ----------
+  const firstIncompleteIndex = (sets: Set[]) =>
+    sets.findIndex((s) => !s.checked); // -1 if all complete
+
+  const lastCheckedIndex = (sets: Set[]) => {
+    let idx = -1;
+    for (let i = 0; i < sets.length; i++) if (sets[i].checked) idx = i;
+    return idx;
+  };
+
+  // Only allow checking the first incomplete set.
+  // Only allow unchecking the last checked set (prevents unchecking set 1 if set 2 is checked).
   const toggleSetChecked = (exIdx: number, setIdx: number) => {
-    const willCheck = !exercises[exIdx]?.sets[setIdx]?.checked;
+    const ex = exercises[exIdx];
+    if (!ex || !ex.sets?.[setIdx]) return;
+
+    const sets = ex.sets;
+    const isChecked = !!sets[setIdx].checked;
+    const firstOpen = firstIncompleteIndex(sets) === -1 ? sets.length : firstIncompleteIndex(sets);
+    const lastDone = lastCheckedIndex(sets);
+
+    // Attempting to check a set
+    if (!isChecked) {
+      // Must be exactly the first incomplete
+      if (setIdx !== firstOpen) return;
+
+      setExercises((prev) =>
+        prev.map((e, i) =>
+          i === exIdx
+            ? {
+                ...e,
+                sets: e.sets.map((s, j) =>
+                  j === setIdx ? { ...s, checked: true } : s
+                ),
+              }
+            : e
+        )
+      );
+      startRest();
+      return;
+    }
+
+    // Attempting to uncheck a set
+    // Only allowed if it's the last checked one
+    if (setIdx !== lastDone) return;
+
     setExercises((prev) =>
-      prev.map((ex, i) =>
+      prev.map((e, i) =>
         i === exIdx
           ? {
-              ...ex,
-              sets: ex.sets.map((s, j) =>
-                j === setIdx ? { ...s, checked: willCheck } : s
+              ...e,
+              sets: e.sets.map((s, j) =>
+                j === setIdx ? { ...s, checked: false } : s
               ),
             }
-          : ex
+          : e
       )
     );
-    if (willCheck) startRest();
-    else resetRest();
+    resetRest();
   };
 
   // Update exercise notes
@@ -602,7 +683,9 @@ const ActiveWorkout = () => {
               }}
             >
               <TouchableOpacity
-                onPress={() => setRestLeft((prev) => Math.max(0, prev - 5))}
+                onPress={() =>
+                  setRestLeft((prev) => Math.max(0, prev - 5))
+                }
                 className="px-4 py-3 rounded-lg"
                 style={{
                   borderWidth: 1,
@@ -703,9 +786,9 @@ const ActiveWorkout = () => {
             onPress: handleNotesPress,
           },
           {
-            label: "Replace Exercise", // <- updated
+            label: "Replace Exercise",
             icon: "swap-horizontal",
-            onPress: handleReplaceExercise, // <- updated
+            onPress: handleReplaceExercise,
           },
           {
             label: "Reorder Exercises",

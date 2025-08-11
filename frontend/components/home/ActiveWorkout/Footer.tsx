@@ -57,7 +57,7 @@ const ActiveWorkoutFooter: React.FC<Props> = ({
         <View style={{ flex: 1, alignItems: "center" }}>
           <TouchableOpacity onPress={onOpenPicker}>
             <Text className="text-white font-pmedium">
-              Rest: {durMin}:{String(durSec).padStart(2, "0")}
+              {durMin}:{String(durSec).padStart(2, "0")}
             </Text>
           </TouchableOpacity>
         </View>

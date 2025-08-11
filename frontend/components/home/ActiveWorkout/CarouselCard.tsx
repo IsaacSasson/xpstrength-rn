@@ -1,4 +1,5 @@
-import React, { useRef, useState, useEffect, useCallback } from "react";
+// Path: /components/home/ActiveWorkout/CarouselCard.tsx
+import React, { useRef, useState, useEffect, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -63,6 +64,8 @@ interface Props {
 
 type EditingState = { setIdx: number; field: "reps" | "lbs" } | null;
 
+const CHECKBOX_SIZE = 22;
+
 const ActiveWorkoutCard: React.FC<Props> = ({
   exercise,
   exIdx,
@@ -86,13 +89,11 @@ const ActiveWorkoutCard: React.FC<Props> = ({
   // Single source of truth for units + helpers
   const { unitSystem, convertWeight, formatWeight } = useWorkouts();
 
-  // Convert internal lbs to the current display unit
   const toDisplayWeight = useCallback(
     (lbs: number) => convertWeight(lbs, "imperial", unitSystem),
     [convertWeight, unitSystem]
   );
 
-  // Convert a value from the display unit back to internal lbs (rounded)
   const fromDisplayToLbs = useCallback(
     (displayVal: number) => {
       const lbsVal =
@@ -104,14 +105,11 @@ const ActiveWorkoutCard: React.FC<Props> = ({
     [convertWeight, unitSystem]
   );
 
-  // Local editing controller
   const [editing, setEditing] = useState<EditingState>(null);
   const [editingValue, setEditingValue] = useState("");
 
-  // Image cycling state
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-  // Cycle images if present
   useEffect(() => {
     if (exercise.images && exercise.images.length > 1) {
       const interval = setInterval(() => {
@@ -130,28 +128,21 @@ const ActiveWorkoutCard: React.FC<Props> = ({
 
   const commitEdit = () => {
     if (!editing) return;
-
-    // Allow decimal for kg display input; strip non-numeric except dot.
     let num = Number(editingValue.replace(/[^\d.]/g, ""));
     if (isNaN(num)) {
       setEditing(null);
       setEditingValue("");
       return;
     }
-
     const cappedDisplay = Math.max(0, Math.min(num, MAX_FIELD_VALUE));
-
     if (editing.field === "lbs") {
-      // Convert back to internal lbs and clamp, rounding to whole pounds
       const internalLbs = fromDisplayToLbs(cappedDisplay);
       const clampedInternal = Math.max(0, Math.min(internalLbs, MAX_FIELD_VALUE));
       onUpdateSetField(exIdx, editing.setIdx, "lbs", clampedInternal);
     } else {
-      // Reps are integers
       const clampedReps = Math.round(Math.max(0, Math.min(cappedDisplay, MAX_FIELD_VALUE)));
       onUpdateSetField(exIdx, editing.setIdx, "reps", clampedReps);
     }
-
     setEditing(null);
     setEditingValue("");
   };
@@ -167,8 +158,44 @@ const ActiveWorkoutCard: React.FC<Props> = ({
     }
   };
 
-  // Reserve ~half the card height for anatomy
+  const firstOpen = useMemo(() => {
+    const idx = exercise.sets.findIndex((s) => !s.checked);
+    return idx === -1 ? exercise.sets.length : idx;
+  }, [exercise.sets]);
+
+  const lastDone = useMemo(() => {
+    let idx = -1;
+    for (let i = 0; i < exercise.sets.length; i++) {
+      if (exercise.sets[i].checked) idx = i;
+    }
+    return idx;
+  }, [exercise.sets]);
+
   const ANATOMY_HEIGHT = Math.max(120, Math.floor(CARD_HEIGHT * 0.4));
+
+  // Square checkbox (no outline when disabled)
+  const renderSquareCheckbox = (checked: boolean, enabled: boolean) => {
+    const borderColor = enabled ? (checked ? primaryColor : "#9CA3AF") : "transparent";
+    const borderWidth = enabled ? 2 : 0; // <— remove outline when disabled
+    const fill = checked ? primaryColor : "transparent";
+    const iconColor = checked ? "#0F0E1A" : "transparent";
+    return (
+      <View
+        style={{
+          width: CHECKBOX_SIZE,
+          height: CHECKBOX_SIZE,
+          borderRadius: 6,
+          borderWidth,
+          borderColor,
+          backgroundColor: fill,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <MaterialCommunityIcons name="check-bold" size={14} color={iconColor} />
+      </View>
+    );
+  };
 
   return (
     <View
@@ -185,9 +212,8 @@ const ActiveWorkoutCard: React.FC<Props> = ({
         height: CARD_HEIGHT,
       }}
     >
-      {/* Header row with image, centered name, and options */}
+      {/* Header */}
       <View style={{ position: "relative", height: 48, marginBottom: 16, justifyContent: "center" }}>
-        {/* Exercise Image (left) */}
         {exercise.images && exercise.images.length > 0 && (
           <View style={[styles.imageContainer, { position: "absolute", left: 0, top: 4 }]}>
             {exercise.images.map((image, index) => (
@@ -203,20 +229,11 @@ const ActiveWorkoutCard: React.FC<Props> = ({
             ))}
           </View>
         )}
-
-        {/* Exercise Name (center) */}
         <View style={{ alignItems: "center", justifyContent: "center", paddingHorizontal: 60 }}>
-          <Text
-            className="text-2xl font-pbold text-center"
-            style={{ color: secondaryColor }}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-          >
+          <Text className="text-2xl font-pbold text-center" style={{ color: secondaryColor }} numberOfLines={1} ellipsizeMode="tail">
             {exercise.name}
           </Text>
         </View>
-
-        {/* Options button (right) */}
         <TouchableOpacity onPress={() => onOpenOptions(exIdx)} style={{ position: "absolute", right: 0, top: 14 }}>
           <MaterialCommunityIcons name="dots-vertical" size={20} color="#FFFFFF" />
         </TouchableOpacity>
@@ -249,47 +266,40 @@ const ActiveWorkoutCard: React.FC<Props> = ({
         </View>
       </View>
 
-      {/* Sets list */}
+      {/* Sets */}
       <View style={{ flex: 1 }}>
         <ScrollView
-          ref={(ref) => {
-            listRef.current = ref;
-          }}
+          ref={(ref) => { listRef.current = ref; }}
           style={{ flex: 1 }}
           contentContainerStyle={{ paddingBottom: 8 }}
           nestedScrollEnabled
           showsVerticalScrollIndicator={false}
         >
           {exercise.sets.map((s, setIdx) => {
-            // Convert internal lbs -> display unit for both label and editor
             const displayWeight = toDisplayWeight(s.lbs);
-            // String with correct unit and rounding via context formatter
             const displayWeightLabel = formatWeight(displayWeight);
 
+            const isChecked = !!s.checked;
+            const showCheckbox = isChecked || setIdx === firstOpen;
+            const isEnabled =
+              (!isChecked && setIdx === firstOpen) || (isChecked && setIdx === lastDone);
+
             return (
-              <View
-                key={s.id}
-                className="flex-row mb-2"
-                style={{ minHeight: 32, alignItems: "center" }}
-              >
-                {/* Checkmark */}
-                <View
-                  style={{
-                    width: CHECK_COL_WIDTH,
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <TouchableOpacity
-                    onPress={() => onToggleSetChecked(exIdx, setIdx)}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <MaterialCommunityIcons
-                      name={s.checked ? "check-circle" : "checkbox-blank-circle-outline"}
-                      size={22}
-                      color={s.checked ? primaryColor : "#9CA3AF"}
-                    />
-                  </TouchableOpacity>
+              <View key={s.id} className="flex-row mb-2" style={{ minHeight: 32, alignItems: "center" }}>
+                {/* Checkbox */}
+                <View style={{ width: CHECK_COL_WIDTH, alignItems: "center", justifyContent: "center" }}>
+                  {showCheckbox ? (
+                    <TouchableOpacity
+                      onPress={() => onToggleSetChecked(exIdx, setIdx)}
+                      disabled={!isEnabled}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      style={{ opacity: isEnabled ? 1 : 0.5 }}
+                    >
+                      {renderSquareCheckbox(isChecked, isEnabled)}
+                    </TouchableOpacity>
+                  ) : (
+                    <View style={{ width: CHECKBOX_SIZE, height: CHECKBOX_SIZE }} />
+                  )}
                 </View>
 
                 {/* Set # */}
@@ -346,7 +356,7 @@ const ActiveWorkoutCard: React.FC<Props> = ({
                       onSubmitEditing={commitEdit}
                       keyboardType="numeric"
                       autoFocus
-                      maxLength={5} // allow a decimal in kg
+                      maxLength={5}
                       style={{
                         color: "#FFFFFF",
                         backgroundColor: editableBg,
