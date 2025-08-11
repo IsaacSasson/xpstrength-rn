@@ -151,8 +151,7 @@ const styles = StyleSheet.create({
   row: { width: "100%", flexDirection: "row", gap: 0 },
   side: {
     flex: 1,
-    // no background, no radius — fully transparent
   },
 });
 
-export default ExerciseAnatomy;
+export default React.memo(ExerciseAnatomy);

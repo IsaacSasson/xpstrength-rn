@@ -1,4 +1,3 @@
-// Path: /components/home/ActiveWorkout/CarouselCard.tsx
 import React, { useRef, useState, useEffect, useCallback, useMemo } from "react";
 import {
   View,
@@ -8,6 +7,7 @@ import {
   TextInput,
   Image,
   StyleSheet,
+  InteractionManager,
 } from "react-native";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import ExerciseAnatomy from "@/components/home/ActiveWorkout/ExerciseAnatomy";
@@ -60,6 +60,9 @@ interface Props {
   ) => void;
   onAddSet: (exIdx: number) => void;
   onRemoveSet: (exIdx: number) => void;
+
+  // when true, skip heavy subtrees (images/SVG) for this card
+  deferHeavy?: boolean;
 }
 
 type EditingState = { setIdx: number; field: "reps" | "lbs" } | null;
@@ -82,9 +85,23 @@ const ActiveWorkoutCard: React.FC<Props> = ({
   onUpdateSetField,
   onAddSet,
   onRemoveSet,
+  deferHeavy = false,
 }) => {
   const editableBg = "rgba(255,255,255,0.08)";
   const listRef = useRef<ScrollView | null>(null);
+
+  // keep heavy things off the main JS path until interactions are finished
+  const [heavyReady, setHeavyReady] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    const task = InteractionManager.runAfterInteractions(() => {
+      if (!cancelled) setHeavyReady(true);
+    });
+    return () => {
+      cancelled = true;
+      (task as any)?.cancel?.();
+    };
+  }, []);
 
   // Single source of truth for units + helpers
   const { unitSystem, convertWeight, formatWeight } = useWorkouts();
@@ -110,16 +127,16 @@ const ActiveWorkoutCard: React.FC<Props> = ({
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
+  // image slideshow runs only when allowed to render heavy UI
   useEffect(() => {
-    if (exercise.images && exercise.images.length > 1) {
-      const interval = setInterval(() => {
-        setCurrentImageIndex((prev) =>
-          prev === exercise.images!.length - 1 ? 0 : prev + 1
-        );
-      }, 1500);
-      return () => clearInterval(interval);
-    }
-  }, [exercise.images]);
+    if (!heavyReady || deferHeavy || !(exercise.images && exercise.images.length > 1)) return;
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prev) =>
+        prev === exercise.images!.length - 1 ? 0 : prev + 1
+      );
+    }, 1500);
+    return () => clearInterval(interval);
+  }, [exercise.images, heavyReady, deferHeavy]);
 
   const beginEdit = (setIdx: number, field: "reps" | "lbs", current: number) => {
     setEditing({ setIdx, field });
@@ -176,7 +193,7 @@ const ActiveWorkoutCard: React.FC<Props> = ({
   // Square checkbox (no outline when disabled)
   const renderSquareCheckbox = (checked: boolean, enabled: boolean) => {
     const borderColor = enabled ? (checked ? primaryColor : "#9CA3AF") : "transparent";
-    const borderWidth = enabled ? 2 : 0; // <— remove outline when disabled
+    const borderWidth = enabled ? 2 : 0;
     const fill = checked ? primaryColor : "transparent";
     const iconColor = checked ? "#0F0E1A" : "transparent";
     return (
@@ -214,7 +231,7 @@ const ActiveWorkoutCard: React.FC<Props> = ({
     >
       {/* Header */}
       <View style={{ position: "relative", height: 48, marginBottom: 16, justifyContent: "center" }}>
-        {exercise.images && exercise.images.length > 0 && (
+        {heavyReady && !deferHeavy && exercise.images && exercise.images.length > 0 && (
           <View style={[styles.imageContainer, { position: "absolute", left: 0, top: 4 }]}>
             {exercise.images.map((image, index) => (
               <Image
@@ -390,15 +407,17 @@ const ActiveWorkoutCard: React.FC<Props> = ({
         </ScrollView>
       </View>
 
-      {/* Anatomy */}
+      {/* Anatomy (heavy) */}
       <View style={{ height: ANATOMY_HEIGHT, marginTop: 6, marginBottom: 10 }}>
-        <ExerciseAnatomy
-          primaryColor={primaryColor}
-          secondaryColor={secondaryColor}
-          primaryMuscles={exercise.primaryMuscles}
-          secondaryMuscles={exercise.secondaryMuscles}
-          height={ANATOMY_HEIGHT}
-        />
+        {heavyReady && !deferHeavy ? (
+          <ExerciseAnatomy
+            primaryColor={primaryColor}
+            secondaryColor={secondaryColor}
+            primaryMuscles={exercise.primaryMuscles}
+            secondaryMuscles={exercise.secondaryMuscles}
+            height={ANATOMY_HEIGHT}
+          />
+        ) : null}
       </View>
 
       {/* Add / Remove */}
@@ -443,4 +462,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ActiveWorkoutCard;
+export default React.memo(ActiveWorkoutCard);

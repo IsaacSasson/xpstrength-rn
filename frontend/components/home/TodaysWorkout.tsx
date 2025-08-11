@@ -1,5 +1,4 @@
-// Path: /components/home/TodaysWorkout.tsx
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 import { View, Text, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
@@ -7,11 +6,12 @@ import { useThemeContext } from "@/context/ThemeContext";
 import { router } from "expo-router";
 import DraggableBottomSheet from "@/components/DraggableBottomSheet";
 import { useWorkouts } from "@/context/WorkoutContext";
+import { setLaunchPreset } from "@/utils/workoutLaunch";
+import { prewarmActiveSession } from "@/utils/prewarmActiveSession";
 
 /* ----------------------------- Types ----------------------------------- */
 export interface WorkoutType {
   exists: boolean;
-  /** When true, this day is explicitly marked as a Rest Day (plan uses -1) */
   isRest?: boolean;
   name?: string;
   calories?: number;
@@ -20,72 +20,28 @@ export interface WorkoutType {
 
 interface Props {
   workout: WorkoutType | null;
-  /** Allow "Assign/ Create Workout" actions on this date */
   allowCreate?: boolean;
-  /** The selected date for context when assigning/editing workouts */
   selectedDate?: Date;
 }
 
 /* -------------------------- Constants ---------------------------------- */
-const daysOfWeek = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-];
-
-/* Helper function to handle new exercise data format in TodaysWorkout */
-const processExerciseForDisplay = (ex: any, exerciseDatabase: any[]) => {
-  // Find exercise name from database safely
-  const exerciseDetails = exerciseDatabase.find(e => 
-    e.id === (ex.exercise ? String(ex.exercise) : '')
-  );
-  const exerciseName = exerciseDetails?.name || `Exercise ${ex.exercise || 'Unknown'}`;
-  
-  // Handle new format where sets is an array of {reps, weight} objects
-  if (Array.isArray(ex.sets)) {
-    const setsCount = ex.sets.length;
-    const repsArray = ex.sets.map((set: any) => Number(set.reps) || 0);
-    const minReps = Math.min(...repsArray);
-    const maxReps = Math.max(...repsArray);
-    
-    // Create rep range string
-    const repsDisplay = minReps === maxReps ? String(minReps) : `${minReps}-${maxReps}`;
-    
-    return {
-      name: exerciseName,
-      sets: setsCount,
-      reps: repsDisplay,
-    };
-  } else {
-    // Fallback for old format
-    return {
-      name: exerciseName,
-      sets: ex.sets || 0,
-      reps: String(ex.reps || 0),
-    };
-  }
-};
+const daysOfWeek = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 
 /* --------------------------- Component --------------------------------- */
-const TodaysWorkout: React.FC<Props> = ({
-  workout,
-  allowCreate = true,
-  selectedDate,
-}) => {
+const TodaysWorkout: React.FC<Props> = ({ workout, allowCreate = true, selectedDate }) => {
   const { primaryColor, tertiaryColor } = useThemeContext();
+
   const {
     customWorkouts,
-    exerciseDatabase,
     getWorkoutForDay,
-    setPlanDay,   // <<< use plan-based day assignment
+    setPlanDay,
     refreshData,
+    unitSystem,
+    getExerciseMeta,
+    parseWeight,
+    convertWeight,
   } = useWorkouts();
 
-  // Determine the context day
   const dayIndex = useMemo(
     () => (selectedDate ? selectedDate.getDay() : new Date().getDay()),
     [selectedDate]
@@ -98,7 +54,6 @@ const TodaysWorkout: React.FC<Props> = ({
     [selectedDate, dayIndex]
   );
 
-  // Navigation helpers
   const goToEditWorkout = () => {
     if (dayName) {
       router.push({ pathname: "/home/edit-workout", params: { day: dayName } });
@@ -107,114 +62,139 @@ const TodaysWorkout: React.FC<Props> = ({
     }
   };
 
-  const goToCreateWorkout = () => {
-    closeAssignSheet();
-    if (dayName) {
-      router.push({ pathname: "/home/create-workout", params: { day: dayName } });
-    } else {
-      router.push("/home/create-workout");
-    }
-  };
+  /* ----------------------------------------------------------------------
+     Build the lightweight launch preset from a workout object.
+  ----------------------------------------------------------------------- */
+  const buildLaunchPresetFromWorkout = useCallback((workoutData: any) => {
+    return {
+      name: workoutData.name || "Workout",
+      dayIndex,
+      workoutId: workoutData.id,
+      exercises: (workoutData.exercises || []).map((ex: any) => {
+        const id = Number(ex.exercise ?? ex.id);
+        if (Array.isArray(ex.sets)) {
+          return {
+            id,
+            sets: ex.sets.map((s: any) => ({
+              reps: Number(s?.reps) || 0,
+              weight: s?.weight ?? null,
+            })),
+            setsCount: ex.sets.length,
+            reps: 0,
+          };
+        }
+        return {
+          id,
+          sets: [],
+          setsCount: Math.max(Number(ex.sets ?? 0), 0),
+          reps: Number(ex.reps ?? 0),
+        };
+      }),
+    };
+  }, [dayIndex]);
 
-  // UPDATED: Pass the actual plan workout (ids + sets + reps) to Active Workout
+  /* ----------------------------------------------------------------------
+     Background prewarming: data only (non-blocking)
+  ----------------------------------------------------------------------- */
+  useEffect(() => {
+    const workoutData = getWorkoutForDay(dayIndex);
+    if (!workoutData || !workoutData.exercises || workoutData.exercises.length === 0) return;
+
+    const launchPreset = buildLaunchPresetFromWorkout(workoutData);
+    prewarmActiveSession({
+      launchPreset,
+      unitSystem,
+      getExerciseMeta,
+      parseWeight,
+      convertWeight,
+    });
+  }, [dayIndex, getWorkoutForDay, unitSystem, buildLaunchPresetFromWorkout, getExerciseMeta, parseWeight, convertWeight]);
+
+  /* ----------------------------------------------------------------------
+     Preload the ActiveWorkout route bundle so navigation is instant
+     NOTE: your route is /app/(tabs)/home/active-workout.tsx
+  ----------------------------------------------------------------------- */
+  useEffect(() => {
+    (async () => {
+      try {
+        await Promise.all([
+          import("@/app/(tabs)/home/active-workout"),
+          import("@/components/home/ActiveWorkout/CarouselCard"),
+          import("@/components/home/ActiveWorkout/AddExerciseCard"),
+          import("@/components/home/ActiveWorkout/Header"),
+          import("@/components/home/ActiveWorkout/Footer"),
+        ]);
+      } catch {
+        // ignore – warm up only
+      }
+    })();
+  }, []);
+
+  /* ----------------------------------------------------------------------
+     Start Workout: navigate immediately; ActiveWorkout shows loader first
+  ----------------------------------------------------------------------- */
   const goToActiveWorkout = () => {
-    const plan = getWorkoutForDay(dayIndex); // comes from WorkoutContext
-    if (!plan || !plan.exercises?.length) {
+    const workoutData = getWorkoutForDay(dayIndex);
+    if (!workoutData || !workoutData.exercises || workoutData.exercises.length === 0) {
       Alert.alert("No workout", "This day doesn't have an assigned workout.");
       return;
     }
 
-    // Build a compact preset payload to hydrate ActiveWorkout
-    const preset = {
-      name: plan.name ?? `${dayName} Workout`,
-      // Handle new format where exercises have array of sets
-      exercises: plan.exercises.map((ex: any) => {
-        if (Array.isArray(ex.sets)) {
-          // New format: use first set's reps as representative
-          const reps = ex.sets.length > 0 ? Number(ex.sets[0].reps) || 0 : 0;
-          return {
-            id: Number(ex.exercise),
-            reps: reps,
-            sets: ex.sets.length,
-          };
-        } else {
-          // Old format fallback
-          return {
-            id: Number(ex.exercise),
-            reps: typeof ex.reps === "string" ? parseInt(ex.reps, 10) || 0 : Number(ex.reps ?? 0),
-            sets: Number(ex.sets ?? 0),
-          };
-        }
-      }),
-    };
+    const launchPreset = buildLaunchPresetFromWorkout(workoutData);
+    setLaunchPreset(launchPreset);
 
-    router.replace({
-      pathname: "/home/active-workout", // <-- change this if your route differs
-      params: { preset: JSON.stringify(preset) },
-    });
+    router.replace({ pathname: "/home/active-workout" });
   };
 
   const data: WorkoutType = workout ?? { exists: false };
 
-  /* ---------------- Rest Day state (explicit) --------------------------- */
   const [isRestDay, setIsRestDay] = useState<boolean>(!!data.isRest);
   useEffect(() => {
     setIsRestDay(!!(workout && workout.isRest));
   }, [workout]);
 
-  /* ---------------- Bottom sheet state ---------------------------------- */
   const [assignSheetVisible, setAssignSheetVisible] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
 
   const openAssignSheet = () => setAssignSheetVisible(true);
   const closeAssignSheet = () => setAssignSheetVisible(false);
 
-  /** Set this day to Rest (-1) via /user/workout-plan */
   const handleChooseRest = async () => {
     try {
       setIsAssigning(true);
       const ok = await setPlanDay(dayIndex, -1);
       if (!ok) throw new Error("Failed to set rest day");
-      // Optimistic UI
       setIsRestDay(true);
       await refreshData();
       closeAssignSheet();
     } catch (e) {
-      console.error("Assign rest error:", e);
       Alert.alert("Error", e instanceof Error ? e.message : "Failed to update day");
     } finally {
       setIsAssigning(false);
     }
   };
 
-  /** Assign a specific workout id to this day via /user/workout-plan */
   const handleChooseWorkout = async (workoutId: number) => {
     try {
       setIsAssigning(true);
       const ok = await setPlanDay(dayIndex, workoutId);
       if (!ok) throw new Error("Failed to assign day to workout");
-      // If a workout is chosen, it's no longer a rest day
       setIsRestDay(false);
       await refreshData();
       closeAssignSheet();
     } catch (e) {
-      console.error("Assign workout error:", e);
       Alert.alert("Error", e instanceof Error ? e.message : "Failed to update day");
     } finally {
       setIsAssigning(false);
     }
   };
 
-  /* ------------------------------ UI ----------------------------------- */
   return (
     <View className="rounded-2xl p-5 mb-6" style={{ backgroundColor: tertiaryColor }}>
-      {/* ─────────────── REST DAY ─────────────── */}
       {isRestDay ? (
         <View className="items-center py-8">
           <MaterialCommunityIcons name="weather-night" size={50} color={primaryColor} />
-          <Text className="text-white font-psemibold text-center mt-4 text-lg">
-            Rest Day
-          </Text>
+          <Text className="text-white font-psemibold text-center mt-4 text-lg">Rest Day</Text>
           <Text className="text-gray-100 text-center mt-2 mb-4">
             {dayName ? `${dayName} is set as a rest day.` : "This date is set as a rest day."}
           </Text>
@@ -232,9 +212,7 @@ const TodaysWorkout: React.FC<Props> = ({
           )}
         </View>
       ) : data.exists ? (
-        /* ---------------------- HAS WORKOUT ------------------------------- */
         <View>
-          {/* Header row: Workout name (left) + replace + edit (right) */}
           <View className="flex-row items-center justify-between mb-4">
             <Text
               className="font-pbold"
@@ -245,21 +223,17 @@ const TodaysWorkout: React.FC<Props> = ({
             </Text>
 
             <View className="flex-row items-center">
-              {/* Replace Workout button (opens the same assign sheet) */}
               {allowCreate && (
                 <TouchableOpacity onPress={openAssignSheet} className="p-2 mr-5" activeOpacity={0.8}>
                   <FontAwesome5 name="exchange-alt" size={18} color="#FFF" />
                 </TouchableOpacity>
               )}
-
-              {/* Edit button */}
               <TouchableOpacity onPress={goToEditWorkout} className="py-2" activeOpacity={0.8}>
                 <FontAwesome5 name="pencil-alt" size={18} color="#FFF" />
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* Exercise list */}
           {data.exercises && data.exercises.length > 0 ? (
             <View className="mb-4">
               {data.exercises.map((ex, idx) => (
@@ -282,7 +256,6 @@ const TodaysWorkout: React.FC<Props> = ({
             </View>
           )}
 
-          {/* Calories + Start button */}
           <View className="flex-row items-center justify-between mt-2">
             <View className="flex-row items-center">
               <FontAwesome5 name="fire" size={14} color="#f97316" />
@@ -290,7 +263,7 @@ const TodaysWorkout: React.FC<Props> = ({
             </View>
 
             <TouchableOpacity
-              onPress={goToActiveWorkout} // UPDATED: sends preset to ActiveWorkout
+              onPress={goToActiveWorkout}
               style={{ backgroundColor: primaryColor }}
               className="flex-row items-center px-4 py-2 rounded-lg"
               activeOpacity={0.7}
@@ -301,7 +274,6 @@ const TodaysWorkout: React.FC<Props> = ({
           </View>
         </View>
       ) : (
-        /* ----------------------- NO WORKOUT ------------------------------ */
         <View className="items-center py-8">
           <FontAwesome5 name="calendar-times" size={50} color={primaryColor} />
           <Text className="text-white font-pmedium text-center mt-4 text-lg">
@@ -327,7 +299,6 @@ const TodaysWorkout: React.FC<Props> = ({
         </View>
       )}
 
-      {/* ─────────────── Bottom Sheet: Assign / Rest / Create / List ─────────────── */}
       <DraggableBottomSheet
         visible={assignSheetVisible}
         onClose={closeAssignSheet}
@@ -351,7 +322,6 @@ const TodaysWorkout: React.FC<Props> = ({
           )}
         </View>
 
-        {/* Rest Day */}
         <TouchableOpacity
           onPress={isAssigning ? undefined : handleChooseRest}
           activeOpacity={0.85}
@@ -372,10 +342,13 @@ const TodaysWorkout: React.FC<Props> = ({
           <Text className="text-white ml-10 text-base font-pmedium">Rest Day</Text>
         </TouchableOpacity>
 
-        {/* Create Workout shortcut (only if allowed) */}
         {allowCreate && (
           <TouchableOpacity
-            onPress={isAssigning ? undefined : goToCreateWorkout}
+            onPress={
+              isAssigning
+                ? undefined
+                : () => router.push({ pathname: "/home/create-workout", params: { day: dayName } })
+            }
             activeOpacity={0.9}
             style={{
               opacity: isAssigning ? 0.6 : 1,
@@ -395,7 +368,6 @@ const TodaysWorkout: React.FC<Props> = ({
           </TouchableOpacity>
         )}
 
-        {/* Divider */}
         <View
           style={{
             height: 1,
@@ -404,7 +376,6 @@ const TodaysWorkout: React.FC<Props> = ({
           }}
         />
 
-        {/* List of workouts */}
         <Text className="text-white/80 mb-12">Your Workouts</Text>
 
         {customWorkouts.length === 0 ? (
@@ -421,7 +392,7 @@ const TodaysWorkout: React.FC<Props> = ({
             <Text className="text-white/80">You don't have any workouts yet.</Text>
             {allowCreate && (
               <TouchableOpacity
-                onPress={goToCreateWorkout}
+                onPress={() => router.push({ pathname: "/home/create-workout", params: { day: dayName } })}
                 style={{
                   marginTop: 12,
                   alignSelf: "flex-start",
@@ -481,16 +452,10 @@ const TodaysWorkout: React.FC<Props> = ({
                   {Math.max(
                     15,
                     Math.round(
-                      (w.exercises ?? []).reduce(
-                        (s: number, ex: any) => {
-                          if (Array.isArray(ex.sets)) {
-                            return s + ex.sets.length;
-                          } else {
-                            return s + (ex.sets || 0);
-                          }
-                        },
-                        0
-                      ) * 2
+                      (w.exercises ?? []).reduce((s: number, ex: any) => {
+                        if (Array.isArray(ex.sets)) return s + ex.sets.length;
+                        return s + (ex.sets || 0);
+                      }, 0) * 2
                     )
                   )}{" "}
                   min
