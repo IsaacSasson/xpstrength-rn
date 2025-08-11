@@ -33,17 +33,14 @@ export default function App() {
               </Text>
             </Text>
           </View>
-
-          <Link href="/home" className="text-secondary">Go to Home (testing)</Link>
-
           <Text className="text-sm font-pregular text-gray-100 mt-7 text-center">
             Where creativity meets innovation: embark on a journey of limitless exploration with XPStrength
           </Text>
           
 
           <CustomButton 
-            title="Continue with Email"
-            handlePress={() => router.push('/sign-in')}
+            title="Get Started"
+            handlePress={() => router.replace('/sign-in')}
             containerStyles="w-full sm:w-3/6 mt-7"
           />
         </View>

@@ -148,7 +148,7 @@ const TodaysWorkout: React.FC<Props> = ({
       }),
     };
 
-    router.push({
+    router.replace({
       pathname: "/home/active-workout", // <-- change this if your route differs
       params: { preset: JSON.stringify(preset) },
     });

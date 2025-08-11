@@ -572,7 +572,7 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
       <DraggableBottomSheet
         visible={showOptionsModal}
         onClose={() => setShowOptionsModal(false)}
-        heightRatio={0.45}
+        heightRatio={0.40}
         primaryColor={primaryColor}
         scrollable
       >
