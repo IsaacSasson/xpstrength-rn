@@ -1,7 +1,9 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import { View, StyleSheet, ViewStyle } from "react-native";
 import FrontSvg from "@/assets/svg/front.svg";
 import BackSvg from "@/assets/svg/back.svg";
+import LRUCache from "@/utils/lru";
+import { setSVGCacheReference } from "@/utils/svgPreloader";
 
 type Props = {
   primaryColor: string;
@@ -41,11 +43,17 @@ function toArray(value?: string | string[] | null): string[] {
   return value.split(/[,/]/g).map((x) => x.trim()).filter(Boolean);
 }
 
+/**
+ * Tags considered "leaf" paint nodes. These receive the fill directly.
+ */
 const LEAF_TAGS = new Set([
   "Path","Rect","Circle","Ellipse","Line","Polygon","Polyline",
   "path","rect","circle","ellipse","line","polygon","polyline",
 ]);
 
+/**
+ * Resolve a function component to its rendered element so we can walk children.
+ */
 function resolveFunctionComponent(el: React.ReactElement<any>): React.ReactElement<any> {
   const type: any = el.type;
   if (typeof type === "function" && !(type.prototype && type.prototype.isReactComponent)) {
@@ -55,6 +63,9 @@ function resolveFunctionComponent(el: React.ReactElement<any>): React.ReactEleme
   return el;
 }
 
+/**
+ * Apply fills by walking the tree and coloring descendants of groups with matching ids.
+ */
 function applyFills(
   element: React.ReactElement<any>,
   fillByGroupId: Record<string, string>
@@ -98,6 +109,27 @@ function applyFills(
   return walk(resolved) as React.ReactElement<any>;
 }
 
+/**
+ * Stable string key for cache: includes group ids and their colors.
+ * Example: "front|muscle-chest:#8b5cf6;muscle-triceps:#a78bfa"
+ */
+function makeFillKey(
+  side: "front" | "back",
+  fillById: Record<string, string>
+): string {
+  const entries = Object.keys(fillById)
+    .sort()
+    .map((id) => `${id}:${fillById[id]}`)
+    .join(";");
+  return `${side}|${entries}`;
+}
+
+/**
+ * Module-level LRU so results persist across renders/screens.
+ * Capacity can be tuned; 64 entries covers many unique combos without growing too much.
+ */
+const svgLRU = new LRUCache<string, React.ReactElement>(64);
+
 const ExerciseAnatomy: React.FC<Props> = ({
   primaryColor,
   secondaryColor,
@@ -106,6 +138,11 @@ const ExerciseAnatomy: React.FC<Props> = ({
   height = 140,
   style,
 }) => {
+  // Share cache reference with preloader on first render
+  useEffect(() => {
+    setSVGCacheReference(svgLRU);
+  }, []);
+
   const { primaryIds, secondaryIds } = useMemo(() => {
     const p = new Set<string>();
     const s = new Set<string>();
@@ -117,7 +154,8 @@ const ExerciseAnatomy: React.FC<Props> = ({
       const ids = NAME_TO_GROUP_IDS[normName(name)];
       if (ids) ids.forEach((id) => s.add(id));
     });
-    [...p].forEach((id) => s.delete(id)); // primary wins
+    // Primary overrides secondary on conflicts
+    [...p].forEach((id) => s.delete(id));
     return { primaryIds: p, secondaryIds: s };
   }, [primaryMuscles, secondaryMuscles]);
 
@@ -130,14 +168,32 @@ const ExerciseAnatomy: React.FC<Props> = ({
     return map;
   }, [primaryIds, secondaryIds, primaryColor, secondaryColor]);
 
-  const Front = useMemo(
-    () => applyFills(<FrontSvg width="100%" height="100%" preserveAspectRatio="xMidYMid meet" />, fillById),
-    [fillById]
-  );
-  const Back = useMemo(
-    () => applyFills(<BackSvg width="100%" height="100%" preserveAspectRatio="xMidYMid meet" />, fillById),
-    [fillById]
-  );
+  const fillKeyFront = useMemo(() => makeFillKey("front", fillById), [fillById]);
+  const fillKeyBack  = useMemo(() => makeFillKey("back",  fillById), [fillById]);
+
+  const Front = useMemo(() => {
+    const cached = svgLRU.get(fillKeyFront);
+    if (cached) return cached;
+
+    const el = applyFills(
+      <FrontSvg width="100%" height="100%" preserveAspectRatio="xMidYMid meet" />,
+      fillById
+    );
+    svgLRU.set(fillKeyFront, el);
+    return el;
+  }, [fillKeyFront, fillById]);
+
+  const Back = useMemo(() => {
+    const cached = svgLRU.get(fillKeyBack);
+    if (cached) return cached;
+
+    const el = applyFills(
+      <BackSvg width="100%" height="100%" preserveAspectRatio="xMidYMid meet" />,
+      fillById
+    );
+    svgLRU.set(fillKeyBack, el);
+    return el;
+  }, [fillKeyBack, fillById]);
 
   return (
     <View style={[styles.row, { height }, style]}>
@@ -149,9 +205,7 @@ const ExerciseAnatomy: React.FC<Props> = ({
 
 const styles = StyleSheet.create({
   row: { width: "100%", flexDirection: "row", gap: 0 },
-  side: {
-    flex: 1,
-  },
+  side: { flex: 1 },
 });
 
 export default React.memo(ExerciseAnatomy);

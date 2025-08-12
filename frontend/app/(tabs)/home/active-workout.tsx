@@ -1,5 +1,4 @@
-// app/(tabs)/home/active-workout.tsx
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import {
   View,
   StatusBar,
@@ -61,7 +60,6 @@ const ActiveWorkout = () => {
     getExerciseMeta,
   } = useWorkouts();
 
-  /* ───────── Component State ───────── */
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [workoutTitle, setWorkoutTitle] = useState<string>("Workout");
   const [selectedExerciseIdx, setSelectedExerciseIdx] = useState<number | null>(null);
@@ -70,14 +68,11 @@ const ActiveWorkout = () => {
   const [pauseModalVisible, setPauseModalVisible] = useState(false);
   const [showOptionsSheet, setShowOptionsSheet] = useState(false);
 
-  // fade-in for content only (keep background solid to avoid white flash)
   const fade = useRef(new Animated.Value(0)).current;
 
-  /* ───────── Stopwatch ───────── */
   const [elapsed, setElapsed] = useState(0);
   const [paused, setPaused] = useState(false);
 
-  /* ───────── Rest timer ───────── */
   const [durMin, setDurMin] = useState(1);
   const [durSec, setDurSec] = useState(0);
   const [restLeft, setRestLeft] = useState(60);
@@ -88,10 +83,8 @@ const ActiveWorkout = () => {
   const hasBuzzedRef = useRef(false);
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-  /* ───────── Scroll position (MOVED ABOVE RETURNS) ───────── */
   const scrollX = useRef(new Animated.Value(0)).current;
 
-  /* ───────── Effects ───────── */
   useEffect(() => {
     if (!isLoading) {
       fade.setValue(0);
@@ -153,7 +146,6 @@ const ActiveWorkout = () => {
     setRestSheetVisible(false);
   };
 
-  /* ───────── Smart Data Loading ───────── */
   useEffect(() => {
     const initializeWorkout = async () => {
       try {
@@ -251,7 +243,6 @@ const ActiveWorkout = () => {
     initializeWorkout();
   }, [activeSession, unitSystem, getExerciseMeta, parseWeight, convertWeight]);
 
-  /* ───────── Add/Remove/Toggle set logic ───────── */
   const addSet = (exIdx: number) =>
     setExercises((prev) =>
       prev.map((ex, i) =>
@@ -331,7 +322,6 @@ const ActiveWorkout = () => {
     setExercises((prev) => prev.map((ex, i) => (i === exIdx ? { ...ex, notes } : ex)));
   };
 
-  /* ───────── Error State ───────── */
   if (initError) {
     return (
       <View style={{ flex: 1, backgroundColor: "#0F0E1A", paddingHorizontal: 20, justifyContent: "center", alignItems: "center" }}>
@@ -359,7 +349,6 @@ const ActiveWorkout = () => {
     );
   }
 
-  /* ───────── Loading State ───────── */
   if (isLoading) {
     return (
       <View style={{ flex: 1, backgroundColor: "#0F0E1A", justifyContent: "center", alignItems: "center" }}>
@@ -371,7 +360,6 @@ const ActiveWorkout = () => {
     );
   }
 
-  /* ───────── Main Workout Interface (fades in) ───────── */
   return (
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
       <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
@@ -435,7 +423,6 @@ const ActiveWorkout = () => {
 
         <Animated.ScrollView
           horizontal
-          removeClippedSubviews
           showsHorizontalScrollIndicator={false}
           snapToInterval={CARD_WIDTH + CARD_SPACING}
           decelerationRate="fast"
@@ -465,11 +452,12 @@ const ActiveWorkout = () => {
               extrapolate: "clamp",
             });
 
-            const isActive = selectedExerciseIdx === exIdx;
+            // Create unique key using exercise id and index to avoid duplicates
+            const uniqueKey = `exercise_${ex.id}_${exIdx}`;
 
             return (
               <Animated.View
-                key={(ex as any).id ?? exIdx}
+                key={uniqueKey}
                 style={{
                   width: CARD_WIDTH,
                   marginRight: CARD_SPACING,
@@ -495,7 +483,8 @@ const ActiveWorkout = () => {
                   onUpdateSetField={updateSetField}
                   onAddSet={addSet}
                   onRemoveSet={removeSet}
-                  deferHeavy={!isActive}
+                  // Pass the index for staggered SVG loading
+                  loadIndex={exIdx}
                 />
               </Animated.View>
             );
@@ -515,7 +504,7 @@ const ActiveWorkout = () => {
             });
             return (
               <Animated.View
-                key="__add_card__"
+                key="add_exercise_card"
                 style={{
                   width: CARD_WIDTH,
                   marginRight: CARD_SPACING,

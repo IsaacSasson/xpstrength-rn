@@ -7,7 +7,6 @@ import {
   TextInput,
   Image,
   StyleSheet,
-  InteractionManager,
 } from "react-native";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import ExerciseAnatomy from "@/components/home/ActiveWorkout/ExerciseAnatomy";
@@ -17,7 +16,7 @@ const MAX_FIELD_VALUE = 9999;
 
 export interface SetItem {
   id: number;
-  lbs: number; // internal base stays in lbs
+  lbs: number;
   reps: number;
   checked?: boolean;
 }
@@ -37,7 +36,6 @@ interface Props {
   exercise: ExerciseItem;
   exIdx: number;
 
-  // styling / layout
   primaryColor: string;
   secondaryColor: string;
   tertiaryColor: string;
@@ -45,29 +43,31 @@ interface Props {
   COL_WIDTH: number;
   CHECK_COL_WIDTH: number;
 
-  // rest timer state
   restLeft: number;
   restRunning: boolean;
 
-  // actions from parent
   onOpenOptions: (exIdx: number) => void;
   onToggleSetChecked: (exIdx: number, setIdx: number) => void;
   onUpdateSetField: (
     exIdx: number,
     setIdx: number,
     field: "reps" | "lbs",
-    value: number // value is always passed back in INTERNAL BASE (lbs)
+    value: number
   ) => void;
   onAddSet: (exIdx: number) => void;
   onRemoveSet: (exIdx: number) => void;
 
-  // when true, skip heavy subtrees (images/SVG) for this card
-  deferHeavy?: boolean;
+  /**
+   * Index for staggered loading - each card will delay loading by index * delay
+   */
+  loadIndex: number;
 }
 
 type EditingState = { setIdx: number; field: "reps" | "lbs" } | null;
 
 const CHECKBOX_SIZE = 22;
+// Stagger SVG loading by 200ms per exercise
+const STAGGER_DELAY_MS = 200;
 
 const ActiveWorkoutCard: React.FC<Props> = ({
   exercise,
@@ -85,25 +85,32 @@ const ActiveWorkoutCard: React.FC<Props> = ({
   onUpdateSetField,
   onAddSet,
   onRemoveSet,
-  deferHeavy = false,
+  loadIndex,
 }) => {
   const editableBg = "rgba(255,255,255,0.08)";
   const listRef = useRef<ScrollView | null>(null);
 
-  // keep heavy things off the main JS path until interactions are finished
-  const [heavyReady, setHeavyReady] = useState(false);
+  /**
+   * Staggered loading: Each card starts loading its SVG after a delay based on its index
+   * This prevents UI blocking while ensuring all SVGs eventually load
+   */
+  const [heavyReady, setHeavyReady] = useState<boolean>(false);
+  
   useEffect(() => {
-    let cancelled = false;
-    const task = InteractionManager.runAfterInteractions(() => {
-      if (!cancelled) setHeavyReady(true);
-    });
-    return () => {
-      cancelled = true;
-      (task as any)?.cancel?.();
-    };
-  }, []);
+    let timeoutId: NodeJS.Timeout;
+    
+    // Start loading SVG after staggered delay
+    const delay = loadIndex * STAGGER_DELAY_MS;
+    
+    timeoutId = setTimeout(() => {
+      setHeavyReady(true);
+    }, delay);
 
-  // Single source of truth for units + helpers
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [loadIndex]);
+
   const { unitSystem, convertWeight, formatWeight } = useWorkouts();
 
   const toDisplayWeight = useCallback(
@@ -127,16 +134,15 @@ const ActiveWorkoutCard: React.FC<Props> = ({
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-  // image slideshow runs only when allowed to render heavy UI
   useEffect(() => {
-    if (!heavyReady || deferHeavy || !(exercise.images && exercise.images.length > 1)) return;
+    if (!(exercise.images && exercise.images.length > 1)) return;
     const interval = setInterval(() => {
       setCurrentImageIndex((prev) =>
         prev === exercise.images!.length - 1 ? 0 : prev + 1
       );
     }, 1500);
     return () => clearInterval(interval);
-  }, [exercise.images, heavyReady, deferHeavy]);
+  }, [exercise.images]);
 
   const beginEdit = (setIdx: number, field: "reps" | "lbs", current: number) => {
     setEditing({ setIdx, field });
@@ -190,7 +196,6 @@ const ActiveWorkoutCard: React.FC<Props> = ({
 
   const ANATOMY_HEIGHT = Math.max(120, Math.floor(CARD_HEIGHT * 0.4));
 
-  // Square checkbox (no outline when disabled)
   const renderSquareCheckbox = (checked: boolean, enabled: boolean) => {
     const borderColor = enabled ? (checked ? primaryColor : "#9CA3AF") : "transparent";
     const borderWidth = enabled ? 2 : 0;
@@ -231,7 +236,7 @@ const ActiveWorkoutCard: React.FC<Props> = ({
     >
       {/* Header */}
       <View style={{ position: "relative", height: 48, marginBottom: 16, justifyContent: "center" }}>
-        {heavyReady && !deferHeavy && exercise.images && exercise.images.length > 0 && (
+        {exercise.images && exercise.images.length > 0 && (
           <View style={[styles.imageContainer, { position: "absolute", left: 0, top: 4 }]}>
             {exercise.images.map((image, index) => (
               <Image
@@ -407,9 +412,9 @@ const ActiveWorkoutCard: React.FC<Props> = ({
         </ScrollView>
       </View>
 
-      {/* Anatomy (heavy) */}
+      {/* Anatomy - Always try to render, with loading indicator */}
       <View style={{ height: ANATOMY_HEIGHT, marginTop: 6, marginBottom: 10 }}>
-        {heavyReady && !deferHeavy ? (
+        {heavyReady ? (
           <ExerciseAnatomy
             primaryColor={primaryColor}
             secondaryColor={secondaryColor}
@@ -417,7 +422,17 @@ const ActiveWorkoutCard: React.FC<Props> = ({
             secondaryMuscles={exercise.secondaryMuscles}
             height={ANATOMY_HEIGHT}
           />
-        ) : null}
+        ) : (
+          <View style={{ 
+            height: ANATOMY_HEIGHT, 
+            justifyContent: "center", 
+            alignItems: "center",
+            backgroundColor: "rgba(255,255,255,0.05)",
+            borderRadius: 8
+          }}>
+            <Text style={{ color: "#666", fontSize: 12 }}>Loading anatomy...</Text>
+          </View>
+        )}
       </View>
 
       {/* Add / Remove */}

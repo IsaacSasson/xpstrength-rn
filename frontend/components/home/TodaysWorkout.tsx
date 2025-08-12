@@ -29,7 +29,7 @@ const daysOfWeek = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday",
 
 /* --------------------------- Component --------------------------------- */
 const TodaysWorkout: React.FC<Props> = ({ workout, allowCreate = true, selectedDate }) => {
-  const { primaryColor, tertiaryColor } = useThemeContext();
+  const { primaryColor, secondaryColor, tertiaryColor } = useThemeContext();
 
   const {
     customWorkouts,
@@ -94,7 +94,7 @@ const TodaysWorkout: React.FC<Props> = ({ workout, allowCreate = true, selectedD
   }, [dayIndex]);
 
   /* ----------------------------------------------------------------------
-     Background prewarming: data only (non-blocking)
+     Background prewarming: data + SVGs (non-blocking)
   ----------------------------------------------------------------------- */
   useEffect(() => {
     const workoutData = getWorkoutForDay(dayIndex);
@@ -107,8 +107,20 @@ const TodaysWorkout: React.FC<Props> = ({ workout, allowCreate = true, selectedD
       getExerciseMeta,
       parseWeight,
       convertWeight,
+      primaryColor,      // Added missing color parameter
+      secondaryColor,    // Added missing color parameter
     });
-  }, [dayIndex, getWorkoutForDay, unitSystem, buildLaunchPresetFromWorkout, getExerciseMeta, parseWeight, convertWeight]);
+  }, [
+    dayIndex, 
+    getWorkoutForDay, 
+    unitSystem, 
+    buildLaunchPresetFromWorkout, 
+    getExerciseMeta, 
+    parseWeight, 
+    convertWeight,
+    primaryColor,      // Added to dependency array
+    secondaryColor     // Added to dependency array
+  ]);
 
   /* ----------------------------------------------------------------------
      Preload the ActiveWorkout route bundle so navigation is instant

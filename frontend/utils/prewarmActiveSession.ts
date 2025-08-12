@@ -1,8 +1,8 @@
-// Path: /utils/prewarmActiveSession.ts
 import { makeCacheKey, readCachedSession, writeCachedSession } from "@/utils/activeWorkoutCache";
 import { setPrewarmedWorkout } from "@/utils/workoutLaunch";
 import type { UnitSystem } from "@/context/WorkoutContext";
 import { log } from "@/utils/devLog";
+import { preloadExerciseSVGs } from "@/utils/svgPreloader";
 
 interface PrewarmParams {
   launchPreset: {
@@ -19,10 +19,20 @@ interface PrewarmParams {
   getExerciseMeta: (id: number | string) => any | undefined;
   parseWeight: (s: string) => { value: number; unit: UnitSystem };
   convertWeight: (value: number, from: UnitSystem, to: UnitSystem) => number;
+  primaryColor: string;
+  secondaryColor: string;
 }
 
 export async function prewarmActiveSession(params: PrewarmParams): Promise<void> {
-  const { launchPreset, unitSystem, getExerciseMeta, parseWeight, convertWeight } = params;
+  const { 
+    launchPreset, 
+    unitSystem, 
+    getExerciseMeta, 
+    parseWeight, 
+    convertWeight,
+    primaryColor,
+    secondaryColor 
+  } = params;
   
   if (!launchPreset?.exercises?.length) return;
 
@@ -35,6 +45,12 @@ export async function prewarmActiveSession(params: PrewarmParams): Promise<void>
     const cached = await readCachedSession(cacheKey);
     if (cached?.exercises?.length) {
       setPrewarmedWorkout(cached);
+      
+      // Still preload SVGs even for cached data to ensure they're ready
+      setTimeout(() => {
+        preloadExerciseSVGs(cached.exercises, primaryColor, secondaryColor);
+      }, 0);
+      
       return;
     }
 
@@ -91,6 +107,11 @@ export async function prewarmActiveSession(params: PrewarmParams): Promise<void>
     
     // Set immediately for current use
     setPrewarmedWorkout(workoutData);
+    
+    // Preload SVGs in the background
+    setTimeout(() => {
+      preloadExerciseSVGs(exercises, primaryColor, secondaryColor);
+    }, 100); // Small delay to let the main data loading complete first
     
   } catch (error) {
     log("[Workout] Prewarm failed", error);
