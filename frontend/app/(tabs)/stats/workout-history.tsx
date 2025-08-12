@@ -1,12 +1,14 @@
 // Path: /app/(tabs)/history.tsx
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
   StatusBar,
   ScrollView,
   TouchableOpacity,
-  Animated,
+  FlatList,
+  ListRenderItem,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
@@ -27,70 +29,32 @@ interface ExerciseSummary {
 
 export interface PastWorkout {
   id: string;
-  date: string; // ISO YYYY-MM-DD
+  date: string; // YYYY-MM-DD (LOCAL date string)
   name: string;
   duration: string;
   exercises: ExerciseSummary[];
 }
 
 type HistoryRange = "Week" | "Month" | "All Time";
+type ViewMode = "list" | "calendar";
 
 /* ------------------------------------------------------------------
- * ExpandableSection (collapsible content container)
+ * Local-date utilities (avoid UTC parsing entirely)
  * ------------------------------------------------------------------ */
-interface ExpandableSectionProps {
-  isExpanded: boolean;
-  children: React.ReactNode;
-}
+const pad2 = (n: number) => String(n).padStart(2, "0");
 
-const ExpandableSection: React.FC<ExpandableSectionProps> = ({
-  isExpanded,
-  children,
-}) => {
-  const [contentHeight, setContentHeight] = useState(0);
-  const animation = useRef(new Animated.Value(0)).current;
+/** Format a Date (already local) to YYYY-MM-DD */
+const toISODateLocal = (d: Date) =>
+  `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 
-  const onMeasure = (event: any) => {
-    const { height } = event.nativeEvent.layout;
-    if (height > 0 && height !== contentHeight) setContentHeight(height);
-  };
-
-  useEffect(() => {
-    Animated.timing(animation, {
-      toValue: isExpanded ? contentHeight : 0,
-      duration: 300,
-      useNativeDriver: false,
-    }).start();
-  }, [isExpanded, contentHeight]);
-
-  return (
-    <View>
-      <Animated.View style={{ height: animation, overflow: "hidden" }}>
-        {children}
-      </Animated.View>
-
-      {/* hidden measure node */}
-      <View
-        style={{
-          position: "absolute",
-          top: 10000,
-          left: 0,
-          right: 0,
-          opacity: 0,
-        }}
-        onLayout={onMeasure}
-      >
-        {children}
-      </View>
-    </View>
-  );
+/** Parse "YYYY-MM-DD" as a LOCAL date (NOT UTC) */
+const parseISOAsLocal = (iso: string) => {
+  const [y, m, dd] = iso.split("-").map((v) => parseInt(v, 10));
+  return new Date(y, (m || 1) - 1, dd || 1, 0, 0, 0, 0);
 };
 
-/* ------------------------------------------------------------------
- * Utils
- * ------------------------------------------------------------------ */
 const formatDate = (iso: string) =>
-  new Date(iso).toLocaleDateString("en-US", {
+  parseISOAsLocal(iso).toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",
     year: "numeric",
@@ -104,26 +68,27 @@ const todayDateOnly = () => {
 };
 
 const diffInDaysFromToday = (iso: string) => {
-  const d = new Date(iso);
+  const d = parseISOAsLocal(iso);
   d.setHours(0, 0, 0, 0);
   const t = todayDateOnly().getTime();
   const diffMs = t - d.getTime();
   return Math.floor(diffMs / (1000 * 60 * 60 * 24));
 };
 
+/** Safe date-time for screens that do `new Date(str)` (prevents UTC shift) */
+const toLocalSafeDateTime = (isoDate: string) => `${isoDate}T12:00:00`;
+
 /* ------------------------------------------------------------------
  * Dummy History Data Generator
- * ------------------------------------------------------------------
- * Generates a bunch of plausible workouts over the past ~120 days.
- */
+ * ------------------------------------------------------------------ */
 const EXERCISE_LIBRARY: ExerciseSummary[] = [
   { name: "Bench Press", sets: 4, reps: "8" },
   { name: "Incline DB Press", sets: 3, reps: "10" },
   { name: "Shoulder Press", sets: 3, reps: "10" },
   { name: "Tricep Extensions", sets: 3, reps: "12" },
-  { name: "Push‑ups", sets: 3, reps: "AMRAP" },
+  { name: "Push-ups", sets: 3, reps: "AMRAP" },
   { name: "Deadlifts", sets: 4, reps: "5" },
-  { name: "Pull‑ups", sets: 3, reps: "8" },
+  { name: "Pull-ups", sets: 3, reps: "8" },
   { name: "Barbell Rows", sets: 3, reps: "10" },
   { name: "Lat Pulldown", sets: 3, reps: "12" },
   { name: "Bicep Curls", sets: 3, reps: "12" },
@@ -139,11 +104,16 @@ const EXERCISE_LIBRARY: ExerciseSummary[] = [
 const WORKOUT_TEMPLATES = [
   {
     name: "Push Day",
-    picks: ["Bench Press", "Incline DB Press", "Shoulder Press", "Tricep Extensions"],
+    picks: [
+      "Bench Press",
+      "Incline DB Press",
+      "Shoulder Press",
+      "Tricep Extensions",
+    ],
   },
   {
     name: "Pull Day",
-    picks: ["Deadlifts", "Pull‑ups", "Barbell Rows", "Bicep Curls"],
+    picks: ["Deadlifts", "Pull-ups", "Barbell Rows", "Bicep Curls"],
   },
   {
     name: "Leg Day",
@@ -155,11 +125,11 @@ const WORKOUT_TEMPLATES = [
   },
   {
     name: "Upper Body Blast",
-    picks: ["Bench Press", "Pull‑ups", "Shoulder Press", "Bicep Curls"],
+    picks: ["Bench Press", "Pull-ups", "Shoulder Press", "Bicep Curls"],
   },
   {
     name: "HIIT Circuit",
-    picks: ["Burpees", "Push‑ups", "Crunches", "Planks"],
+    picks: ["Burpees", "Push-ups", "Crunches", "Planks"],
   },
 ];
 
@@ -182,10 +152,7 @@ const genDuration = () => {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 };
 
-/**
- * Generate dummy PastWorkout array covering ~120 days back,
- * ~4 workouts/week on random days.
- */
+/** Generate dummy PastWorkout array (~120 days) */
 const generateDummyHistory = (): PastWorkout[] => {
   const out: PastWorkout[] = [];
   const today = todayDateOnly();
@@ -194,13 +161,12 @@ const generateDummyHistory = (): PastWorkout[] => {
   let idCounter = 1;
 
   for (let i = 0; i <= daysBack; i++) {
-    // ~4 workouts per 7 days -> roughly 57% chance of a workout
-    const hasWorkout = Math.random() < 0.57;
+    const hasWorkout = Math.random() < 0.57; // ~4/week
     if (!hasWorkout) continue;
 
     const d = new Date(today);
     d.setDate(today.getDate() - i);
-    const iso = d.toISOString().slice(0, 10); // YYYY-MM-DD
+    const iso = toISODateLocal(d); // LOCAL ISO
 
     const tmpl = WORKOUT_TEMPLATES[rand(0, WORKOUT_TEMPLATES.length - 1)];
     out.push({
@@ -213,11 +179,10 @@ const generateDummyHistory = (): PastWorkout[] => {
     idCounter++;
   }
 
-  // Ensure at least *some* workouts exist in the very recent ranges for testing:
+  // Ensure some recent workouts exist:
   if (!out.some((w) => diffInDaysFromToday(w.date) <= 6)) {
-    // Inject a very recent workout (today)
+    const iso = toISODateLocal(today);
     const tmpl = WORKOUT_TEMPLATES[0];
-    const iso = today.toISOString().slice(0, 10);
     out.push({
       id: `w_${iso}_${idCounter.toString().padStart(3, "0")}`,
       date: iso,
@@ -229,10 +194,9 @@ const generateDummyHistory = (): PastWorkout[] => {
   }
 
   if (!out.some((w) => diffInDaysFromToday(w.date) <= 29)) {
-    // Inject one within 30 days
     const d = new Date(today);
     d.setDate(today.getDate() - 10);
-    const iso = d.toISOString().slice(0, 10);
+    const iso = toISODateLocal(d);
     const tmpl = WORKOUT_TEMPLATES[1];
     out.push({
       id: `w_${iso}_${idCounter.toString().padStart(3, "0")}`,
@@ -244,9 +208,280 @@ const generateDummyHistory = (): PastWorkout[] => {
     idCounter++;
   }
 
-  // Sort newest first
-  out.sort((a, b) => (a.date < b.date ? 1 : -1));
+  out.sort((a, b) => (a.date < b.date ? 1 : -1)); // newest first
   return out;
+};
+
+/* ------------------------------------------------------------------
+ * Calendar (FlatList 6x7)
+ * ------------------------------------------------------------------ */
+interface CalendarProps {
+  workouts: PastWorkout[];
+  primaryColor: string;
+  secondaryColor: string;
+  tertiaryColor: string;
+  onSelectWorkout: (workout: PastWorkout) => void;
+}
+
+type CalendarCell =
+  | {
+      key: string;
+      type: "day";
+      day: number;
+      dateStr: string; // YYYY-MM-DD (LOCAL)
+      workouts: PastWorkout[];
+    }
+  | { key: string; type: "empty" };
+
+const CELL_HEIGHT = 52;
+const COLS = 7;
+const TOTAL_CELLS = 6 * COLS;
+
+const buildMonthMatrix = (
+  currentDate: Date,
+  workoutsByDate: Record<string, PastWorkout[]>
+): CalendarCell[] => {
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+
+  const firstDayOfMonth = new Date(year, month, 1);
+  const lastDayOfMonth = new Date(year, month + 1, 0);
+
+  const firstDayWeekday = firstDayOfMonth.getDay(); // 0..6
+  const daysInMonth = lastDayOfMonth.getDate();
+
+  const cells: CalendarCell[] = [];
+
+  for (let i = 0; i < firstDayWeekday; i++) {
+    cells.push({ key: `e-${i}`, type: "empty" });
+  }
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateStr = `${year}-${pad2(month + 1)}-${pad2(day)}`;
+    cells.push({
+      key: `d-${dateStr}`,
+      type: "day",
+      day,
+      dateStr,
+      workouts: workoutsByDate[dateStr] || [],
+    });
+  }
+
+  while (cells.length < TOTAL_CELLS) {
+    cells.push({ key: `t-${cells.length}`, type: "empty" });
+  }
+
+  return cells;
+};
+
+const Calendar: React.FC<CalendarProps> = ({
+  workouts,
+  primaryColor,
+  secondaryColor,
+  tertiaryColor,
+  onSelectWorkout,
+}) => {
+  const [currentDate, setCurrentDate] = useState(new Date());
+
+  const monthNames = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+  const dayNames = ["S", "M", "T", "W", "T", "F", "S"];
+
+  // Prevent future navigation
+  const today = todayDateOnly();
+  const isCurrentMonth =
+    currentDate.getMonth() === today.getMonth() &&
+    currentDate.getFullYear() === today.getFullYear();
+
+  // Group workouts by date for *current* month using LOCAL parsing
+  const workoutsByDate = useMemo(() => {
+    const map: Record<string, PastWorkout[]> = {};
+    const cm = currentDate.getMonth();
+    const cy = currentDate.getFullYear();
+    for (const w of workouts) {
+      const d = parseISOAsLocal(w.date); // LOCAL
+      if (d.getMonth() === cm && d.getFullYear() === cy) {
+        if (!map[w.date]) map[w.date] = [];
+        map[w.date].push(w);
+      }
+    }
+    return map;
+  }, [workouts, currentDate]);
+
+  const matrix = useMemo(
+    () => buildMonthMatrix(currentDate, workoutsByDate),
+    [currentDate, workoutsByDate]
+  );
+
+  const navigateMonth = (direction: "prev" | "next") => {
+    if (direction === "next" && isCurrentMonth) return;
+    const nd = new Date(currentDate);
+    nd.setMonth(currentDate.getMonth() + (direction === "next" ? 1 : -1));
+    setCurrentDate(nd);
+  };
+
+  const renderItem: ListRenderItem<CalendarCell> = ({ item }) => {
+    const colWidth = `${100 / COLS}%`;
+
+    if (item.type === "empty") {
+      return (
+        <View
+          style={{
+            width: colWidth,
+            height: CELL_HEIGHT,
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        />
+      );
+    }
+
+    const hasWorkouts = item.workouts.length > 0;
+
+    return (
+      <TouchableOpacity
+        onPress={() => {
+          if (hasWorkouts) onSelectWorkout(item.workouts[0]);
+        }}
+        disabled={!hasWorkouts}
+        activeOpacity={hasWorkouts ? 0.8 : 1}
+        style={{
+          width: colWidth,
+          height: CELL_HEIGHT,
+          paddingVertical: 4,
+          paddingHorizontal: 4,
+        }}
+      >
+        <View
+          style={{
+            flex: 1,
+            borderRadius: 12,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "transparent",
+          }}
+        >
+          {hasWorkouts ? (
+            <View
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 14,
+                justifyContent: "center",
+                alignItems: "center",
+                backgroundColor: primaryColor,
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: "Poppins-SemiBold",
+                  fontSize: 14,
+                  color: "#FFFFFF",
+                }}
+              >
+                {item.day}
+              </Text>
+            </View>
+          ) : (
+            <Text
+              style={{
+                fontFamily: "Poppins-Medium",
+                fontSize: 14,
+                color: "#9CA3AF", // gray-400
+              }}
+            >
+              {item.day}
+            </Text>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  return (
+    <View className="px-4">
+      {/* Month Navigation */}
+      <View className="flex-row items-center justify-between mb-6">
+        <TouchableOpacity
+          onPress={() => navigateMonth("prev")}
+          className="p-3 rounded-full"
+          style={{ backgroundColor: tertiaryColor }}
+          activeOpacity={0.7}
+        >
+          <FontAwesome5 name="chevron-left" size={16} color={primaryColor} />
+        </TouchableOpacity>
+
+        <Text className="text-white font-psemibold text-xl">
+          {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+        </Text>
+
+        <TouchableOpacity
+          onPress={() => navigateMonth("next")}
+          className="p-3 rounded-full"
+          style={{
+            backgroundColor: isCurrentMonth ? "#2A2A2A" : tertiaryColor,
+          }}
+          activeOpacity={isCurrentMonth ? 1 : 0.7}
+          disabled={isCurrentMonth}
+        >
+          <FontAwesome5
+            name="chevron-right"
+            size={16}
+            color={isCurrentMonth ? "#666" : primaryColor}
+          />
+        </TouchableOpacity>
+      </View>
+
+      {/* Day Headers */}
+      <View className="flex-row mb-2">
+        {dayNames.map((d, i) => (
+          <View
+            key={`${d}-${i}`}
+            style={{
+              width: `${100 / COLS}%`,
+              height: 22,
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <Text className="text-gray-400 font-pmedium text-xs">{d}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* Calendar Grid — background removed, bordered in primaryColor */}
+      <View
+        style={{
+          borderRadius: 18,
+          padding: 6,
+          borderWidth: 1,
+          borderColor: primaryColor,
+          backgroundColor: "transparent",
+        }}
+      >
+        <FlatList
+          data={matrix}
+          keyExtractor={(item) => item.key}
+          numColumns={COLS}
+          renderItem={renderItem}
+          scrollEnabled={false}
+          contentContainerStyle={{ paddingVertical: 4 }}
+        />
+      </View>
+    </View>
+  );
 };
 
 /* ------------------------------------------------------------------
@@ -255,58 +490,59 @@ const generateDummyHistory = (): PastWorkout[] => {
 const WorkoutHistory: React.FC = () => {
   const { primaryColor, secondaryColor, tertiaryColor } = useThemeContext();
 
-  /* ------------------ State ------------------ */
   const [history, setHistory] = useState<PastWorkout[]>([]);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [activeRange, setActiveRange] = useState<HistoryRange>("Week");
-  const [isAnimating, setIsAnimating] = useState(false); // parity w/ Stats usage
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [selectedWorkout, setSelectedWorkout] = useState<PastWorkout | null>(
+    null
+  );
 
-  /* ------------------ Init Dummy Data ------------------ */
   useEffect(() => {
-    // Replace this with real fetch later (from storage / backend / context)
     const data = generateDummyHistory();
     setHistory(data);
   }, []);
 
-  /* ------------------ Filters ------------------ */
   const filteredHistory = useMemo(() => {
     if (activeRange === "All Time") return history;
-
-    const daysLimit = activeRange === "Week" ? 7 : 30; // Month = 30-day rolling
+    const daysLimit = activeRange === "Week" ? 7 : 30;
     return history.filter((w) => diffInDaysFromToday(w.date) <= daysLimit - 1);
   }, [history, activeRange]);
 
-  /* ------------------ Tab Change Handler ------------------ */
   const handleRangeChange = (newRange: HistoryRange) => {
     if (newRange === activeRange || isAnimating) return;
     setIsAnimating(true);
-    // Light delay to show tab press feedback (mirrors Stats pattern)
     setTimeout(() => {
       setActiveRange(newRange);
-      setExpandedId(null); // collapse when switching ranges
       setIsAnimating(false);
     }, 150);
   };
 
-  /* ------------------ Expand toggle ------------------ */
-  const toggleExpand = (id: string) =>
-    setExpandedId((prev) => (prev === id ? null : id));
+  const toggleViewMode = () => {
+    setViewMode(viewMode === "list" ? "calendar" : "list");
+  };
 
-  /* ------------------ Navigation ------------------ */
+  /** IMPORTANT: pass a "safe" date string to avoid off-by-one in details screen */
   const goToDetails = (workout: PastWorkout) => {
-    // Serialize workout (string -> param)
-    const payload = encodeURIComponent(JSON.stringify(workout));
+    const safePayload: any = {
+      ...workout,
+      dateOriginal: workout.date,
+      date: toLocalSafeDateTime(workout.date), // prevents UTC shift on parse
+    };
+    const payload = encodeURIComponent(JSON.stringify(safePayload));
     router.push({
       pathname: "/stats/workout-details",
       params: { workout: payload },
     });
   };
 
-  /* ------------------ Derived empty states ------------------ */
   const hasAnyHistory = history.length > 0;
   const hasFilteredHistory = filteredHistory.length > 0;
 
-  /* ------------------ Render ------------------ */
+  // Small helpers for the summary card
+  const totalSetsFor = (w: PastWorkout | null) =>
+    !w ? 0 : w.exercises.reduce((acc, ex) => acc + (Number(ex.sets) || 0), 0);
+
   return (
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
       <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
@@ -314,27 +550,48 @@ const WorkoutHistory: React.FC = () => {
       {/* Header */}
       <SafeAreaView edges={["top"]} className="bg-primary">
         <View className="px-4 pt-6">
-          <View className="flex-row items-center mb-6">
+          <View className="flex-row items-center justify-between mb-6">
             <Header MText="Workout History" SText="Review your past workouts" />
+            <TouchableOpacity
+              onPress={toggleViewMode}
+              className="p-2 rounded-lg"
+              activeOpacity={0.8}
+            >
+              <MaterialCommunityIcons
+                name={
+                  viewMode === "list"
+                    ? "calendar-month"
+                    : "format-list-bulleted"
+                }
+                size={24}
+                color={primaryColor}
+              />
+            </TouchableOpacity>
           </View>
         </View>
       </SafeAreaView>
 
       {/* Tabs */}
-      <View className="px-4 mt-2 mb-4">
-        <Tabs<HistoryRange>
-          tabs={["Week", "Month", "All Time"]}
-          activeTab={activeRange}
-          onTabChange={handleRangeChange}
-          isAnimating={isAnimating}
-          backgroundColor={primaryColor}
-        />
-      </View>
+      {viewMode === "list" && (
+        <View className="px-4 mt-2 mb-4">
+          <Tabs<HistoryRange>
+            tabs={["Week", "Month", "All Time"]}
+            activeTab={activeRange}
+            onTabChange={handleRangeChange}
+            isAnimating={isAnimating}
+            backgroundColor={primaryColor}
+          />
+        </View>
+      )}
 
       {/* Body */}
       {!hasAnyHistory ? (
         <View className="flex-1 justify-center items-center px-4">
-          <MaterialCommunityIcons name="history" size={64} color={primaryColor} />
+          <MaterialCommunityIcons
+            name="history"
+            size={64}
+            color={primaryColor}
+          />
           <Text className="text-white font-pmedium text-lg mt-4">
             No workout history yet
           </Text>
@@ -342,6 +599,98 @@ const WorkoutHistory: React.FC = () => {
             Complete a workout and it will appear here.
           </Text>
         </View>
+      ) : viewMode === "calendar" ? (
+        <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+          <Calendar
+            workouts={history}
+            primaryColor={primaryColor}
+            secondaryColor={secondaryColor}
+            tertiaryColor={tertiaryColor}
+            onSelectWorkout={(w) => setSelectedWorkout(w)}
+          />
+
+          {/* Summary panel replaces legend */}
+          <View className="px-4">
+            {!selectedWorkout ? (
+              <View className="items-center mt-10">
+                <Text className="text-gray-100">
+                  Tap a date with a dot to preview that workout.
+                </Text>
+              </View>
+            ) : (
+              <View
+                className="rounded-2xl p-5 mt-10 mb-8"
+                style={{ backgroundColor: tertiaryColor }}
+              >
+                {/* Header row (no image) */}
+                <View className="flex-row items-center mb-4">
+                  <View className="flex-1">
+                    <Text
+                      className="text-white font-psemibold text-lg"
+                      style={{ color: primaryColor }}
+                      numberOfLines={1}
+                    >
+                      {selectedWorkout.name}
+                    </Text>
+                    <Text className="text-gray-100 text-xs">
+                      {formatDate(selectedWorkout.date)}
+                    </Text>
+                  </View>
+
+                  <TouchableOpacity
+                    onPress={() => goToDetails(selectedWorkout)}
+                    className="px-3 py-2 rounded-lg"
+                    style={{ backgroundColor: primaryColor }}
+                    activeOpacity={0.85}
+                  >
+                    <Text className="text-white font-pmedium text-xs">
+                      View more
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Metrics row (compact) */}
+                <View className="flex-row justify-between">
+                  <View className="items-center flex-1">
+                    <FontAwesome5
+                      name="stopwatch"
+                      size={18}
+                      color={primaryColor}
+                    />
+                    <Text className="text-white mt-1 font-pmedium">
+                      {selectedWorkout.duration}
+                    </Text>
+                    <Text className="text-gray-100 text-2xs">Time</Text>
+                  </View>
+
+                  <View className="items-center flex-1">
+                    <MaterialCommunityIcons
+                      name="format-list-numbered"
+                      size={20}
+                      color={primaryColor}
+                    />
+                    <Text className="text-white mt-1 font-pmedium">
+                      {totalSetsFor(selectedWorkout)}
+                    </Text>
+                    <Text className="text-gray-100 text-2xs">Total Sets</Text>
+                  </View>
+
+                  <View className="items-center flex-1">
+                    <FontAwesome5
+                      name="dumbbell"
+                      size={18}
+                      color={primaryColor}
+                    />
+                    <Text className="text-white mt-1 font-pmedium">
+                      {selectedWorkout.exercises.length}
+                    </Text>
+                    <Text className="text-gray-100 text-2xs">Exercises</Text>
+                  </View>
+                </View>
+              </View>
+            )}
+          </View>
+        </ScrollView>
       ) : !hasFilteredHistory ? (
         <View className="flex-1 justify-center items-center px-4">
           <MaterialCommunityIcons
@@ -362,94 +711,46 @@ const WorkoutHistory: React.FC = () => {
           className="px-4 pb-6"
           contentContainerStyle={{ paddingBottom: 20 }}
         >
-          {filteredHistory.map((workout) => {
-            const isExpanded = expandedId === workout.id;
-            return (
-              <View
-                key={workout.id}
-                className="rounded-xl overflow-hidden mb-4"
-                style={{ backgroundColor: tertiaryColor }}
-              >
-                {/* Header Row (tap to expand) */}
-                <TouchableOpacity
-                  className="p-4 flex-row items-center justify-between"
-                  onPress={() => toggleExpand(workout.id)}
-                  activeOpacity={0.8}
-                >
-                  <View className="flex-row items-center">
-                    <MaterialCommunityIcons
-                      name="dumbbell"
-                      size={22}
-                      color={primaryColor}
-                    />
-                    <View className="ml-3">
-                      <Text className="text-white font-psemibold text-lg">
-                        {workout.name}
-                      </Text>
-                      <Text
-                        className="font-pmedium text-gray-100"
-                        style={{ color: secondaryColor }}
-                      >
-                        {formatDate(workout.date)}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View className="flex-row items-center">
-                    <View
-                      className="px-3 py-1 rounded-lg mr-3"
-                      style={{ backgroundColor: primaryColor }}
-                    >
-                      <Text className="text-white font-pmedium text-xs">
-                        {workout.duration}
-                      </Text>
-                    </View>
-                    <FontAwesome5
-                      name={isExpanded ? "chevron-up" : "chevron-down"}
-                      size={14}
-                      color="#CDCDE0"
-                    />
-                  </View>
-                </TouchableOpacity>
-
-                {/* Expandable content (exercise list + View More) */}
-                <ExpandableSection isExpanded={isExpanded}>
-                  <View className="p-4 border-t border-black-200">
-                    {workout.exercises.map((ex, idx) => (
-                      <View
-                        key={idx}
-                        className="flex-row items-center mb-3 last:mb-0"
-                      >
-                        <FontAwesome5
-                          name="angle-right"
-                          size={14}
-                          color={primaryColor}
-                        />
-                        <Text className="text-white font-pmedium ml-3">
-                          {ex.name}
-                        </Text>
-                        <Text className="text-gray-100 ml-auto">
-                          {ex.sets} × {ex.reps}
-                        </Text>
-                      </View>
-                    ))}
-
-                    {/* View More button */}
-                    <TouchableOpacity
-                      onPress={() => goToDetails(workout)}
-                      activeOpacity={0.8}
-                      className="mt-4 self-end px-4 py-2 rounded-lg"
-                      style={{ backgroundColor: primaryColor }}
-                    >
-                      <Text className="text-white font-pmedium text-sm">
-                        View More
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </ExpandableSection>
+          {filteredHistory.map((workout) => (
+            <TouchableOpacity
+              key={workout.id}
+              className="rounded-xl overflow-hidden mb-4 p-4 flex-row items-center justify-between"
+              style={{ backgroundColor: tertiaryColor }}
+              onPress={() => goToDetails(workout)}
+              activeOpacity={0.8}
+            >
+              <View className="flex-row items-center flex-1">
+                <MaterialCommunityIcons
+                  name="dumbbell"
+                  size={22}
+                  color={primaryColor}
+                />
+                <View className="ml-3 flex-1">
+                  <Text className="text-white font-psemibold text-lg">
+                    {workout.name}
+                  </Text>
+                  <Text
+                    className="font-pmedium text-gray-100"
+                    style={{ color: secondaryColor }}
+                  >
+                    {formatDate(workout.date)}
+                  </Text>
+                </View>
               </View>
-            );
-          })}
+
+              <View className="flex-row items-center">
+                <View
+                  className="px-3 py-1 rounded-lg mr-3"
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  <Text className="text-white font-pmedium text-xs">
+                    {workout.duration}
+                  </Text>
+                </View>
+                <FontAwesome5 name="chevron-right" size={14} color="#CDCDE0" />
+              </View>
+            </TouchableOpacity>
+          ))}
         </ScrollView>
       )}
     </View>

@@ -145,7 +145,8 @@ const WorkoutDetails: React.FC = () => {
   }
 
   const detailedExercises = normalizeExercises(workout.exercises);
-  const { sets: totalSets, volume: totalVolumeLbs } = calcTotals(detailedExercises);
+  const { sets: totalSets, volume: totalVolumeLbs } =
+    calcTotals(detailedExercises);
 
   // Consistent display for total volume
   const formattedTotalVolume = formatWeight(
@@ -176,28 +177,17 @@ const WorkoutDetails: React.FC = () => {
           className="rounded-2xl p-5 mt-2 mb-6"
           style={{ backgroundColor: tertiaryColor }}
         >
-          <View className="flex-row items-center mb-4">
-            <Image
-              source={pfptest}
-              style={{
-                width: 50,
-                height: 50,
-                borderRadius: 25,
-                marginRight: 12,
-              }}
-            />
-            <View>
-              <Text
-                className="text-white font-psemibold text-lg"
-                style={{ color: primaryColor }}
-              >
-                Workout Summary
-              </Text>
-              <Text className="text-gray-100 text-xs">
-                {formatDate(workout.date)}
-              </Text>
+            <View className="mb-4 flex-row justify-between items-center">
+            <Text
+              className="text-white font-psemibold text-lg"
+              style={{ color: primaryColor }}
+            >
+              Workout Summary
+            </Text>
+            <Text className="text-gray-100 text-xs">
+              {formatDate(workout.date)}
+            </Text>
             </View>
-          </View>
 
           <View className="flex-row justify-between">
             <View className="items-center flex-1">
@@ -249,7 +239,11 @@ const WorkoutDetails: React.FC = () => {
             </Text>
 
             {ex.sets.map((set, idx) => {
-              const convertedWeight = convertWeight(set.lbs, "imperial", unitSystem);
+              const convertedWeight = convertWeight(
+                set.lbs,
+                "imperial",
+                unitSystem
+              );
               const formattedWeight =
                 unitSystem === "metric"
                   ? `${convertedWeight.toFixed(1)} kg`
@@ -264,7 +258,11 @@ const WorkoutDetails: React.FC = () => {
                   <Text className="text-gray-100">{set.reps} reps</Text>
                   <Text className="text-gray-100">{formattedWeight}</Text>
                   {set.isPR && (
-                    <FontAwesome5 name="trophy" size={14} color={primaryColor} />
+                    <FontAwesome5
+                      name="trophy"
+                      size={14}
+                      color={primaryColor}
+                    />
                   )}
                 </View>
               );
