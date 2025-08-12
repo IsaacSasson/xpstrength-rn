@@ -12,7 +12,8 @@ import {
   ActivityIndicator,
 } from "react-native";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import DraggableBottomSheet from "@/components/DraggableBottomSheet";
 import { useThemeContext } from "@/context/ThemeContext";
 import { useWorkouts } from "@/context/WorkoutContext";
@@ -27,6 +28,7 @@ import InstructionsModal from "@/components/home/ActiveWorkout/InstructionsModal
 import { getLaunchPreset, getPrewarmedWorkout, clearWorkoutData } from "@/utils/workoutLaunch";
 import { makeCacheKey, readCachedSession } from "@/utils/activeWorkoutCache";
 import { log } from "@/utils/devLog";
+import { getTempExercises } from "@/utils/exerciseBuffer";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_PREVIEW_SCALE = 0.9;
@@ -60,19 +62,15 @@ const ActiveWorkout = () => {
     getExerciseMeta,
   } = useWorkouts();
 
-  const [exercises, setExercises] = useState<Exercise[]>([]);
-  const [workoutTitle, setWorkoutTitle] = useState<string>("Workout");
-  const [selectedExerciseIdx, setSelectedExerciseIdx] = useState<number | null>(null);
-  const [initError, setInitError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [pauseModalVisible, setPauseModalVisible] = useState(false);
-  const [showOptionsSheet, setShowOptionsSheet] = useState(false);
-
-  const fade = useRef(new Animated.Value(0)).current;
-
+  /* ---------------------------- workout timer ---------------------------- */
   const [elapsed, setElapsed] = useState(0);
   const [paused, setPaused] = useState(false);
+  useEffect(() => {
+    const id = !paused ? setInterval(() => setElapsed((s) => s + 1), 1000) : undefined;
+    return () => { if (id) clearInterval(id as ReturnType<typeof setInterval>); };
+  }, [paused]);
 
+  /* ----------------------------- rest timer ------------------------------ */
   const [durMin, setDurMin] = useState(1);
   const [durSec, setDurSec] = useState(0);
   const [restLeft, setRestLeft] = useState(60);
@@ -80,22 +78,9 @@ const ActiveWorkout = () => {
   const restRef = useRef<NodeJS.Timeout | null>(null);
 
   const [restSheetVisible, setRestSheetVisible] = useState(false);
+  const [pickerVisible, setPickerVisible] = useState(false);
   const hasBuzzedRef = useRef(false);
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-  const scrollX = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (!isLoading) {
-      fade.setValue(0);
-      Animated.timing(fade, { toValue: 1, duration: 180, useNativeDriver: true }).start();
-    }
-  }, [isLoading, fade]);
-
-  useEffect(() => {
-    const id = !paused ? setInterval(() => setElapsed((s) => s + 1), 1000) : undefined;
-    return () => id && clearInterval(id as ReturnType<typeof setInterval>);
-  }, [paused]);
 
   const buzzRestComplete = async () => {
     try {
@@ -139,12 +124,44 @@ const ActiveWorkout = () => {
     setRestLeft(durMin * 60 + durSec);
     setRestSheetVisible(false);
   };
+
   const resetRest = () => {
     if (restRef.current) clearInterval(restRef.current);
     setRestRunning(false);
     setRestLeft(durMin * 60 + durSec);
     setRestSheetVisible(false);
   };
+
+  useEffect(() => {
+    if (restLeft === 0 && !hasBuzzedRef.current) {
+      hasBuzzedRef.current = true;
+      buzzRestComplete();
+    }
+  }, [restLeft]);
+
+  const applyPicker = () => {
+    setPickerVisible(false);
+    const total = durMin * 60 + durSec;
+    setRestLeft(total);
+    resetRest();
+  };
+
+  /* ------------------------------ data init ------------------------------ */
+  const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [workoutTitle, setWorkoutTitle] = useState<string>("Workout");
+  const [selectedExerciseIdx, setSelectedExerciseIdx] = useState<number | null>(null);
+  const [initError, setInitError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fade = useRef(new Animated.Value(0)).current;
+  const scrollX = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!isLoading) {
+      fade.setValue(0);
+      Animated.timing(fade, { toValue: 1, duration: 180, useNativeDriver: true }).start();
+    }
+  }, [isLoading, fade]);
 
   useEffect(() => {
     const initializeWorkout = async () => {
@@ -243,6 +260,7 @@ const ActiveWorkout = () => {
     initializeWorkout();
   }, [activeSession, unitSystem, getExerciseMeta, parseWeight, convertWeight]);
 
+  /* -------------------------- sets / notes helpers ----------------------- */
   const addSet = (exIdx: number) =>
     setExercises((prev) =>
       prev.map((ex, i) =>
@@ -284,9 +302,6 @@ const ActiveWorkout = () => {
     return idx;
   };
 
-  const startRestLocal = () => startRest();
-  const resetRestLocal = () => resetRest();
-
   const toggleSetChecked = (exIdx: number, setIdx: number) => {
     const ex = exercises[exIdx];
     if (!ex || !ex.sets?.[setIdx]) return;
@@ -304,7 +319,7 @@ const ActiveWorkout = () => {
           i === exIdx ? { ...e, sets: e.sets.map((s, j) => (j === setIdx ? { ...s, checked: true } : s)) } : e
         )
       );
-      startRestLocal();
+      startRest();
       return;
     }
 
@@ -315,13 +330,117 @@ const ActiveWorkout = () => {
         i === exIdx ? { ...e, sets: e.sets.map((s, j) => (j === setIdx ? { ...s, checked: false } : s)) } : e
       )
     );
-    resetRestLocal();
+    resetRest();
   };
 
   const updateExerciseNotes = (exIdx: number, notes: string) => {
     setExercises((prev) => prev.map((ex, i) => (i === exIdx ? { ...ex, notes } : ex)));
   };
 
+  /* ------------------------- options & modals state ---------------------- */
+  const [pauseModalVisible, setPauseModalVisible] = useState(false);
+  const [showOptionsSheet, setShowOptionsSheet] = useState(false);
+  const [notesModalVisible, setNotesModalVisible] = useState(false);
+  const [currentNotes, setCurrentNotes] = useState("");
+  const [showReorderModal, setShowReorderModal] = useState(false);
+  const [pendingReplaceIdx, setPendingReplaceIdx] = useState<number | null>(null);
+
+  /* ------------------------- options handlers ---------------------------- */
+  const handleNotesPress = () => {
+    if (selectedExerciseIdx === null) return;
+    setCurrentNotes(exercises[selectedExerciseIdx]?.notes || "");
+    setNotesModalVisible(true);
+    setShowOptionsSheet(false);
+  };
+
+  const handleNotesSave = (notes: string) => {
+    if (selectedExerciseIdx !== null) updateExerciseNotes(selectedExerciseIdx, notes);
+    setNotesModalVisible(false);
+  };
+
+  const goToInstructions = () => {
+    if (selectedExerciseIdx === null) return;
+    const ex = exercises[selectedExerciseIdx];
+    router.push({
+      pathname: "/home/exercise-detail",
+      params: { id: (ex as any).id, scrollTo: "bottom" },
+    });
+    setShowOptionsSheet(false);
+  };
+
+  const handleReplaceExercise = () => {
+    if (selectedExerciseIdx === null) return;
+    setPendingReplaceIdx(selectedExerciseIdx);
+    setShowOptionsSheet(false);
+    router.push({
+      pathname: "/home/exercise-list",
+      params: { action: "replace", returnTo: "active-workout" },
+    });
+  };
+
+  const handleReorderExercises = () => {
+    setShowOptionsSheet(false);
+    setShowReorderModal(true);
+  };
+
+  const handleReorderComplete = (reorderedExercises: any[]) => {
+    setExercises(reorderedExercises);
+    setShowReorderModal(false);
+  };
+
+  /* ----------------------- add/replace buffer intake --------------------- */
+  const makeLocalExerciseFromList = (ex: any): Exercise => {
+    const newId = `aw_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    return {
+      id: newId,
+      name: ex.name,
+      images: ex.images || [],
+      instructions: ex.instructions || "",
+      primaryMuscles: ex.primaryMuscles,
+      secondaryMuscles: ex.secondaryMuscles,
+      sets: [
+        { id: 1, reps: 10, lbs: 0, checked: false },
+        { id: 2, reps: 10, lbs: 0, checked: false },
+      ],
+      notes: "",
+    };
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      const buffered = getTempExercises();
+      if (!buffered || buffered.length === 0) return;
+
+      if (pendingReplaceIdx !== null) {
+        const src = buffered[0];
+        setExercises((prev) => {
+          const next = [...prev];
+          if (!next[pendingReplaceIdx]) return prev;
+
+          const existingSets = next[pendingReplaceIdx].sets;
+          const newInfo = makeLocalExerciseFromList(src);
+
+          next[pendingReplaceIdx] = {
+            ...newInfo,
+            sets: existingSets.map((s, i) => ({
+              id: i + 1,
+              reps: s.reps,
+              lbs: s.lbs,
+              checked: false,
+            })),
+            notes: next[pendingReplaceIdx].notes || "",
+          };
+          return next;
+        });
+        setPendingReplaceIdx(null);
+        return;
+      }
+
+      setExercises((prev) => [...prev, ...buffered.map((b: any) => makeLocalExerciseFromList(b))]);
+    }, [pendingReplaceIdx])
+  );
+
+  /* -------------------------------- render ------------------------------- */
   if (initError) {
     return (
       <View style={{ flex: 1, backgroundColor: "#0F0E1A", paddingHorizontal: 20, justifyContent: "center", alignItems: "center" }}>
@@ -452,7 +571,6 @@ const ActiveWorkout = () => {
               extrapolate: "clamp",
             });
 
-            // Create unique key using exercise id and index to avoid duplicates
             const uniqueKey = `exercise_${ex.id}_${exIdx}`;
 
             return (
@@ -483,7 +601,6 @@ const ActiveWorkout = () => {
                   onUpdateSetField={updateSetField}
                   onAddSet={addSet}
                   onRemoveSet={removeSet}
-                  // Pass the index for staggered SVG loading
                   loadIndex={exIdx}
                 />
               </Animated.View>
@@ -527,14 +644,68 @@ const ActiveWorkout = () => {
           durSec={durSec}
           tertiaryColor={tertiaryColor}
           primaryColor={primaryColor}
-          pickerVisible={false}
-          onOpenPicker={() => {}}
-          onClosePicker={() => {}}
+          pickerVisible={pickerVisible}
+          onOpenPicker={() => setPickerVisible(true)}
+          onClosePicker={() => setPickerVisible(false)}
           onChangeMin={(v) => setDurMin(v)}
           onChangeSec={(v) => setDurSec(v)}
-          onApplyPicker={() => {}}
+          onApplyPicker={applyPicker}
           onStartRest={startRest}
         />
+
+        {/* Rest countdown */}
+        <DraggableBottomSheet
+          visible={restSheetVisible}
+          onClose={closeRestSheet}
+          primaryColor={primaryColor}
+          heightRatio={0.35}
+        >
+          {restLeft > 0 ? (
+            <View style={{ alignItems: "center", paddingTop: 8 }}>
+              <Text className="text-white p-2 font-pbold text-6xl">
+                {`${String(Math.floor(restLeft / 60)).padStart(2, "0")}:${String(restLeft % 60).padStart(2, "0")}`}
+              </Text>
+              <Text className="text-white font-pmedium mt-4">Rest timer running</Text>
+
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 24 }}>
+                <TouchableOpacity
+                  onPress={() => setRestLeft((prev) => Math.max(0, prev - 5))}
+                  className="px-4 py-3 rounded-lg"
+                  style={{ borderWidth: 1, borderColor: primaryColor }}
+                >
+                  <Text className="text-white font-pmedium">-5</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={closeRestSheet}
+                  className="px-10 py-3 rounded-lg"
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  <Text className="text-white font-pmedium">Close</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => setRestLeft((prev) => prev + 5)}
+                  className="px-4 py-3 rounded-lg"
+                  style={{ borderWidth: 1, borderColor: primaryColor }}
+                >
+                  <Text className="text-white font-pmedium">+5</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <View style={{ alignItems: "center", paddingTop: 8 }}>
+              <Text className="text-white font-pbold text-3xl mt-2">Time is up!</Text>
+              <TouchableOpacity
+                onPress={closeRestSheet}
+                className="mt-6 px-10 py-3 rounded-lg"
+                style={{ backgroundColor: primaryColor }}
+              >
+                <Text className="text-white font-pmedium">Close</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </DraggableBottomSheet>
 
         <PauseModal
           visible={pauseModalVisible}
@@ -545,30 +716,92 @@ const ActiveWorkout = () => {
           }}
         />
 
+        {/* Options bottom sheet */}
+        <DraggableBottomSheet
+          visible={showOptionsSheet}
+          onClose={() => setShowOptionsSheet(false)}
+          primaryColor={primaryColor}
+          heightRatio={0.45}
+          scrollable
+        >
+          {[
+            {
+              label: "View Exercise Instructions",
+              icon: "information-outline",
+              onPress: goToInstructions,
+            },
+            {
+              label: "Notes",
+              icon: "note-text-outline",
+              onPress: handleNotesPress,
+            },
+            {
+              label: "Replace Exercise",
+              icon: "swap-horizontal",
+              onPress: handleReplaceExercise,
+            },
+            {
+              label: "Reorder Exercises",
+              icon: "sort-variant",
+              onPress: handleReorderExercises,
+            },
+            {
+              label: "Delete",
+              icon: "delete-outline",
+              onPress: () => {
+                if (selectedExerciseIdx !== null) {
+                  setExercises((prev) => prev.filter((_, idx) => idx !== selectedExerciseIdx));
+                  setSelectedExerciseIdx(null);
+                }
+                setShowOptionsSheet(false);
+              },
+              danger: true,
+            },
+          ].map((opt) => (
+            <TouchableOpacity
+              key={opt.label}
+              className="flex-row items-center p-4 border-b border-black-200"
+              onPress={opt.onPress}
+            >
+              <MaterialCommunityIcons
+                name={opt.icon as any}
+                size={24}
+                color={(opt as any).danger ? "#FF4D4D" : primaryColor}
+              />
+              <Text
+                className="text-lg font-pmedium ml-3"
+                style={{ color: (opt as any).danger ? "#FF4D4D" : "white" }}
+              >
+                {opt.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </DraggableBottomSheet>
+
+        <InstructionsModal
+          visible={notesModalVisible}
+          text={currentNotes}
+          onDismiss={() => setNotesModalVisible(false)}
+          onSave={handleNotesSave}
+          isEditable
+          title="Exercise Notes"
+        />
+
+        <ReorderModal
+          visible={showReorderModal}
+          onClose={() => setShowReorderModal(false)}
+          exercises={exercises}
+          onReorderComplete={handleReorderComplete}
+          primaryColor={primaryColor}
+          tertiaryColor={tertiaryColor}
+        />
+
         <ConfirmCancelModal
           visible={false}
           primaryColor={primaryColor}
           tertiaryColor={tertiaryColor}
           onNo={() => {}}
           onYes={() => {}}
-        />
-
-        <InstructionsModal
-          visible={false}
-          text={""}
-          onDismiss={() => {}}
-          onSave={() => {}}
-          isEditable={true}
-          title="Exercise Notes"
-        />
-
-        <ReorderModal
-          visible={false}
-          onClose={() => {}}
-          exercises={exercises}
-          onReorderComplete={() => {}}
-          primaryColor={primaryColor}
-          tertiaryColor={tertiaryColor}
         />
       </Animated.View>
     </View>
