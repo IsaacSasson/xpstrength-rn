@@ -1,4 +1,4 @@
-// Path: /app/account.tsx
+// Path: app/(tabs)/profile/account.tsx
 import React, { useState } from "react";
 import {
   View,
@@ -16,6 +16,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import { useThemeContext } from "@/context/ThemeContext";
+import { useAuth } from "@/context/AuthProvider";
+import { useUser } from "@/context/UserProvider";
+import { userApi } from "@/services/userApi";
 
 /* ------------------------------------------------------------ */
 /*           Mini helpers to keep the JSX tidy                  */
@@ -47,7 +50,6 @@ const GlassCard: React.FC<
         width: 4,
         borderRadius: 4,
         backgroundColor: accent,
-
         marginTop: 12,
         marginBottom: 12,
       }}
@@ -88,12 +90,16 @@ const Field: React.FC<{
   onChangeText: (v: string) => void;
   placeholder?: string;
   keyboardType?: "default" | "numeric" | "email-address";
+  secureTextEntry?: boolean;
+  editable?: boolean;
 }> = ({
   label,
   value,
   onChangeText,
   placeholder,
   keyboardType = "default",
+  secureTextEntry = false,
+  editable = true,
 }) => (
   <View style={{ marginBottom: 14 }}>
     <Text style={{ color: "#A0A0B2", marginBottom: 6, fontSize: 12 }}>
@@ -105,13 +111,15 @@ const Field: React.FC<{
       placeholder={placeholder}
       placeholderTextColor="#666"
       keyboardType={keyboardType}
+      secureTextEntry={secureTextEntry}
+      editable={editable}
       autoCapitalize="none"
       style={{
-        color: "#FFF",
+        color: editable ? "#FFF" : "#888",
         paddingVertical: 10,
         paddingHorizontal: 12,
         borderRadius: 12,
-        backgroundColor: "rgba(0,0,0,0.25)",
+        backgroundColor: editable ? "rgba(0,0,0,0.25)" : "rgba(0,0,0,0.1)",
       }}
     />
   </View>
@@ -122,32 +130,69 @@ const Field: React.FC<{
 /* ------------------------------------------------------------ */
 const Account = () => {
   const { primaryColor } = useThemeContext();
+  const { user, setAccessToken, clearAuth } = useAuth();
+  const { profile, refreshProfile } = useUser();
 
   /* -------- Email change state -------- */
-  const [currentEmail] = useState("wiiwho123@gmail.com");
+  const [currentPassword, setCurrentPassword] = useState("");
   const [newEmail, setNewEmail] = useState("");
-  const [confirmEmail, setConfirmEmail] = useState("");
   const [savingEmail, setSavingEmail] = useState(false);
+
+  /* -------- Reset / Delete state -------- */
+  const [processing, setProcessing] = useState<null | "reset" | "delete">(null);
 
   const saveEmail = async () => {
     if (savingEmail) return;
-    if (!newEmail || newEmail !== confirmEmail)
-      return Alert.alert("Error", "E‑mails do not match.");
+    
+    if (!currentPassword.trim()) {
+      return Alert.alert("Error", "Current password is required to change email.");
+    }
+    
+    if (!newEmail.trim()) {
+      return Alert.alert("Error", "New email is required.");
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newEmail)) {
+      return Alert.alert("Error", "Please enter a valid email address.");
+    }
+
+    if (newEmail === profile?.email) {
+      return Alert.alert("Error", "New email must be different from current email.");
+    }
+
     setSavingEmail(true);
     try {
-      // TODO: PATCH /account/email
-      await new Promise((r) => setTimeout(r, 1200));
-      Alert.alert("Success", "E‑mail updated!");
-    } catch {
-      Alert.alert("Error", "Could not update e‑mail.");
+      const result = await userApi.updateProfile({
+        currentPassword,
+        newEmail,
+      });
+
+      if (result.success) {
+        // Update access token if provided
+        if (result.accessToken) {
+          await setAccessToken(result.accessToken);
+        }
+        
+        // Refresh profile to get updated data
+        await refreshProfile();
+        
+        Alert.alert("Success", "Email updated successfully!");
+        setCurrentPassword("");
+        setNewEmail("");
+      } else {
+        Alert.alert("Error", result.error || "Failed to update email.");
+      }
+    } catch (error) {
+      console.error("Email update error:", error);
+      Alert.alert("Error", "An unexpected error occurred.");
     } finally {
       setSavingEmail(false);
     }
   };
 
-  /* -------- Reset / Delete state -------- */
-  const [processing, setProcessing] = useState<null | "reset" | "delete">(null);
-
+  /* -------- Reset / Delete handlers -------- */
   const confirmDestructive = (
     type: "reset" | "delete",
     headline: string,
@@ -159,20 +204,55 @@ const Account = () => {
         text: headline.split(" ")[0],
         style: "destructive",
         onPress: async () => {
-          setProcessing(type);
-          try {
-            // TODO: API call
-            await new Promise((r) => setTimeout(r, 1300));
-            if (type === "delete") router.replace("/");
-            else Alert.alert("Account reset", "All statistics were cleared.");
-          } catch {
-            Alert.alert("Error", `Could not ${type} account.`);
-          } finally {
-            setProcessing(null);
+          if (type === "delete") {
+            await handleDeleteAccount();
+          } else {
+            // Reset functionality would need separate API endpoint
+            setProcessing(type);
+            try {
+              // TODO: Implement reset account API call when available
+              await new Promise((r) => setTimeout(r, 1300));
+              Alert.alert("Account reset", "All statistics were cleared.");
+            } catch {
+              Alert.alert("Error", `Could not ${type} account.`);
+            } finally {
+              setProcessing(null);
+            }
           }
         },
       },
     ]);
+
+  const handleDeleteAccount = async () => {
+    setProcessing("delete");
+    try {
+      const result = await userApi.deleteAccount();
+      
+      if (result.success) {
+        Alert.alert(
+          "Account Deleted", 
+          "Your account has been permanently deleted.",
+          [
+            {
+              text: "OK",
+              onPress: async () => {
+                // Clear auth and navigate to login
+                await clearAuth();
+                router.replace("/");
+              }
+            }
+          ]
+        );
+      } else {
+        Alert.alert("Error", result.error || "Failed to delete account.");
+      }
+    } catch (error) {
+      console.error("Delete account error:", error);
+      Alert.alert("Error", "An unexpected error occurred.");
+    } finally {
+      setProcessing(null);
+    }
+  };
 
   /* -------------------------------------------------------- */
   return (
@@ -214,15 +294,24 @@ const Account = () => {
           <GlassCard title="Change Email" accent={primaryColor}>
             <Field
               label="Current Email"
-              value={currentEmail}
+              value={profile?.email || ""}
               onChangeText={() => {}}
               keyboardType="email-address"
+              editable={false}
+            />
+            <Field
+              label="Current Password"
+              value={currentPassword}
+              onChangeText={setCurrentPassword}
+              secureTextEntry
+              placeholder="Enter your current password"
             />
             <Field
               label="New Email"
               value={newEmail}
               onChangeText={setNewEmail}
               keyboardType="email-address"
+              placeholder="Enter new email address"
             />
 
             <TouchableOpacity
@@ -246,7 +335,7 @@ const Account = () => {
               {savingEmail ? (
                 <ActivityIndicator color="#FFF" />
               ) : (
-                <Text style={{ color: "#FFF", fontWeight: "700" }}>Send</Text>
+                <Text style={{ color: "#FFF", fontWeight: "700" }}>Update Email</Text>
               )}
             </TouchableOpacity>
           </GlassCard>
@@ -308,14 +397,14 @@ const Account = () => {
             </Text>
             <Text style={{ color: "#DDD", lineHeight: 20, marginBottom: 18 }}>
               Deleting your account will permanently erase all data linked to
-              it.
+              it. This cannot be undone.
             </Text>
             <TouchableOpacity
               onPress={() =>
                 confirmDestructive(
                   "delete",
                   "Delete Account",
-                  "There is no recovery after deletion. Continue?"
+                  "Your account and all data will be permanently deleted. There is no recovery after deletion. Continue?"
                 )
               }
               disabled={processing !== null}
