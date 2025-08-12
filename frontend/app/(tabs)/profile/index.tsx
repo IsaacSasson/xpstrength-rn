@@ -155,13 +155,6 @@ const Profile = () => {
       <ScrollView 
         showsVerticalScrollIndicator={false} 
         className="px-4"
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
-            tintColor={primaryColor}
-          />
-        }
       >
         {/* Error State */}
         {error && !isLoading && (

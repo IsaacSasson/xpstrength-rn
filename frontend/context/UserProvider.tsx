@@ -23,6 +23,11 @@ interface UserContextType {
   // Actions
   refreshProfile: () => Promise<void>;
   updateProfilePicture: (imageUri: string) => Promise<boolean>;
+  updateProfile: (updates: {
+    username?: string;
+    email?: string;
+    fitnessGoal?: string;
+  }) => Promise<boolean>;
   addCurrency: (amount: number) => void;
   addExperience: (amount: number) => void;
   clearError: () => void;
@@ -41,6 +46,7 @@ const UserContext = createContext<UserContextType>({
   error: null,
   refreshProfile: async () => {},
   updateProfilePicture: async () => false,
+  updateProfile: async () => false,
   addCurrency: () => {},
   addExperience: () => {},
   clearError: () => {},
@@ -48,7 +54,7 @@ const UserContext = createContext<UserContextType>({
 
 /* ----------------------------- Provider ----------------------------- */
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, user, setAccessToken } = useAuth();
   
   // State
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -145,6 +151,48 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [isAuthenticated]
   );
 
+  /* ----------------------------- Profile Update ----------------------------- */
+  const updateProfile = useCallback(
+    async (updates: {
+      username?: string;
+      email?: string;
+      fitnessGoal?: string;
+    }): Promise<boolean> => {
+      if (!isAuthenticated) return false;
+
+      try {
+        const apiUpdates: any = {};
+        if (updates.username) apiUpdates.newUsername = updates.username;
+        if (updates.email) apiUpdates.newEmail = updates.email;
+        if (updates.fitnessGoal !== undefined) apiUpdates.newFitnessGoal = updates.fitnessGoal;
+
+        const result = await userApi.updateProfile(apiUpdates);
+        
+        if (result.success) {
+          // Update access token if provided
+          if (result.accessToken) {
+            await setAccessToken(result.accessToken);
+          }
+          
+          // Update local profile state
+          if (result.profile) {
+            setProfile(result.profile);
+          }
+          
+          return true;
+        } else {
+          setError(result.error || "Failed to update profile");
+          return false;
+        }
+      } catch (err) {
+        console.error("❌ Error updating profile:", err);
+        setError(err instanceof Error ? err.message : "Failed to update profile");
+        return false;
+      }
+    },
+    [isAuthenticated, setAccessToken]
+  );
+
   /* ----------------------------- Legacy Support ----------------------------- */
   // These functions provide backward compatibility for existing code
   const addCurrency = useCallback((amount: number) => {
@@ -216,6 +264,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Actions
     refreshProfile,
     updateProfilePicture,
+    updateProfile,
     addCurrency,
     addExperience,
     clearError,
