@@ -224,12 +224,12 @@ const ActiveWorkoutCard: React.FC<Props> = ({
       className="rounded-2xl p-4 mt-10"
       style={{
         backgroundColor: tertiaryColor,
-        borderRadius: 18,
+        borderRadius: 20,
         borderWidth: 1,
         borderColor: "rgba(255,255,255,0.15)",
         shadowColor: primaryColor,
         shadowOpacity: 0.2,
-        shadowRadius: 13,
+        shadowRadius: 5,
         shadowOffset: { width: 0, height: 4 },
         height: CARD_HEIGHT,
       }}
@@ -261,18 +261,7 @@ const ActiveWorkoutCard: React.FC<Props> = ({
         </TouchableOpacity>
       </View>
 
-      {/* Notes */}
-      {exercise.notes && exercise.notes.trim() && (
-        <View className="mb-3 p-2 rounded-lg" style={{ backgroundColor: "rgba(255,255,255,0.05)" }}>
-          <View className="flex-row items-center mb-1">
-            <MaterialCommunityIcons name="note-text-outline" size={16} color={primaryColor} />
-            <Text className="text-sm font-pmedium ml-1" style={{ color: primaryColor }}>
-              Notes:
-            </Text>
-          </View>
-          <Text className="text-gray-100 text-sm">{exercise.notes}</Text>
-        </View>
-      )}
+    
 
       {/* Table header */}
       <View className="flex-row py-1 mb-2 rounded-lg" style={{ borderColor: secondaryColor, borderWidth: 0.3 }}>

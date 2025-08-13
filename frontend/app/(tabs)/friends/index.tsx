@@ -243,6 +243,7 @@ const Friends = () => {
         }}
         primaryColor={primaryColor}
         heightRatio={0.45}
+        keyboardOffsetRatio={0.8}
       >
         <Text className="text-white text-xl font-psemibold text-center mb-4">
           Add Friend

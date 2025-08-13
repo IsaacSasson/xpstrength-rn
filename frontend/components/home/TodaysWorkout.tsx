@@ -3,7 +3,8 @@ import { View, Text, TouchableOpacity, ActivityIndicator, Alert } from "react-na
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useThemeContext } from "@/context/ThemeContext";
-import { router } from "expo-router";
+import { router, useNavigation } from "expo-router";
+import type { Href } from "expo-router";
 import DraggableBottomSheet from "@/components/DraggableBottomSheet";
 import { useWorkouts } from "@/context/WorkoutContext";
 import { setLaunchPreset } from "@/utils/workoutLaunch";
@@ -42,6 +43,8 @@ const TodaysWorkout: React.FC<Props> = ({ workout, allowCreate = true, selectedD
     convertWeight,
   } = useWorkouts();
 
+  const navigation = useNavigation();
+
   const dayIndex = useMemo(
     () => (selectedDate ? selectedDate.getDay() : new Date().getDay()),
     [selectedDate]
@@ -54,12 +57,22 @@ const TodaysWorkout: React.FC<Props> = ({ workout, allowCreate = true, selectedD
     [selectedDate, dayIndex]
   );
 
+  /* -------------------- Typed href helpers (Href-safe) ------------------- */
+  const createWorkoutHref = useMemo<Href>(() => {
+    // Use an object with a literal pathname so TypeScript keeps the literal type.
+    return dayName
+      ? ({ pathname: "/home/create-workout", params: { day: dayName } } as const)
+      : ("/home/create-workout" as const);
+  }, [dayName]);
+
+  const editWorkoutHref = useMemo<Href>(() => {
+    return dayName
+      ? ({ pathname: "/home/edit-workout", params: { day: dayName } } as const)
+      : ("/home/edit-workout" as const);
+  }, [dayName]);
+
   const goToEditWorkout = () => {
-    if (dayName) {
-      router.push({ pathname: "/home/edit-workout", params: { day: dayName } });
-    } else {
-      router.push("/home/edit-workout");
-    }
+    router.push(editWorkoutHref);
   };
 
   /* ----------------------------------------------------------------------
@@ -107,24 +120,23 @@ const TodaysWorkout: React.FC<Props> = ({ workout, allowCreate = true, selectedD
       getExerciseMeta,
       parseWeight,
       convertWeight,
-      primaryColor,      // Added missing color parameter
-      secondaryColor,    // Added missing color parameter
+      primaryColor,
+      secondaryColor,
     });
   }, [
-    dayIndex, 
-    getWorkoutForDay, 
-    unitSystem, 
-    buildLaunchPresetFromWorkout, 
-    getExerciseMeta, 
-    parseWeight, 
+    dayIndex,
+    getWorkoutForDay,
+    unitSystem,
+    buildLaunchPresetFromWorkout,
+    getExerciseMeta,
+    parseWeight,
     convertWeight,
-    primaryColor,      // Added to dependency array
-    secondaryColor     // Added to dependency array
+    primaryColor,
+    secondaryColor
   ]);
 
   /* ----------------------------------------------------------------------
      Preload the ActiveWorkout route bundle so navigation is instant
-     NOTE: your route is /app/(tabs)/home/active-workout.tsx
   ----------------------------------------------------------------------- */
   useEffect(() => {
     (async () => {
@@ -155,6 +167,7 @@ const TodaysWorkout: React.FC<Props> = ({ workout, allowCreate = true, selectedD
     const launchPreset = buildLaunchPresetFromWorkout(workoutData);
     setLaunchPreset(launchPreset);
 
+    // This can stay as an object; pathname is a literal string.
     router.replace({ pathname: "/home/active-workout" });
   };
 
@@ -170,6 +183,25 @@ const TodaysWorkout: React.FC<Props> = ({ workout, allowCreate = true, selectedD
 
   const openAssignSheet = () => setAssignSheetVisible(true);
   const closeAssignSheet = () => setAssignSheetVisible(false);
+
+  // Defensive: if the screen loses focus, close the sheet so it can’t linger
+  useEffect(() => {
+    const unsub = (navigation as any)?.addListener?.("blur", () => {
+      setAssignSheetVisible(false);
+    });
+    return unsub ?? (() => {});
+  }, [navigation]);
+
+  // Utility: close sheet, then navigate after the close animation finishes
+  const navigateAfterClose = useCallback(
+    (href: Href) => {
+      setAssignSheetVisible(false);
+      setTimeout(() => {
+        router.push(href);
+      }, 220); // allow the dismiss animation to complete
+    },
+    []
+  );
 
   const handleChooseRest = async () => {
     try {
@@ -299,12 +331,12 @@ const TodaysWorkout: React.FC<Props> = ({ workout, allowCreate = true, selectedD
 
           {allowCreate && (
             <TouchableOpacity
-              onPress={openAssignSheet}
+              onPress={() => navigateAfterClose(createWorkoutHref)}
               style={{ backgroundColor: primaryColor }}
               className="flex-row items-center px-6 py-3 rounded-lg"
               activeOpacity={0.7}
             >
-              <FontAwesome5 name="exchange-alt" size={14} color="#FFF" />
+              <FontAwesome5 name="plus" size={14} color="#FFF" />
               <Text className="text-white font-pmedium ml-2">Assign Workout</Text>
             </TouchableOpacity>
           )}
@@ -354,12 +386,11 @@ const TodaysWorkout: React.FC<Props> = ({ workout, allowCreate = true, selectedD
           <Text className="text-white ml-10 text-base font-pmedium">Rest Day</Text>
         </TouchableOpacity>
 
+        {/* Close then navigate to Create Workout */}
         {allowCreate && (
           <TouchableOpacity
             onPress={
-              isAssigning
-                ? undefined
-                : () => router.push({ pathname: "/home/create-workout", params: { day: dayName } })
+              isAssigning ? undefined : () => navigateAfterClose(createWorkoutHref)
             }
             activeOpacity={0.9}
             style={{
@@ -404,7 +435,7 @@ const TodaysWorkout: React.FC<Props> = ({ workout, allowCreate = true, selectedD
             <Text className="text-white/80">You don't have any workouts yet.</Text>
             {allowCreate && (
               <TouchableOpacity
-                onPress={() => router.push({ pathname: "/home/create-workout", params: { day: dayName } })}
+                onPress={() => navigateAfterClose(createWorkoutHref)}
                 style={{
                   marginTop: 12,
                   alignSelf: "flex-start",

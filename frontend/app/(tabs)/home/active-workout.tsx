@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState, useMemo, useCallback } from "react";
+// Path: /components/home/ActiveWorkout/ActiveWorkout.tsx
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   View,
   StatusBar,
@@ -10,6 +11,11 @@ import {
   Platform,
   Vibration,
   ActivityIndicator,
+  TextInput,
+  ScrollView,
+  Keyboard,
+  TouchableWithoutFeedback,
+  Pressable,
 } from "react-native";
 import * as Haptics from "expo-haptics";
 import { router, useFocusEffect } from "expo-router";
@@ -17,6 +23,8 @@ import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import DraggableBottomSheet from "@/components/DraggableBottomSheet";
 import { useThemeContext } from "@/context/ThemeContext";
 import { useWorkouts } from "@/context/WorkoutContext";
+import { useUser } from "@/context/UserProvider";
+import { userApi } from "@/services/userApi";
 import ActiveWorkoutHeader from "@/components/home/ActiveWorkout/Header";
 import ActiveWorkoutFooter from "@/components/home/ActiveWorkout/Footer";
 import ActiveWorkoutCard from "@/components/home/ActiveWorkout/CarouselCard";
@@ -24,7 +32,6 @@ import ActiveWorkoutAddCard from "@/components/home/ActiveWorkout/AddExerciseCar
 import ReorderModal from "@/components/home/ReorderModal";
 import PauseModal from "@/components/home/ActiveWorkout/PauseModal";
 import ConfirmCancelModal from "@/components/home/ActiveWorkout/ConfirmCancelModal";
-import InstructionsModal from "@/components/home/ActiveWorkout/InstructionsModal";
 import { getLaunchPreset, getPrewarmedWorkout, clearWorkoutData } from "@/utils/workoutLaunch";
 import { makeCacheKey, readCachedSession } from "@/utils/activeWorkoutCache";
 import { log } from "@/utils/devLog";
@@ -38,6 +45,10 @@ const SIDE_PADDING = (SCREEN_WIDTH - CARD_WIDTH) / 2;
 const COL_WIDTH = 80;
 const CARD_HEIGHT = 540;
 const CHECK_COL_WIDTH = 32;
+
+// Notes sizing constants
+const NOTES_MIN_HEIGHT = 120;   // starting box height
+const NOTES_MAX_HEIGHT = 240;   // cap before making it scrollable
 
 interface Set { id: number; lbs: number; reps: number; checked?: boolean; }
 interface Exercise {
@@ -61,6 +72,8 @@ const ActiveWorkout = () => {
     convertWeight,
     getExerciseMeta,
   } = useWorkouts();
+  // ⬇️ pull in exercise history + cache updater
+  const { exerciseHistory, setExerciseNotes } = useUser();
 
   /* ---------------------------- workout timer ---------------------------- */
   const [elapsed, setElapsed] = useState(0);
@@ -153,6 +166,11 @@ const ActiveWorkout = () => {
   const [initError, setInitError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // *** title character limit ***
+  const MAX_TITLE_LENGTH = 12;
+  const truncateTitle = (title: string): string =>
+    title.length <= MAX_TITLE_LENGTH ? title : title.substring(0, MAX_TITLE_LENGTH).trim() + "...";
+
   const fade = useRef(new Animated.Value(0)).current;
   const scrollX = useRef(new Animated.Value(0)).current;
 
@@ -163,6 +181,13 @@ const ActiveWorkout = () => {
     }
   }, [isLoading, fade]);
 
+  // load existing notes from history
+  const loadExistingNotes = useCallback((exerciseId: string | number): string => {
+    if (!exerciseHistory) return "";
+    const historyEntry = exerciseHistory[String(exerciseId)];
+    return historyEntry?.notes || "";
+  }, [exerciseHistory]);
+
   useEffect(() => {
     const initializeWorkout = async () => {
       try {
@@ -170,7 +195,13 @@ const ActiveWorkout = () => {
         if (prewarmedData?.exercises?.length) {
           log("[Workout] Using prewarmed data");
           setWorkoutTitle(prewarmedData.title || "Workout");
-          setExercises(prewarmedData.exercises as Exercise[]);
+
+          const exercisesWithNotes = prewarmedData.exercises.map((ex: any) => ({
+            ...ex,
+            notes: loadExistingNotes(ex.id) || ex.notes || ""
+          }));
+
+          setExercises(exercisesWithNotes as Exercise[]);
           setSelectedExerciseIdx(0);
           setIsLoading(false);
           setInitError(null);
@@ -182,7 +213,11 @@ const ActiveWorkout = () => {
         if (!preset) {
           if (activeSession?.exercises?.length) {
             setWorkoutTitle(activeSession.title || "Workout");
-            setExercises(activeSession.exercises as Exercise[]);
+            const exercisesWithNotes = activeSession.exercises.map((ex: any) => ({
+              ...ex,
+              notes: loadExistingNotes(ex.id) || ex.notes || ""
+            }));
+            setExercises(exercisesWithNotes as Exercise[]);
             setSelectedExerciseIdx(0);
             setIsLoading(false);
             setInitError(null);
@@ -198,7 +233,11 @@ const ActiveWorkout = () => {
         if (cached?.exercises?.length) {
           log("[Workout] Using cached data");
           setWorkoutTitle(cached.title || "Workout");
-          setExercises(cached.exercises as Exercise[]);
+          const exercisesWithNotes = cached.exercises.map((ex: any) => ({
+            ...ex,
+            notes: loadExistingNotes(ex.id) || ex.notes || ""
+          }));
+          setExercises(exercisesWithNotes as Exercise[]);
           setSelectedExerciseIdx(0);
           setIsLoading(false);
           setInitError(null);
@@ -242,7 +281,7 @@ const ActiveWorkout = () => {
             primaryMuscles: meta?.primaryMuscles || [],
             secondaryMuscles: meta?.secondaryMuscles || [],
             sets,
-            notes: "",
+            notes: loadExistingNotes(ex.id) || "",
           };
         });
 
@@ -258,7 +297,7 @@ const ActiveWorkout = () => {
     };
 
     initializeWorkout();
-  }, [activeSession, unitSystem, getExerciseMeta, parseWeight, convertWeight]);
+  }, [activeSession, unitSystem, getExerciseMeta, parseWeight, convertWeight, loadExistingNotes]);
 
   /* -------------------------- sets / notes helpers ----------------------- */
   const addSet = (exIdx: number) =>
@@ -342,20 +381,83 @@ const ActiveWorkout = () => {
   const [showOptionsSheet, setShowOptionsSheet] = useState(false);
   const [notesModalVisible, setNotesModalVisible] = useState(false);
   const [currentNotes, setCurrentNotes] = useState("");
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [showReorderModal, setShowReorderModal] = useState(false);
   const [pendingReplaceIdx, setPendingReplaceIdx] = useState<number | null>(null);
+  const [notesSaving, setNotesSaving] = useState(false);
+  const notesInputRef = useRef<any>(null);
+
+  // dynamic height for notes editor
+  const [notesHeight, setNotesHeight] = useState(NOTES_MIN_HEIGHT);
 
   /* ------------------------- options handlers ---------------------------- */
   const handleNotesPress = () => {
     if (selectedExerciseIdx === null) return;
-    setCurrentNotes(exercises[selectedExerciseIdx]?.notes || "");
+    const initial = exercises[selectedExerciseIdx]?.notes || "";
+    setCurrentNotes(initial);
+    setNotesHeight(NOTES_MIN_HEIGHT);
+    setIsEditingNotes(false); // tap to edit
     setNotesModalVisible(true);
     setShowOptionsSheet(false);
   };
 
-  const handleNotesSave = (notes: string) => {
-    if (selectedExerciseIdx !== null) updateExerciseNotes(selectedExerciseIdx, notes);
-    setNotesModalVisible(false);
+  // helper: normalize id to number or null
+  const toServerExerciseId = (id: unknown): number | null => {
+    const n = Number(id);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  const handleNotesSave = async (notes: string) => {
+    if (selectedExerciseIdx === null) return;
+    const exercise = exercises[selectedExerciseIdx];
+    if (!exercise) return;
+
+    try {
+      setNotesSaving(true);
+      // Optimistic local update
+      updateExerciseNotes(selectedExerciseIdx, notes);
+
+      const serverId = toServerExerciseId((exercise as any).id);
+      if (serverId == null) {
+        // Cannot persist for exercises without canonical id
+        console.warn("[Notes] Skipped save: non-canonical exercise id:", (exercise as any).id);
+        setCurrentNotes(notes);
+        Alert.alert(
+          "Note saved locally",
+          "This exercise isn’t linked to a library id yet, so the note can’t be saved to history.",
+          [{ text: "OK" }]
+        );
+        return;
+      }
+
+      const result = await userApi.saveExerciseNotes(serverId, notes);
+
+      if (!result?.success) {
+        // Revert local state if API call failed
+        updateExerciseNotes(selectedExerciseIdx, currentNotes);
+        Alert.alert(
+          "Save Failed",
+          result?.error || "Failed to save notes. Please try again.",
+          [{ text: "OK" }]
+        );
+        return;
+      }
+
+      // ✅ success: reflect in current view + global cache so *new workouts* see it
+      setCurrentNotes(notes);
+      setExerciseNotes(serverId, notes);
+    } catch (error) {
+      // Revert local state on error
+      updateExerciseNotes(selectedExerciseIdx, currentNotes);
+      console.error("❌ Error saving notes:", error);
+      Alert.alert(
+        "Save Failed",
+        "Failed to save notes. Please check your connection and try again.",
+        [{ text: "OK" }]
+      );
+    } finally {
+      setNotesSaving(false);
+    }
   };
 
   const goToInstructions = () => {
@@ -390,9 +492,12 @@ const ActiveWorkout = () => {
 
   /* ----------------------- add/replace buffer intake --------------------- */
   const makeLocalExerciseFromList = (ex: any): Exercise => {
-    const newId = `aw_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    // ✅ Preserve canonical id if present; only fall back to a local id when none exists
+    const canonicalOrLocalId =
+      ex?.id !== undefined && ex?.id !== null ? ex.id : `aw_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+
     return {
-      id: newId,
+      id: canonicalOrLocalId,
       name: ex.name,
       images: ex.images || [],
       instructions: ex.instructions || "",
@@ -485,7 +590,7 @@ const ActiveWorkout = () => {
 
       <Animated.View style={{ flex: 1, opacity: fade }}>
         <ActiveWorkoutHeader
-          title={workoutTitle}
+          title={truncateTitle(workoutTitle)}
           elapsedSeconds={elapsed}
           primaryColor={primaryColor}
           secondaryColor={secondaryColor}
@@ -731,9 +836,10 @@ const ActiveWorkout = () => {
               onPress: goToInstructions,
             },
             {
-              label: "Notes",
+              label: notesSaving ? "Saving Notes..." : "Notes",
               icon: "note-text-outline",
               onPress: handleNotesPress,
+              disabled: notesSaving,
             },
             {
               label: "Replace Exercise",
@@ -762,6 +868,8 @@ const ActiveWorkout = () => {
               key={opt.label}
               className="flex-row items-center p-4 border-b border-black-200"
               onPress={opt.onPress}
+              disabled={opt.disabled}
+              style={{ opacity: opt.disabled ? 0.5 : 1 }}
             >
               <MaterialCommunityIcons
                 name={opt.icon as any}
@@ -778,14 +886,105 @@ const ActiveWorkout = () => {
           ))}
         </DraggableBottomSheet>
 
-        <InstructionsModal
+        {/* Notes Bottom Sheet — tap to edit, auto-grow lines, tap outside to save */}
+        <DraggableBottomSheet
           visible={notesModalVisible}
-          text={currentNotes}
-          onDismiss={() => setNotesModalVisible(false)}
-          onSave={handleNotesSave}
-          isEditable
-          title="Exercise Notes"
-        />
+          onClose={() => {
+            setNotesModalVisible(false);
+            setIsEditingNotes(false);
+          }}
+          primaryColor={primaryColor}
+          heightRatio={0.5}
+          scrollable={!isEditingNotes}
+          keyboardOffsetRatio={0.7}
+        >
+          {/* Outside tap: dismiss keyboard -> onBlur saves */}
+          <TouchableWithoutFeedback
+            onPress={() => {
+              if (isEditingNotes) Keyboard.dismiss();
+            }}
+          >
+            <View style={{ padding: 20 }}>
+              {/* Exercise Name */}
+              {selectedExerciseIdx !== null && (
+                <Text className="text-gray-300 font-pmedium text-lg mb-4">
+                  {exercises[selectedExerciseIdx]?.name}
+                </Text>
+              )}
+
+              {/* Notes box (keeps structure; auto-grows up to NOTES_MAX_HEIGHT) */}
+              {isEditingNotes ? (
+                <View
+                  style={{
+                    backgroundColor: "#1A1A1A",
+                    padding: 16,
+                    borderRadius: 8,
+                  }}
+                >
+                  <TextInput
+                    ref={notesInputRef}
+                    value={currentNotes}
+                    onChangeText={setCurrentNotes}
+                    placeholder="Add your notes here..."
+                    placeholderTextColor="#666"
+                    multiline
+                    textAlignVertical="top"
+                    style={{
+                      height: notesHeight,
+                      maxHeight: NOTES_MAX_HEIGHT,
+                      color: "white",
+                      fontSize: 16,
+                      fontFamily: "Poppins-Regular",
+                    }}
+                    autoFocus
+                    onContentSizeChange={(e) => {
+                      const h = e.nativeEvent.contentSize.height;
+                      const clamped = Math.min(Math.max(h, NOTES_MIN_HEIGHT), NOTES_MAX_HEIGHT);
+                      if (clamped !== notesHeight) setNotesHeight(clamped);
+                    }}
+                    scrollEnabled={notesHeight >= NOTES_MAX_HEIGHT}
+                    onBlur={async () => {
+                      await handleNotesSave(currentNotes);
+                      setIsEditingNotes(false);
+                    }}
+                  />
+                </View>
+              ) : (
+                <Pressable
+                  onPress={() => {
+                    setIsEditingNotes(true);
+                    setTimeout(() => notesInputRef.current?.focus?.(), 0);
+                  }}
+                >
+                  <View
+                    style={{
+                      backgroundColor: "#1A1A1A",
+                      padding: 16,
+                      borderRadius: 8,
+                      minHeight: NOTES_MIN_HEIGHT,
+                      maxHeight: NOTES_MAX_HEIGHT,
+                    }}
+                  >
+                    {currentNotes.trim() ? (
+                      <ScrollView
+                        style={{ maxHeight: NOTES_MAX_HEIGHT - 2 }}
+                        keyboardShouldPersistTaps="handled"
+                      >
+                        <Text className="text-white font-pregular text-base leading-6">
+                          {currentNotes}
+                        </Text>
+                      </ScrollView>
+                    ) : (
+                      <Text className="text-gray-500 font-pregular text-base italic">
+                        Tap here to add notes
+                      </Text>
+                    )}
+                  </View>
+                </Pressable>
+              )}
+            </View>
+          </TouchableWithoutFeedback>
+        </DraggableBottomSheet>
 
         <ReorderModal
           visible={showReorderModal}

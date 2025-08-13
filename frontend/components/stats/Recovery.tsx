@@ -16,6 +16,8 @@ const DEBUG_SVG = false;
 // Default unified fill for target groups' leaf paths
 const DEFAULT_MUSCLE_FILL = "#ccccccff";
 
+const FADE_DURATION = 100; // simple fade timing
+
 const Recovery: React.FC<RecoveryProps> = ({ color, tertiaryColor }) => {
   const daysSinceLastWorkout: number = 2;
   const freshMuscleGroups: number = 5;
@@ -23,9 +25,8 @@ const Recovery: React.FC<RecoveryProps> = ({ color, tertiaryColor }) => {
 
   const [side, setSide] = useState<"front" | "back">("front");
   const [isAnimating, setIsAnimating] = useState(false);
-  
-  // Animation values for scale and opacity
-  const scaleAnimation = useRef(new Animated.Value(1)).current;
+
+  // Animation value: opacity only (no scale)
   const opacityAnimation = useRef(new Animated.Value(1)).current;
 
   const navigateToGroup = (muscleGroupId: string) => {
@@ -35,40 +36,24 @@ const Recovery: React.FC<RecoveryProps> = ({ color, tertiaryColor }) => {
 
   const toggleSide = () => {
     if (isAnimating) return;
-    
+
     setIsAnimating(true);
-    
-    // First phase: Scale down and fade out
-    Animated.parallel([
-      Animated.timing(scaleAnimation, {
-        toValue: 0,
-        duration: 150,
-        useNativeDriver: true,
-      }),
+
+    // Fade out
+    Animated.timing(opacityAnimation, {
+      toValue: 0.5,
+      duration: FADE_DURATION,
+      useNativeDriver: true,
+    }).start(() => {
+      // Swap side at midpoint
+      setSide((prev) => (prev === "front" ? "back" : "front"));
+
+      // Fade in
       Animated.timing(opacityAnimation, {
-        toValue: 0,
-        duration: 150,
+        toValue: 1,
+        duration: FADE_DURATION,
         useNativeDriver: true,
-      })
-    ]).start(() => {
-      // Switch content at the midpoint
-      setSide(prev => prev === "front" ? "back" : "front");
-      
-      // Second phase: Scale up and fade in
-      Animated.parallel([
-        Animated.timing(scaleAnimation, {
-          toValue: 1,
-          duration: 150,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacityAnimation, {
-          toValue: 1,
-          duration: 150,
-          useNativeDriver: true,
-        })
-      ]).start(() => {
-        setIsAnimating(false);
-      });
+      }).start(() => setIsAnimating(false));
     });
   };
 
@@ -128,10 +113,6 @@ const Recovery: React.FC<RecoveryProps> = ({ color, tertiaryColor }) => {
   }, [backHandlers]);
 
   const animatedStyle = {
-    transform: [
-      { scaleX: scaleAnimation },
-      { scaleY: scaleAnimation }
-    ],
     opacity: opacityAnimation,
   };
 
@@ -188,13 +169,15 @@ const Recovery: React.FC<RecoveryProps> = ({ color, tertiaryColor }) => {
         </View>
 
         {/* Flip button - positioned in bottom center */}
-        <View style={{ 
-          position: "absolute", 
-          bottom: 20, 
-          left: 0, 
-          right: 0, 
-          alignItems: "center" 
-        }}>
+        <View
+          style={{
+            position: "absolute",
+            bottom: 20,
+            left: 0,
+            right: 0,
+            alignItems: "center",
+          }}
+        >
           <TouchableOpacity
             onPress={toggleSide}
             disabled={isAnimating}
@@ -210,20 +193,11 @@ const Recovery: React.FC<RecoveryProps> = ({ color, tertiaryColor }) => {
               opacity: isAnimating ? 0.7 : 1,
             }}
           >
-            <Ionicons 
-              name="sync" 
-              size={24} 
-              color={color} 
-            />
+            <Ionicons name="sync" size={24} color={color} />
           </TouchableOpacity>
-          
+
           {/* Optional label below the button */}
-          <Text style={{ 
-            color: labelColor, 
-            fontSize: 10, 
-            marginTop: 4,
-            textAlign: "center"
-          }}>
+          <Text style={{ color: "#A1A1AA", fontSize: 10, marginTop: 4, textAlign: "center" }}>
             {side === "front" ? "View Back" : "View Front"}
           </Text>
         </View>

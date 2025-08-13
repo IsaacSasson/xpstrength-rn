@@ -179,27 +179,40 @@ const ReorderModal: React.FC<ReorderModalProps> = ({
       }
 
       Animated.parallel(animations).start(() => {
-        // Phase 3: Update the actual order and reset animations
+        // Phase 3: Defer state update to avoid useInsertionEffect warning
         const newExercises = [...localExercises];
         const [movedExercise] = newExercises.splice(fromIndex, 1);
         newExercises.splice(toIndex, 0, movedExercise);
+        
+        // Schedule state update outside animation callback
+        setTimeout(() => {
+          setLocalExercises(newExercises);
+        }, 0);
 
-        // Update state first, then reset animations after React has rendered
-        setLocalExercises(newExercises);
-        setMovingIndex(null);
-        setIsAnimating(false);
+        // Phase 4: Scale down the moving item smoothly
+        Animated.timing(movingItemAnimated.scale, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }).start(() => {
+          // Phase 5: Clean up after scale down completes
+          setTimeout(() => {
+            setMovingIndex(null);
+            setIsAnimating(false);
+          }, 0);
 
-        // Use requestAnimationFrame to ensure the state update has been applied
-        // before resetting the animated values
-        requestAnimationFrame(() => {
-          // Reset all animated values
-          animatedValuesRef.current.forEach((animated) => {
-            animated.translateY.setValue(0);
-            animated.scale.setValue(1);
+          // Use requestAnimationFrame to ensure React has re-rendered with new state
+          // before resetting the animated values
+          requestAnimationFrame(() => {
+            // Reset all animated values - now they'll align with the new array order
+            animatedValuesRef.current.forEach((animated) => {
+              animated.translateY.setValue(0);
+              animated.scale.setValue(1);
+            });
+
+            // Reinitialize for new order
+            initializeAnimatedValues(newExercises.length);
           });
-
-          // Reinitialize for new order
-          initializeAnimatedValues(newExercises.length);
         });
       });
     });
@@ -313,7 +326,7 @@ const ReorderModal: React.FC<ReorderModalProps> = ({
 
             return (
               <Animated.View
-                key={`${exercise.id}-${index}`}
+                key={exercise.id} // Use stable key to prevent re-mounting
                 style={{
                   backgroundColor: tertiaryColor,
                   borderRadius: 12,

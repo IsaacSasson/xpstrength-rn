@@ -23,6 +23,21 @@ import { router } from "expo-router";
 import { calculateXpProgress } from "@/utils/xpUtils";
 
 /* ------------------------------------------------------------------
+   Config
+-------------------------------------------------------------------*/
+// You can override this with an env var in app.config / .env
+// e.g., EXPO_PUBLIC_PROFILE_GOAL_MAX_CHARS=80
+const GOAL_MAX_CHARS = Number(30);
+
+const formatGoal = (goal?: string | null, max: number = GOAL_MAX_CHARS) => {
+  const g = (goal ?? "").trim();
+  if (!g) return "No goal set yet";
+  if (g.length <= max) return g;
+  // Reserve 1 char for ellipsis
+  return g.slice(0, Math.max(0, max - 1)) + "…";
+};
+
+/* ------------------------------------------------------------------
    Helpers
 -------------------------------------------------------------------*/
 const formatMinutes = (min: number) => {
@@ -114,7 +129,6 @@ const Profile = () => {
   // Calculate XP progress to next level using the real XP system
   const xpProgress = useMemo(() => {
     if (!profile) return { current: 0, needed: 1000, percentage: 0 };
-    
     return calculateXpProgress(profile.level, profile.xp);
   }, [profile]);
 
@@ -155,6 +169,13 @@ const Profile = () => {
       <ScrollView 
         showsVerticalScrollIndicator={false} 
         className="px-4"
+        refreshControl={
+          <RefreshControl
+            tintColor={primaryColor}
+            refreshing={!!isRefreshing}
+            onRefresh={handleRefresh}
+          />
+        }
       >
         {/* Error State */}
         {error && !isLoading && (
@@ -203,6 +224,7 @@ const Profile = () => {
                     {profile.username}
                   </Text>
 
+                  {/* BADGE(S) + GOAL (replaces coins) */}
                   <Text className="text-gray-100 text-xs">
                     {profile.authority === 'premium' && (
                       <Text style={{ color: '#FFD700' }}>⭐ Premium • </Text>
@@ -210,8 +232,11 @@ const Profile = () => {
                     {profile.authority === 'admin' && (
                       <Text style={{ color: '#FF4C4C' }}>👑 Admin • </Text>
                     )}
-                    <Text style={{ color: secondaryColor }}>
-                      {profile.totalCoins} coins
+                    <Text>
+                      <Text className="text-gray-100">Goal: </Text>
+                      <Text style={{ color: secondaryColor }}>
+                        {formatGoal(profile.fitnessGoal, GOAL_MAX_CHARS)}
+                      </Text>
                     </Text>
                   </Text>
 

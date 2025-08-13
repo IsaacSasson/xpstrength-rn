@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -9,7 +9,8 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
+  Animated,
+  Easing,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
@@ -58,6 +59,14 @@ const dayToIndex: { [key: string]: number } = {
 // Reverse map for deriving day names from plan indices (Sunday..Saturday)
 const indexToDay = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
+/* --------------------- CONFIG: days summary max characters --------------------- */
+/** Change this to adjust how many characters the "Workout Days" line shows */
+const DAYS_SUMMARY_CHAR_LIMIT = 40;
+
+/** Clamp helper: trims to limit and appends an ellipsis if needed */
+const clamp = (s: string, limit: number = DAYS_SUMMARY_CHAR_LIMIT) =>
+  s.length > limit ? s.slice(0, Math.max(0, limit - 1)) + "…" : s;
+
 /* -------------------------------------------------------------------------- */
 /*                        SHARED WORKOUT EDITOR COMPONENT                    */
 /* -------------------------------------------------------------------------- */
@@ -76,7 +85,6 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
     exerciseDatabase,
     createWorkout,
     updateWorkout,
-    isLoading: contextLoading,
     unitSystem,
   } = useWorkouts();
 
@@ -85,11 +93,31 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
     days: dayParam ? [dayParam] : [daysOfWeek[0]],
     exercises: [],
   });
+
   const [showDayPicker, setShowDayPicker] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [existingWorkoutId, setExistingWorkoutId] = useState<number | null>(null);
   const [exerciseToReplace, setExerciseToReplace] = useState<string | null>(null);
+
+  /* ------------------- exercises-only loading state (local) ------------------- */
+  // this only affects the exercises list area to prevent page jump
+  const [isExercisesLoading, setIsExercisesLoading] = useState(mode === "edit");
+  const loaderAnim = useRef(new Animated.Value(0)).current;
+
+  // start/stop a simple indeterminate bar animation while the exercises area is loading
+  useEffect(() => {
+    if (!isExercisesLoading) return;
+    loaderAnim.setValue(0);
+    const loop = Animated.loop(
+      Animated.timing(loaderAnim, {
+        toValue: 1,
+        duration: 1100,
+        easing: Easing.inOut(Easing.quad),
+        useNativeDriver: true,
+      })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [isExercisesLoading, loaderAnim]);
 
   /* ------------------------- helpers: normalize days ------------------------- */
   const normalizeDays = (days: string[]) => {
@@ -99,7 +127,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
   };
 
   /**
-   * UPDATED: Derive day names this workout is assigned to.
+   * Derive day names this workout is assigned to.
    * - If wk.days exists, map numbers -> names, validate, and normalize.
    * - Otherwise, scan workoutPlan (array of numbers OR objects) and collect all matches.
    */
@@ -141,13 +169,16 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
 
   /* --------------------------- Load existing workout data -------------------------- */
   useEffect(() => {
-    if (mode !== "edit" || contextLoading) return;
+    if (mode !== "edit") {
+      setIsExercisesLoading(false);
+      return;
+    }
 
     let cancelled = false;
-    setIsLoading(true);
 
     (async () => {
       try {
+        setIsExercisesLoading(true);
         const workoutIdParam = params.workoutId as string | undefined;
 
         if (workoutIdParam) {
@@ -158,7 +189,6 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
 
             setExistingWorkoutId(existingWorkout.id);
 
-            // IMPORTANT: await the async mapping
             const transformedExercises: Exercise[] = await Promise.all(
               existingWorkout.exercises.map((ex: any) =>
                 transformExerciseFromAPI(ex, exerciseDatabase)
@@ -187,14 +217,13 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
 
             setExistingWorkoutId(existingWorkout.id);
 
-            // IMPORTANT: await the async mapping
             const transformedExercises: Exercise[] = await Promise.all(
               existingWorkout.exercises.map((ex: any) =>
                 transformExerciseFromAPI(ex, exerciseDatabase)
               )
             );
 
-            // UPDATED: include ALL days this workout appears on, not just dayParam
+            // include ALL days this workout appears on, not just dayParam
             const derivedDays = deriveDaysForWorkout(existingWorkout);
 
             if (cancelled) return;
@@ -213,7 +242,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
         console.error("Error loading workout data:", error);
         Alert.alert("Error", "Failed to load workout data");
       } finally {
-        if (!cancelled) setIsLoading(false);
+        if (!cancelled) setIsExercisesLoading(false);
       }
     })();
 
@@ -224,7 +253,6 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
     mode,
     dayParam,
     params.workoutId,
-    contextLoading,
     getWorkoutById,
     getWorkoutForDay,
     exerciseDatabase,
@@ -249,7 +277,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
     }, [exerciseToReplace])
   );
 
-  // Track exercise IDs
+  // Track exercise IDs (debug)
   useEffect(() => {
     console.log("Current exercise IDs:", workout.exercises.map((ex) => ex.id));
   }, [workout.exercises]);
@@ -347,7 +375,8 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
         : normalizeDays([...workout.days, d]),
     });
 
-  const displayDays = () => {
+  // Returns the FULL (unclamped) label for the selected days
+  const fullDaysLabel = () => {
     const normalized = normalizeDays(workout.days);
     if (normalized.length === 0) return "Select days";
 
@@ -370,6 +399,9 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
     return normalized.join(", ");
   };
 
+  // Returns the CLAMPED label that will be displayed in the UI
+  const displayDays = () => clamp(fullDaysLabel(), DAYS_SUMMARY_CHAR_LIMIT);
+
   const handleSave = async () => {
     const validation = validateWorkoutForSave(workout);
     if (!validation.isValid) {
@@ -377,7 +409,6 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
       return;
     }
 
-    setIsSaving(true);
     try {
       let result;
 
@@ -400,7 +431,6 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
           {
             text: "OK",
             onPress: () => {
-              // Add delay to ensure navigation system is ready
               setTimeout(() => {
                 try {
                   router.back();
@@ -418,8 +448,6 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
     } catch (error) {
       console.error("Save workout error:", error);
       Alert.alert("Error", error instanceof Error ? error.message : "Failed to save workout");
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -434,15 +462,55 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
     });
   };
 
-  /* ------------------------------- Loading State ------------------------------- */
-  if (isLoading || contextLoading) {
+  /* -------------------------------- skeletons -------------------------------- */
+  const ExerciseSkeletonRow: React.FC = () => {
+    const translateX = loaderAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [-80, 80],
+    });
+
     return (
-      <View style={{ flex: 1, backgroundColor: "#0F0E1A", justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color={primaryColor} />
-        <Text style={{ color: "white", marginTop: 16, fontSize: 16 }}>Loading workout...</Text>
+      <View
+        style={{
+          backgroundColor: tertiaryColor,
+          borderRadius: 14,
+          padding: 16,
+          marginBottom: 12,
+          overflow: "hidden",
+        }}
+      >
+        {/* title line */}
+        <View style={{ height: 16, borderRadius: 8, backgroundColor: "rgba(255,255,255,0.08)", width: "55%" }} />
+        {/* sub lines */}
+        <View style={{ height: 10, borderRadius: 6, backgroundColor: "rgba(255,255,255,0.06)", width: "80%", marginTop: 10 }} />
+        <View style={{ height: 10, borderRadius: 6, backgroundColor: "rgba(255,255,255,0.06)", width: "65%", marginTop: 8 }} />
+
+        {/* indeterminate bar */}
+        <View
+          style={{
+            marginTop: 14,
+            height: 6,
+            borderRadius: 3,
+            backgroundColor: "rgba(255,255,255,0.06)",
+            overflow: "hidden",
+          }}
+        >
+          <Animated.View
+            style={{
+              position: "absolute",
+              top: 0,
+              bottom: 0,
+              width: 80,
+              borderRadius: 3,
+              backgroundColor: primaryColor,
+              transform: [{ translateX }],
+              opacity: 0.85,
+            }}
+          />
+        </View>
       </View>
     );
-  }
+  };
 
   /* ------------------------------- UI ------------------------------- */
   return (
@@ -464,16 +532,9 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
             <TouchableOpacity
               onPress={handleSave}
               className="px-4 py-2 rounded-lg flex-row items-center"
-              style={{
-                backgroundColor: isSaving ? primaryColor + "50" : primaryColor,
-                opacity: isSaving ? 0.7 : 1,
-              }}
-              disabled={isSaving}
+              style={{ backgroundColor: primaryColor }}
             >
-              {isSaving && <ActivityIndicator size="small" color="white" style={{ marginRight: 8 }} />}
-              <Text className="text-white font-pmedium">
-                {isSaving ? "Saving..." : "Save"}
-              </Text>
+              <Text className="text-white font-pmedium">Save</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -504,7 +565,15 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
             className="bg-black-200 flex-row justify-between items-center p-3 rounded-lg"
             onPress={() => setShowDayPicker(true)}
           >
-            <Text className="text-white font-pmedium">{displayDays()}</Text>
+            {/* Make sure this stays on one line and truncates */}
+            <Text
+              className="text-white font-pmedium"
+              numberOfLines={1}
+              ellipsizeMode="tail"
+              style={{ flexShrink: 1, marginRight: 8 }}
+            >
+              {displayDays()}
+            </Text>
             <FontAwesome5 name="chevron-down" size={16} color="#CDCDE0" />
           </TouchableOpacity>
           <Text className="text-gray-100 text-xs mt-2">
@@ -529,49 +598,58 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ mode, dayParam }) => {
             </TouchableOpacity>
           </View>
 
-          {workout.exercises.length === 0 ? (
-            <View
-              className="rounded-2xl p-8 items-center"
-              style={{ backgroundColor: tertiaryColor }}
-            >
+          {/* Fixed placeholder container so the page height doesn't jump */}
+          <View style={{ minHeight: 240 }}>
+            {isExercisesLoading ? (
+              <>
+                <ExerciseSkeletonRow />
+                <ExerciseSkeletonRow />
+                <ExerciseSkeletonRow />
+              </>
+            ) : workout.exercises.length === 0 ? (
               <View
-                style={{
-                  width: 80,
-                  height: 80,
-                  borderRadius: 40,
-                  backgroundColor: primaryColor + "20",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  marginBottom: 16,
-                }}
+                className="rounded-2xl p-8 items-center"
+                style={{ backgroundColor: tertiaryColor }}
               >
-                <MaterialCommunityIcons name="dumbbell" size={40} color={primaryColor} />
+                <View
+                  style={{
+                    width: 80,
+                    height: 80,
+                    borderRadius: 40,
+                    backgroundColor: primaryColor + "20",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginBottom: 16,
+                  }}
+                >
+                  <MaterialCommunityIcons name="dumbbell" size={40} color={primaryColor} />
+                </View>
+                <Text className="text-white font-pmedium text-lg text-center mb-2">
+                  No exercises added yet
+                </Text>
+                <Text className="text-gray-100 text-center leading-6">
+                  Tap the "Add Exercise" button to start building your workout routine
+                </Text>
               </View>
-              <Text className="text-white font-pmedium text-lg text-center mb-2">
-                No exercises added yet
-              </Text>
-              <Text className="text-gray-100 text-center leading-6">
-                Tap the "Add Exercise" button to start building your workout routine
-              </Text>
-            </View>
-          ) : (
-            <View>
-              {workout.exercises.map((ex, idx) => (
-                <ExerciseCard
-                  key={ex.id}
-                  exercise={ex}
-                  index={idx}
-                  onUpdate={updateExercise}
-                  onRemove={removeExercise}
-                  onReplace={replaceExercise}
-                  onReorder={reorderExercises}
-                  onReorderComplete={handleReorderComplete}
-                  totalExercises={workout.exercises.length}
-                  allExercises={workout.exercises}
-                />
-              ))}
-            </View>
-          )}
+            ) : (
+              <View>
+                {workout.exercises.map((ex, idx) => (
+                  <ExerciseCard
+                    key={ex.id}
+                    exercise={ex}
+                    index={idx}
+                    onUpdate={updateExercise}
+                    onRemove={removeExercise}
+                    onReplace={replaceExercise}
+                    onReorder={reorderExercises}
+                    onReorderComplete={handleReorderComplete}
+                    totalExercises={workout.exercises.length}
+                    allExercises={workout.exercises}
+                  />
+                ))}
+              </View>
+            )}
+          </View>
         </View>
       </ScrollView>
 

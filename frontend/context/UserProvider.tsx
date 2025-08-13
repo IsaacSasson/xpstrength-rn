@@ -31,6 +31,9 @@ interface UserContextType {
   addCurrency: (amount: number) => void;
   addExperience: (amount: number) => void;
   clearError: () => void;
+
+  /** ✅ NEW: immediately reflect saved notes in local cache so new workouts see them */
+  setExerciseNotes: (exerciseId: number | string, notes: string) => void;
 }
 
 /* ----------------------------- Context ----------------------------- */
@@ -50,6 +53,7 @@ const UserContext = createContext<UserContextType>({
   addCurrency: () => {},
   addExperience: () => {},
   clearError: () => {},
+  setExerciseNotes: () => {},
 });
 
 /* ----------------------------- Provider ----------------------------- */
@@ -194,7 +198,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 
   /* ----------------------------- Legacy Support ----------------------------- */
-  // These functions provide backward compatibility for existing code
   const addCurrency = useCallback((amount: number) => {
     setProfile(prev => prev ? { ...prev, totalCoins: prev.totalCoins + amount } : null);
   }, []);
@@ -204,11 +207,9 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!prev) return null;
       
       const newXp = prev.xp + amount;
-      // Simple level calculation - you might want to adjust this based on your game logic
       const newLevel = Math.floor(newXp / 1000) + 1;
       
       if (newLevel > prev.level) {
-        // Level up bonus
         const levelUpBonus = newLevel * 50;
         return {
           ...prev,
@@ -223,6 +224,19 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const clearError = useCallback(() => setError(null), []);
+
+  /* ----------------------------- ✅ NEW: Notes cache update ----------------------------- */
+  const setExerciseNotes = useCallback((exerciseId: number | string, notes: string) => {
+    const key = String(exerciseId);
+    setExerciseHistory(prev => {
+      const prevEntry = (prev as any)[key] || {};
+      // Keep any existing stats the server may have returned; just update notes
+      return {
+        ...(prev as any),
+        [key]: { ...prevEntry, notes },
+      } as ExerciseHistory;
+    });
+  }, []);
 
   /* ----------------------------- Auth Effect ----------------------------- */
   useEffect(() => {
@@ -268,6 +282,9 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     addCurrency,
     addExperience,
     clearError,
+
+    // ✅ NEW
+    setExerciseNotes,
   };
 
   return (

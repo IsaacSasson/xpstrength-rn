@@ -389,6 +389,36 @@ export const userApi = {
     }
   },
 
+  /* ----------- Exercise Notes ----------- */
+  async saveExerciseNotes(exerciseId: string | number, notes: string): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      console.log(`📝 Saving notes for exercise ${exerciseId}...`);
+      
+      const response = await api.post(`/api/v1/user/save-notes/${exerciseId}`, {
+        data: { notes }
+      });
+
+      if (!response.ok) {
+        const errorDetails = await handleApiError(response);
+        return {
+          success: false,
+          error: errorDetails.error || "Failed to save exercise notes",
+        };
+      }
+
+      const result = await response.json();
+      console.log("✅ Exercise notes saved successfully:", result.message);
+
+      return { success: true };
+    } catch (error) {
+      console.error("❌ Save exercise notes error:", error);
+      return { success: false, error: "Network error occurred" };
+    }
+  },
+
   /* ----------- Bulk Data Load ----------- */
   async loadAllUserData(): Promise<{
     success: boolean;
