@@ -1,6 +1,8 @@
 // Path: /services/userApi.ts
-import { api } from "@/utils/api";
+import { api, API_BASE_URL } from "@/utils/api";
 import { handleApiError } from "@/utils/handleApiError";
+import { Platform } from "react-native";
+import * as FileSystem from "expo-file-system";
 
 /* ----------------------------- Types ----------------------------- */
 export interface UserProfile {
@@ -16,7 +18,7 @@ export interface UserProfile {
   totalTimeWorkedOut: number; // in minutes
   totalCoins: number;
   shopUnlocks: number[];
-  fitnessGoal?: string; // Add fitness goal field
+  fitnessGoal?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -53,7 +55,6 @@ export interface UserHistoryItem {
 /* ----------------------------- Helpers ----------------------------- */
 const toNum = (v: any) => Number(v);
 
-// Transform API profile response to our UserProfile type
 const transformProfileFromAPI = (apiProfile: any): UserProfile => {
   return {
     id: toNum(apiProfile.id),
@@ -67,7 +68,7 @@ const transformProfileFromAPI = (apiProfile: any): UserProfile => {
     total_workouts: toNum(apiProfile.totalWorkouts || apiProfile.total_workouts) || 0,
     totalTimeWorkedOut: toNum(apiProfile.totalTimeWorkedOut || apiProfile.total_time_worked_out) || 0,
     totalCoins: toNum(apiProfile.totalCoins || apiProfile.total_coins) || 0,
-    shopUnlocks: Array.isArray(apiProfile.shopUnlocks) ? apiProfile.shopUnlocks.map(toNum) : 
+    shopUnlocks: Array.isArray(apiProfile.shopUnlocks) ? apiProfile.shopUnlocks.map(toNum) :
                   Array.isArray(apiProfile.shop_unlocks) ? apiProfile.shop_unlocks.map(toNum) : [],
     fitnessGoal: apiProfile.fitnessGoal || apiProfile.fitness_goal || '',
     createdAt: apiProfile.createdAt || apiProfile.created_at,
@@ -75,22 +76,15 @@ const transformProfileFromAPI = (apiProfile: any): UserProfile => {
   };
 };
 
-// Transform API exercise history response to our ExerciseHistory type
 const transformExerciseHistoryFromAPI = (apiHistory: any): ExerciseHistory => {
-  if (!apiHistory || typeof apiHistory !== 'object') {
-    return {};
-  }
+  if (!apiHistory || typeof apiHistory !== 'object') return {};
 
   const transformed: ExerciseHistory = {};
-  
-  // Handle different possible response structures
   Object.entries(apiHistory).forEach(([key, value]: [string, any]) => {
     if (value && typeof value === 'object') {
-      // Validate that the exercise data has the required fields
-      if (typeof value.exercise === 'string' && 
-          typeof value.weight === 'number' && 
+      if (typeof value.exercise === 'string' &&
+          typeof value.weight === 'number' &&
           typeof value.reps === 'number') {
-        
         transformed[key] = {
           exercise: value.exercise,
           weight: toNum(value.weight),
@@ -116,33 +110,19 @@ export const userApi = {
     error?: string;
   }> {
     try {
-      console.log("📊 Fetching user profile...");
       const response = await api.get("/api/v1/user/profile");
 
       if (!response.ok) {
         const errorDetails = await handleApiError(response);
-        return {
-          success: false,
-          error: errorDetails.error || "Failed to fetch profile",
-        };
+        return { success: false, error: errorDetails.error || "Failed to fetch profile" };
       }
 
       const result = await response.json();
-      console.log("✅ Raw profile API response:", result);
-
-      // Extract profile data from the API response structure
       const profileData = result.data?.profileData || result.data || result.profile || result;
-      
-      if (!profileData) {
-        return { success: false, error: "No profile data in response" };
-      }
+      if (!profileData) return { success: false, error: "No profile data in response" };
 
-      const profile = transformProfileFromAPI(profileData);
-      console.log("✅ Transformed profile:", profile);
-
-      return { success: true, profile };
-    } catch (error) {
-      console.error("❌ Get profile error:", error);
+      return { success: true, profile: transformProfileFromAPI(profileData) };
+    } catch {
       return { success: false, error: "Network error occurred" };
     }
   },
@@ -154,71 +134,80 @@ export const userApi = {
     error?: string;
   }> {
     try {
-      console.log("📝 Updating user profile...", Object.keys(params));
-      
-      // Validate that at least one field is being updated
-      const hasUpdates = params.newUsername || params.newEmail || params.newPassword || params.newFitnessGoal;
-      if (!hasUpdates) {
-        return { success: false, error: "At least one field must be provided for update" };
+      // Allow fitnessGoal-only saves; require password only when touching secured fields.
+      const hasAnyUpdate =
+        !!(params.newUsername || params.newEmail || params.newPassword || params.newFitnessGoal !== undefined);
+      if (!hasAnyUpdate) {
+        return { success: false, error: "No updatable fields provided." };
       }
 
-      const response = await api.patch("/api/v1/user/update-profile", {
-        data: params
-      });
-
-      if (!response.ok) {
-        const errorDetails = await handleApiError(response);
+      const touchesSecuredField = !!(params.newUsername || params.newEmail || params.newPassword);
+      if (touchesSecuredField && !params.currentPassword) {
         return {
           success: false,
-          error: errorDetails.error || "Failed to update profile",
+          error: "Current password is required to update username, email, or password."
         };
       }
 
-      const result = await response.json();
-      console.log("✅ Profile update response:", result);
+      console.log("🔄 updateProfile called with params:", params);
 
-      // Extract the updated profile and new access token
-      const profileData = result.data?.user || result.user || result.data || result;
-      const accessToken = result.data?.accessToken || result.accessToken;
+      const response = await api.patch("/api/v1/user/update-profile", { data: params });
 
-      if (!profileData) {
-        return { success: false, error: "No updated profile data in response" };
+      console.log("📡 API Response status:", response.status);
+      console.log("📡 API Response ok:", response.ok);
+
+      if (!response.ok) {
+        const errorDetails = await handleApiError(response);
+        console.log("❌ API Error details:", errorDetails);
+        return { success: false, error: errorDetails.error || "Failed to update profile" };
       }
 
-      const profile = transformProfileFromAPI(profileData);
+      const result = await response.json();
+      console.log("📦 Raw API response:", result);
 
-      return { 
-        success: true, 
-        profile,
-        accessToken 
+      // Backend returns: { data: { newAccessToken, newProfile: { usernameChanged, emailChanged, etc. } } }
+      const accessToken = result.data?.newAccessToken || result.newAccessToken;
+      const changesSummary = result.data?.newProfile || result.newProfile;
+
+      console.log("🔑 Extracted access token:", accessToken ? "Present" : "Missing");
+      console.log("📝 Changes summary:", changesSummary);
+
+      if (!accessToken) {
+        console.log("❌ No access token in response");
+        return { success: false, error: "No access token in response" };
+      }
+
+      // Since the backend only returns a changes summary, we need to fetch the actual updated profile
+      console.log("🔄 Fetching updated profile data...");
+      const profileResult = await userApi.getProfile();
+      
+      if (!profileResult.success || !profileResult.profile) {
+        console.log("❌ Failed to fetch updated profile:", profileResult.error);
+        return { success: false, error: profileResult.error || "Failed to fetch updated profile data" };
+      }
+
+      console.log("✅ Successfully retrieved updated profile:", profileResult.profile);
+
+      return {
+        success: true,
+        profile: profileResult.profile,
+        accessToken
       };
     } catch (error) {
-      console.error("❌ Update profile error:", error);
+      console.error("💥 updateProfile catch block:", error);
       return { success: false, error: "Network error occurred" };
     }
   },
 
-  async deleteAccount(): Promise<{
-    success: boolean;
-    error?: string;
-  }> {
+  async deleteAccount(): Promise<{ success: boolean; error?: string }> {
     try {
-      console.log("🗑️ Deleting user account...");
-      
       const response = await api.delete("/api/v1/user/delete-account");
-
       if (!response.ok) {
         const errorDetails = await handleApiError(response);
-        return {
-          success: false,
-          error: errorDetails.error || "Failed to delete account",
-        };
+        return { success: false, error: errorDetails.error || "Failed to delete account" };
       }
-
-      console.log("✅ Account deleted successfully");
       return { success: true };
-    } catch (error) {
-      console.error("❌ Delete account error:", error);
+    } catch {
       return { success: false, error: "Network error occurred" };
     }
   },
@@ -230,26 +219,16 @@ export const userApi = {
     error?: string;
   }> {
     try {
-      console.log("📜 Fetching user history...");
       const response = await api.get("/api/v1/user/history");
-
       if (!response.ok) {
         const errorDetails = await handleApiError(response);
-        return {
-          success: false,
-          error: errorDetails.error || "Failed to fetch user history",
-        };
+        return { success: false, error: errorDetails.error || "Failed to fetch user history" };
       }
-
       const result = await response.json();
-      console.log("✅ User history response:", result);
-
       const historyData = result.data?.history || result.history || result.data || result;
       const history = Array.isArray(historyData) ? historyData : [];
-
       return { success: true, history };
-    } catch (error) {
-      console.error("❌ Get user history error:", error);
+    } catch {
       return { success: false, error: "Network error occurred" };
     }
   },
@@ -260,60 +239,71 @@ export const userApi = {
     error?: string;
   }> {
     try {
-      console.log(`📜 Fetching user history page ${page} with size ${pageSize}...`);
       const response = await api.get(`/api/v1/user/history/${page}/${pageSize}`);
-
       if (!response.ok) {
         const errorDetails = await handleApiError(response);
-        return {
-          success: false,
-          error: errorDetails.error || "Failed to fetch user history",
-        };
+        return { success: false, error: errorDetails.error || "Failed to fetch user history" };
       }
-
       const result = await response.json();
-      console.log("✅ Paginated user history response:", result);
-
       const historyData = result.data?.history || result.history || result.data || result;
       const history = Array.isArray(historyData) ? historyData : [];
-
       return { success: true, history };
-    } catch (error) {
-      console.error("❌ Get paginated user history error:", error);
+    } catch {
       return { success: false, error: "Network error occurred" };
     }
   },
 
   /* ----------- Profile Picture ----------- */
-  async getProfilePicture(): Promise<{
+  async getProfilePicture(accessToken?: string): Promise<{
     success: boolean;
     uri?: string;
     error?: string;
   }> {
     try {
-      console.log("🖼️ Fetching profile picture...");
-      const response = await api.get("/api/v1/user/profile-picture");
+      // Native: download to cache with Authorization header
+      if (Platform.OS !== "web") {
+        const url = `${API_BASE_URL}/api/v1/user/profile-pic`;  // ✅ Fixed endpoint
+        const dest = `${FileSystem.cacheDirectory}pfp-current.jpg`;
+
+        // Remove any stale file (ok if it doesn't exist)
+        try {
+          await FileSystem.deleteAsync(dest, { idempotent: true });
+        } catch {}
+
+        const { status, uri } = await FileSystem.downloadAsync(url, dest, {
+          headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+        });
+
+        if (status === 200) {
+          return { success: true, uri };
+        }
+        if (status === 404) {
+          return { success: true, uri: undefined };
+        }
+        return { success: false, error: `Failed to fetch profile picture (status ${status})` };
+      }
+
+      // Web: blob -> object URL
+      const response = await api.get("/api/v1/user/profile-pic");  // ✅ Fixed endpoint
 
       if (response.status === 404) {
-        console.log("ℹ️ No profile picture found");
         return { success: true, uri: undefined };
       }
 
       if (!response.ok) {
         const errorDetails = await handleApiError(response);
-        return {
-          success: false,
-          error: errorDetails.error || "Failed to fetch profile picture",
-        };
+        return { success: false, error: errorDetails.error || "Failed to fetch profile picture" };
       }
 
-      const blob = await response.blob();
-      const uri = URL.createObjectURL(blob);
-      console.log("✅ Profile picture loaded");
-
-      return { success: true, uri };
-    } catch (error) {
-      console.error("❌ Get profile picture error:", error);
+      try {
+        const blob = await response.blob();
+        const hasCreateObjectURL = typeof URL !== "undefined" && (URL as any).createObjectURL;
+        const uri = hasCreateObjectURL ? (URL as any).createObjectURL(blob) : undefined;
+        return { success: true, uri };
+      } catch {
+        return { success: true, uri: undefined };
+      }
+    } catch {
       return { success: false, error: "Network error occurred" };
     }
   },
@@ -323,9 +313,6 @@ export const userApi = {
     error?: string;
   }> {
     try {
-      console.log("📤 Uploading new profile picture...");
-
-      // Create FormData for file upload
       const formData = new FormData();
       formData.append('newPFP', {
         uri: imageUri,
@@ -333,20 +320,15 @@ export const userApi = {
         name: 'profile.jpg',
       } as any);
 
-      const response = await api.postFormData("/api/v1/user/profile-picture", formData);
+      const response = await api.postFormData("/api/v1/user/profile-pic", formData);  // ✅ Fixed endpoint
 
       if (!response.ok) {
         const errorDetails = await handleApiError(response);
-        return {
-          success: false,
-          error: errorDetails.error || "Failed to update profile picture",
-        };
+        return { success: false, error: errorDetails.error || "Failed to update profile picture" };
       }
 
-      console.log("✅ Profile picture updated successfully");
       return { success: true };
-    } catch (error) {
-      console.error("❌ Update profile picture error:", error);
+    } catch {
       return { success: false, error: "Network error occurred" };
     }
   },
@@ -358,33 +340,24 @@ export const userApi = {
     error?: string;
   }> {
     try {
-      console.log("💪 Fetching exercise history...");
       const response = await api.get("/api/v1/user/exercise-history");
-
       if (!response.ok) {
         const errorDetails = await handleApiError(response);
-        return {
-          success: false,
-          error: errorDetails.error || "Failed to fetch exercise history",
-        };
+        return { success: false, error: errorDetails.error || "Failed to fetch exercise history" };
       }
 
       const result = await response.json();
-      console.log("✅ Raw exercise history API response:", result);
 
-      // Extract exercise history from the API response structure
-      const historyData = result.data?.exerciseHistory?.exerciseHistory || 
-                         result.data?.exerciseHistory || 
-                         result.data || 
-                         result.exerciseHistory || 
-                         result;
+      const historyData =
+        result.data?.exerciseHistory?.exerciseHistory ||
+        result.data?.exerciseHistory ||
+        result.data ||
+        result.exerciseHistory ||
+        result;
 
       const exerciseHistory = transformExerciseHistoryFromAPI(historyData);
-      console.log("✅ Transformed exercise history:", Object.keys(exerciseHistory).length, "exercises");
-
       return { success: true, exerciseHistory };
-    } catch (error) {
-      console.error("❌ Get exercise history error:", error);
+    } catch {
       return { success: false, error: "Network error occurred" };
     }
   },
@@ -395,32 +368,20 @@ export const userApi = {
     error?: string;
   }> {
     try {
-      console.log(`📝 Saving notes for exercise ${exerciseId}...`);
-      
-      const response = await api.post(`/api/v1/user/save-notes/${exerciseId}`, {
-        data: { notes }
-      });
-
+      const response = await api.post(`/api/v1/user/save-notes/${exerciseId}`, { data: { notes } });
       if (!response.ok) {
         const errorDetails = await handleApiError(response);
-        return {
-          success: false,
-          error: errorDetails.error || "Failed to save exercise notes",
-        };
+        return { success: false, error: errorDetails.error || "Failed to save exercise notes" };
       }
-
-      const result = await response.json();
-      console.log("✅ Exercise notes saved successfully:", result.message);
-
+      await response.json().catch(() => undefined);
       return { success: true };
-    } catch (error) {
-      console.error("❌ Save exercise notes error:", error);
+    } catch {
       return { success: false, error: "Network error occurred" };
     }
   },
 
   /* ----------- Bulk Data Load ----------- */
-  async loadAllUserData(): Promise<{
+  async loadAllUserData(accessToken?: string): Promise<{
     success: boolean;
     profile?: UserProfile;
     profilePictureUri?: string;
@@ -428,50 +389,39 @@ export const userApi = {
     error?: string;
   }> {
     try {
-      console.log("🔄 Loading all user data...");
-
-      // Run all requests in parallel for better performance
       const [profileResult, pictureResult, historyResult] = await Promise.allSettled([
         userApi.getProfile(),
-        userApi.getProfilePicture(),
+        userApi.getProfilePicture(accessToken),
         userApi.getExerciseHistory(),
       ]);
 
-      // Handle profile result (required)
       if (profileResult.status === 'rejected' || !profileResult.value.success) {
-        const error = profileResult.status === 'rejected' 
-          ? profileResult.reason?.message || 'Failed to load profile'
-          : profileResult.value.error || 'Failed to load profile';
+        const error =
+          profileResult.status === 'rejected'
+            ? profileResult.reason?.message || 'Failed to load profile'
+            : profileResult.value.error || 'Failed to load profile';
         return { success: false, error };
       }
 
       const profile = profileResult.value.profile!;
 
-      // Handle profile picture (optional)
       let profilePictureUri: string | undefined;
       if (pictureResult.status === 'fulfilled' && pictureResult.value.success) {
         profilePictureUri = pictureResult.value.uri;
-      } else {
-        console.warn("⚠️ Profile picture load failed, continuing without it");
       }
 
-      // Handle exercise history (optional)
       let exerciseHistory: ExerciseHistory = {};
       if (historyResult.status === 'fulfilled' && historyResult.value.success) {
         exerciseHistory = historyResult.value.exerciseHistory || {};
-      } else {
-        console.warn("⚠️ Exercise history load failed, continuing without it");
       }
 
-      console.log("🎉 All user data loaded successfully!");
       return {
         success: true,
         profile,
         profilePictureUri,
         exerciseHistory,
       };
-    } catch (error) {
-      console.error("❌ Load all user data error:", error);
+    } catch {
       return { success: false, error: "Failed to load user data" };
     }
   },

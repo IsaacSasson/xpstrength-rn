@@ -1,5 +1,5 @@
 // Path: /app/(tabs)/profile/user-profile.tsx
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -14,7 +14,7 @@ import {
   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import * as ImagePicker from "expo-image-picker";
 import { Picker } from "@react-native-picker/picker";
@@ -23,7 +23,7 @@ import { useWorkouts } from "@/context/WorkoutContext";
 import { useAuth } from "@/context/AuthProvider";
 import { useUser } from "@/context/UserProvider";
 import { userApi } from "@/services/userApi";
-import defaultPfp from "@/assets/images/icon.png";
+import profileDefault from "@/assets/images/profile-default.png";
 
 /* ------------------------------ field ------------------------------ */
 const Field: React.FC<{
@@ -32,7 +32,8 @@ const Field: React.FC<{
   onChangeText: (v: string) => void;
   placeholder?: string;
   multiline?: boolean;
-}> = ({ label, value, onChangeText, placeholder, multiline = false }) => {
+  secureTextEntry?: boolean;
+}> = ({ label, value, onChangeText, placeholder, multiline = false, secureTextEntry = false }) => {
   const { tertiaryColor } = useThemeContext();
   return (
     <View className="mb-4">
@@ -44,11 +45,12 @@ const Field: React.FC<{
         placeholderTextColor="#888"
         multiline={multiline}
         numberOfLines={multiline ? 3 : 1}
+        secureTextEntry={secureTextEntry}
         className="text-white px-4 py-3 rounded-xl"
-        style={{ 
+        style={{
           backgroundColor: tertiaryColor,
-          textAlignVertical: multiline ? 'top' : 'center',
-          minHeight: multiline ? 80 : undefined
+          textAlignVertical: multiline ? "top" : "center",
+          minHeight: multiline ? 80 : undefined,
         }}
       />
     </View>
@@ -74,8 +76,9 @@ interface FormState {
   avatarUri: string | null;
   heightFt: number;
   heightIn: number;
-  weightLb: number; // store in lbs internally for backend compatibility
+  weightLb: number; // internal base lbs
   hasChanges: boolean;
+  currentPassword: string; // used only when username/email/password changes
 }
 
 const UserProfile = () => {
@@ -93,21 +96,22 @@ const UserProfile = () => {
     heightIn: 8,
     weightLb: 170,
     hasChanges: false,
+    currentPassword: "",
   });
   const [saving, setSaving] = useState(false);
 
-  // Initialize form with profile data
   useEffect(() => {
     if (profile) {
-      setForm(prev => ({
+      setForm((prev) => ({
         ...prev,
         username: profile.username || "",
         goal: profile.fitnessGoal || "",
+        currentPassword: "",
         hasChanges: false,
       }));
     }
     if (profilePictureUri) {
-      setForm(prev => ({
+      setForm((prev) => ({
         ...prev,
         avatarUri: profilePictureUri,
       }));
@@ -115,14 +119,13 @@ const UserProfile = () => {
   }, [profile, profilePictureUri]);
 
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) => {
-    setForm((prev) => ({ 
-      ...prev, 
+    setForm((prev) => ({
+      ...prev,
       [key]: value,
-      hasChanges: key !== 'avatarUri' ? true : prev.hasChanges // Don't mark changes for avatar changes
+      hasChanges: key !== "avatarUri" ? true : prev.hasChanges,
     }));
   };
 
-  /* derived display values based on unit preference */
   const displayHeightCm = useMemo(
     () => cmFromFtIn(form.heightFt, form.heightIn),
     [form.heightFt, form.heightIn]
@@ -133,136 +136,115 @@ const UserProfile = () => {
     [form.weightLb, convertWeight]
   );
 
-  /* image picker */
+  const usernameChanged =
+    form.username.trim() !== (profile?.username ?? "").trim();
+
+  useEffect(() => {
+    if (!usernameChanged && form.currentPassword) {
+      setForm((prev) => ({ ...prev, currentPassword: "" }));
+    }
+  }, [usernameChanged, form.currentPassword]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      return () => {
+        setForm((prev) => ({ ...prev, currentPassword: "" }));
+      };
+    }, [])
+  );
+
   const pickImage = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert("Permission Required", "Please grant camera roll permissions to change your profile picture.");
+      Alert.alert(
+        "Permission Required",
+        "Please grant camera roll permissions to change your profile picture."
+      );
       return;
     }
-    
+
     const img = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       quality: 0.7,
       aspect: [1, 1],
     });
-    
+
     if (!img.canceled && img.assets?.[0]?.uri) {
       const newUri = img.assets[0].uri;
       update("avatarUri", newUri);
-      
-      // Upload the new profile picture
+
       const uploadResult = await updateProfilePicture(newUri);
       if (!uploadResult) {
         Alert.alert("Error", "Failed to update profile picture.");
-        // Revert the avatar change
-        update("avatarUri", profilePictureUri);
+        update("avatarUri", profilePictureUri ?? null);
       }
     }
   };
 
-  /* save profile changes */
   const onSave = async () => {
     if (!form.hasChanges) {
       router.back();
       return;
     }
 
-    const updates: any = {};
+    const updates: Record<string, any> = {};
     let requiresPassword = false;
-    
-    // Check what fields have actually changed
+
     if (form.username !== profile?.username) {
       if (!form.username.trim()) {
         Alert.alert("Error", "Username cannot be empty.");
         return;
       }
       updates.newUsername = form.username.trim();
-      requiresPassword = true; // Username changes require password
-    }
-    
-    if (form.goal !== profile?.fitnessGoal) {
-      updates.newFitnessGoal = form.goal.trim();
-      // Fitness goal changes don't require password based on typical patterns
+      requiresPassword = true;
     }
 
-    // If no actual changes, just go back
+    if (form.goal !== (profile?.fitnessGoal ?? "")) {
+      updates.newFitnessGoal = form.goal.trim();
+    }
+
     if (Object.keys(updates).length === 0) {
       router.back();
       return;
     }
 
-    // If restricted data is being updated, ask for password first
     if (requiresPassword) {
-      Alert.alert(
-        "Password Required",
-        "Please enter your current password to update sensitive information.",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Continue",
-            onPress: () => promptForPassword(updates)
-          }
-        ]
-      );
-    } else {
-      // No password required, update directly
-      await performUpdate(updates);
+      if (!form.currentPassword.trim()) {
+        Alert.alert(
+          "Password Required",
+          "Please enter your current password to update your username."
+        );
+        return;
+      }
+      updates.currentPassword = form.currentPassword.trim();
     }
-  };
 
-  const promptForPassword = (updates: any) => {
-    Alert.prompt(
-      "Enter Password",
-      "Please enter your current password:",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Update",
-          onPress: (password) => {
-            if (!password?.trim()) {
-              Alert.alert("Error", "Password is required.");
-              return;
-            }
-            performUpdate({ ...updates, currentPassword: password.trim() });
-          }
-        }
-      ],
-      "secure-text"
-    );
+    await performUpdate(updates);
   };
 
   const performUpdate = async (updates: any) => {
     setSaving(true);
     try {
-      console.log("Updating profile with:", Object.keys(updates));
       const result = await userApi.updateProfile(updates);
 
       if (result.success) {
-        // Update access token if provided
         if (result.accessToken) {
           await setAccessToken(result.accessToken);
         }
-        
-        // Refresh profile to get updated data
+        setForm((prev) => ({ ...prev, currentPassword: "", hasChanges: false }));
+
         await refreshProfile();
-        
-        Alert.alert("Success", "Profile updated successfully!", [
-          { text: "OK", onPress: () => router.back() }
-        ]);
+        router.replace("/profile");
       } else {
         Alert.alert("Error", result.error || "Failed to update profile.");
       }
     } catch (error) {
-      console.error("Profile update error:", error);
       Alert.alert("Error", "An unexpected error occurred.");
     } finally {
       setSaving(false);
     }
   };
-
-  /* ---------------------------------------------------------------- */
 
   return (
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
@@ -276,7 +258,6 @@ const UserProfile = () => {
         </View>
       </SafeAreaView>
 
-      {/* ------------------------ FORM ------------------------ */}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.select({ ios: "padding" })}
@@ -289,7 +270,7 @@ const UserProfile = () => {
           <View className="items-center mb-8">
             <TouchableOpacity onPress={pickImage} activeOpacity={0.8}>
               <Image
-                source={form.avatarUri ? { uri: form.avatarUri } : defaultPfp}
+                source={form.avatarUri ? { uri: form.avatarUri } : profileDefault}
                 style={{
                   width: 120,
                   height: 120,
@@ -315,8 +296,24 @@ const UserProfile = () => {
             placeholder="Enter your username"
           />
 
+          {/* current password (visible only if username changed) */}
+          {usernameChanged && (
+            <View className="mb-2">
+              <Field
+                label="Current Password"
+                value={form.currentPassword}
+                onChangeText={(v) => update("currentPassword", v)}
+                placeholder="Required when changing username"
+                secureTextEntry
+              />
+              <Text className="text-gray-400 text-xs" style={{ marginTop: -4 }}>
+                Must provide password to edit username.
+              </Text>
+            </View>
+          )}
+
           {/* gender pills */}
-          <Text className="text-gray-100 mb-1">Gender</Text>
+          <Text className="text-gray-100 mb-1 mt-4">Gender</Text>
           <View className="flex-row mb-4">
             {(["male", "female"] as const).map((g) => {
               const active = form.gender === g;
@@ -348,7 +345,6 @@ const UserProfile = () => {
             value={form.goal}
             onChangeText={(v) => update("goal", v)}
             placeholder="e.g., Bench 315 lbs, Lose 20 pounds..."
-       
           />
 
           <View

@@ -32,7 +32,7 @@ interface UserContextType {
   addExperience: (amount: number) => void;
   clearError: () => void;
 
-  /** ✅ NEW: immediately reflect saved notes in local cache so new workouts see them */
+  /** immediately reflect saved notes in local cache so new workouts see them */
   setExerciseNotes: (exerciseId: number | string, notes: string) => void;
 }
 
@@ -58,7 +58,7 @@ const UserContext = createContext<UserContextType>({
 
 /* ----------------------------- Provider ----------------------------- */
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading: authLoading, user, setAccessToken } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, user, accessToken, setAccessToken } = useAuth();
   
   // State
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -84,23 +84,19 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         console.log("🔄 Loading profile data for user:", user?.username);
 
-        // Use the new userApi service to load all data
-        const result = await userApi.loadAllUserData();
+        // Pass accessToken so native PFP download can include Authorization header
+        const result = await userApi.loadAllUserData(accessToken || undefined);
 
         if (result.success) {
-          console.log("✅ User data loaded successfully:", result);
-          
           // Update state with the loaded data
-          if (result.profile) {
-            setProfile(result.profile);
-          }
-          
+          if (result.profile) setProfile(result.profile);
+
           if (result.profilePictureUri) {
             setProfilePictureUri(result.profilePictureUri);
           } else {
             setProfilePictureUri(null);
           }
-          
+
           if (result.exerciseHistory) {
             setExerciseHistory(result.exerciseHistory);
           } else {
@@ -108,7 +104,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
 
           setHasInitialized(true);
-          console.log("🎉 Profile data loading complete!");
         } else {
           throw new Error(result.error || "Failed to load user data");
         }
@@ -123,7 +118,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsRefreshing(false);
       }
     },
-    [isAuthenticated, user]
+    [isAuthenticated, user, accessToken]
   );
 
   const refreshProfile = useCallback(async () => {
@@ -137,22 +132,27 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       try {
         const result = await userApi.updateProfilePicture(imageUri);
-        
-        if (result.success) {
-          // Update local state with new image
-          setProfilePictureUri(imageUri);
-          return true;
-        } else {
+        if (!result.success) {
           setError(result.error || "Failed to update profile picture");
           return false;
         }
+
+        // Immediately re-download the server copy (authorized) so we point <Image> at the cached file
+        const pic = await userApi.getProfilePicture(accessToken || undefined);
+        if (pic.success) {
+          setProfilePictureUri(pic.uri ?? null);
+        } else {
+          // fallback to picked image if server fetch fails
+          setProfilePictureUri(imageUri);
+        }
+        return true;
       } catch (err) {
         console.error("❌ Error updating profile picture:", err);
         setError(err instanceof Error ? err.message : "Failed to update profile picture");
         return false;
       }
     },
-    [isAuthenticated]
+    [isAuthenticated, accessToken]
   );
 
   /* ----------------------------- Profile Update ----------------------------- */
@@ -173,16 +173,11 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const result = await userApi.updateProfile(apiUpdates);
         
         if (result.success) {
-          // Update access token if provided
+          // Update access token if provided (server may rotate it)
           if (result.accessToken) {
             await setAccessToken(result.accessToken);
           }
-          
-          // Update local profile state
-          if (result.profile) {
-            setProfile(result.profile);
-          }
-          
+          if (result.profile) setProfile(result.profile);
           return true;
         } else {
           setError(result.error || "Failed to update profile");
@@ -205,10 +200,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const addExperience = useCallback((amount: number) => {
     setProfile(prev => {
       if (!prev) return null;
-      
       const newXp = prev.xp + amount;
       const newLevel = Math.floor(newXp / 1000) + 1;
-      
       if (newLevel > prev.level) {
         const levelUpBonus = newLevel * 50;
         return {
@@ -218,19 +211,17 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
           totalCoins: prev.totalCoins + levelUpBonus
         };
       }
-      
       return { ...prev, xp: newXp };
     });
   }, []);
 
   const clearError = useCallback(() => setError(null), []);
 
-  /* ----------------------------- ✅ NEW: Notes cache update ----------------------------- */
+  /* ----------------------------- Notes cache update ----------------------------- */
   const setExerciseNotes = useCallback((exerciseId: number | string, notes: string) => {
     const key = String(exerciseId);
     setExerciseHistory(prev => {
       const prevEntry = (prev as any)[key] || {};
-      // Keep any existing stats the server may have returned; just update notes
       return {
         ...(prev as any),
         [key]: { ...prevEntry, notes },
@@ -240,27 +231,18 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   /* ----------------------------- Auth Effect ----------------------------- */
   useEffect(() => {
-    console.log("🔍 UserContext auth effect:", {
-      isAuthenticated,
-      authLoading,
-      hasInitialized,
-      username: user?.username,
-    });
-
     if (authLoading) return;
 
     if (isAuthenticated && !hasInitialized) {
-      console.log("🔐 Authenticated, loading profile data for:", user?.username);
       setTimeout(() => loadProfileData(false), 100);
     } else if (!isAuthenticated && hasInitialized) {
-      console.log("🔓 Logged out, clearing profile data...");
       setProfile(null);
       setProfilePictureUri(null);
       setExerciseHistory({});
       setError(null);
       setHasInitialized(false);
     }
-  }, [isAuthenticated, authLoading, hasInitialized, loadProfileData, user]);
+  }, [isAuthenticated, authLoading, hasInitialized, loadProfileData]);
 
   /* ----------------------------- Context Value ----------------------------- */
   const contextValue: UserContextType = {
@@ -282,8 +264,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     addCurrency,
     addExperience,
     clearError,
-
-    // ✅ NEW
     setExerciseNotes,
   };
 
