@@ -1,17 +1,22 @@
-// Path: /context/AuthProvider.tsx
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import * as SecureStore from 'expo-secure-store';
-import { API_BASE_URL } from '../utils/api';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  ReactNode,
+} from "react";
+import * as SecureStore from "expo-secure-store";
+import { API_BASE_URL } from "../utils/api";
 
-// Constants for SecureStore keys
-const REFRESH_TOKEN_KEY = 'refreshToken';
+/* ----------------------------- SecureStore keys ----------------------------- */
+const REFRESH_TOKEN_KEY = "refreshToken";
 
-// Types
+/* ---------------------------------- Types ---------------------------------- */
 interface User {
   id: string;
   username: string;
   email: string;
-  // Removed profilePic and other fields - we only need basic info
 }
 
 interface AuthContextType {
@@ -22,103 +27,148 @@ interface AuthContextType {
   setUser: (user: User | null) => void;
   setAccessToken: (token: string | null) => void;
   setRefreshToken: (token: string | null) => Promise<void>;
-  signIn: (userData: User, accessToken: string, refreshToken?: string) => Promise<void>; // Made async
+  signIn: (
+    userData: User,
+    accessToken: string,
+    refreshToken?: string
+  ) => Promise<void>;
   logout: () => Promise<void>;
   clearAuth: () => Promise<void>;
 }
 
-// Create context
+/* ------------------------------- Auth context ------------------------------- */
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Create a custom fetch function that will be used throughout the app
+/* 
+  Global reference that the fetch interceptor reads from.
+  We update it from the provider via useEffect.
+*/
 let authContext: AuthContextType | null = null;
 
-// Enhanced fetch function with automatic token handling
+/* 
+  Single-flight refresh: all 401s wait for the same refresh.
+  Resolves to a string accessToken on success, or null on failure.
+*/
+let refreshPromise: Promise<string | null> | null = null;
+
+/* 
+  Make fetch patch idempotent so we don't wrap multiple times in fast refresh/dev.
+*/
+let fetchPatched = false;
+
+/* Augment RequestInit so we can mark retried requests */
+interface RetriableRequestInit extends RequestInit {
+  _retry?: boolean;
+}
+
+/* ----------------------- Install authenticated fetch ----------------------- */
 const createAuthenticatedFetch = () => {
+  if (fetchPatched) return;
+  fetchPatched = true;
+
   const originalFetch = global.fetch;
-  
-  global.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-    const url = typeof input === 'string' ? input : input.toString();
-    
-    // Only intercept API calls to your backend
-    if (url.startsWith(API_BASE_URL)) {
-      const headers = new Headers(init?.headers);
-      
-      // Add Authorization header if we have a token and it's not already set
-      if (authContext?.accessToken && !headers.get('Authorization')) {
-        headers.set('Authorization', `Bearer ${authContext.accessToken}`);
+
+  // Helper: perform the refresh using the original fetch
+  const doRefresh = async (): Promise<string | null> => {
+    try {
+      const refreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+      if (!refreshToken) return null;
+
+      const res = await originalFetch(`${API_BASE_URL}/api/v1/auth/access-token`, {
+        method: "GET",
+        headers: { refreshToken },
+      });
+
+      if (!res.ok) return null;
+
+      const json = await res.json();
+      const newAccess = json?.data?.accessToken as string | undefined;
+      const newRefresh = json?.data?.refreshToken as string | undefined;
+
+      if (!newAccess) return null;
+
+      // Update context with new tokens
+      authContext?.setAccessToken(newAccess);
+      if (newRefresh) {
+        await authContext?.setRefreshToken(newRefresh);
       }
-      
-      const requestInit: RequestInit = {
-        ...init,
-        headers,
-      };
-      
-      let response = await originalFetch(input, requestInit);
-      
-      // Handle 401 Unauthorized
-      if (response.status === 401 && authContext) {
-        try {
-          console.log('Token expired, attempting refresh...');
-          
-          // Get refresh token from SecureStore
-          const refreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
-          console.log('🔍 Retrieved refresh token from SecureStore:', !!refreshToken);
-          
-          if (!refreshToken) {
-            console.log('No refresh token found, logging out...');
-            await authContext.clearAuth();
-            return response;
-          }
-          
-          // Try to refresh the token with custom header
-          const refreshResponse = await originalFetch(`${API_BASE_URL}/api/v1/auth/access-token`, {
-            method: 'GET',
-            headers: {
-              'refreshToken': refreshToken,
-            },
-          });
-          
-          if (refreshResponse.ok) {
-            const refreshData = await refreshResponse.json();
-            const newToken = refreshData.data.accessToken;
-            const newRefreshToken = refreshData.data.refreshToken; // Backend may provide new refresh token
-            
-            console.log('✅ Token refresh successful');
-            
-            // Update the token in context
-            authContext.setAccessToken(newToken);
-            
-            // Update refresh token if provided
-            if (newRefreshToken) {
-              await authContext.setRefreshToken(newRefreshToken);
-            }
-            
-            // Retry the original request with the new token
-            headers.set('Authorization', `Bearer ${newToken}`);
-            requestInit.headers = headers;
-            
-            response = await originalFetch(input, requestInit);
-          } else {
-            // Refresh failed, clear auth and logout
-            console.log('❌ Token refresh failed, logging out...');
-            await authContext.clearAuth();
-          }
-        } catch (error) {
-          console.error('Token refresh error:', error);
-          await authContext.clearAuth();
-        }
-      }
-      
+
+      return newAccess;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  global.fetch = async (input: RequestInfo | URL, init?: RetriableRequestInit): Promise<Response> => {
+    const url = typeof input === "string" ? input : input.toString();
+
+    // Only intercept calls to our API
+    if (!url.startsWith(API_BASE_URL)) {
+      return originalFetch(input, init);
+    }
+
+    // Never intercept the refresh endpoint to avoid loops
+    const isRefreshEndpoint = url.includes("/api/v1/auth/access-token");
+    if (isRefreshEndpoint) {
+      return originalFetch(input, init);
+    }
+
+    // Prepare headers; attach Authorization if we have a token and it isn't already set
+    const headers = new Headers(init?.headers);
+    if (authContext?.accessToken && !headers.get("Authorization")) {
+      headers.set("Authorization", `Bearer ${authContext.accessToken}`);
+    }
+
+    const firstTryInit: RetriableRequestInit = {
+      ...init,
+      headers,
+    };
+
+    // First attempt
+    let response = await originalFetch(input, firstTryInit);
+
+    // If not 401, or we already retried, return it
+    if (response.status !== 401 || init?._retry) {
       return response;
     }
-    
-    // For non-API calls, use original fetch
-    return originalFetch(input, init);
+
+    // On 401 — try to refresh once, shared among all callers
+    try {
+      if (!refreshPromise) {
+        refreshPromise = doRefresh().finally(() => {
+          // Allow a new refresh attempt for future 401s
+          refreshPromise = null;
+        });
+      }
+
+      const newAccess = await refreshPromise;
+
+      // If refresh failed, clear auth and return original 401
+      if (!newAccess) {
+        await authContext?.clearAuth();
+        return response;
+      }
+
+      // Refresh succeeded — retry original request with new token
+      const retryHeaders = new Headers(firstTryInit.headers);
+      retryHeaders.set("Authorization", `Bearer ${newAccess}`);
+
+      const retryInit: RetriableRequestInit = {
+        ...firstTryInit,
+        headers: retryHeaders,
+        _retry: true,
+      };
+
+      return await originalFetch(input, retryInit);
+    } catch {
+      // If anything goes wrong here, do not loop — clear auth and return the original response
+      await authContext?.clearAuth();
+      return response;
+    }
   };
 };
 
-// AuthProvider Component
+/* ----------------------------- AuthProvider ----------------------------- */
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [accessToken, setAccessTokenState] = useState<string | null>(null);
@@ -126,95 +176,51 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const isAuthenticated = !!user && !!accessToken;
 
-  // Enhanced setAccessToken that manages loading state better
   const setAccessToken = (token: string | null) => {
-    console.log('🔑 Setting access token:', !!token);
     setAccessTokenState(token);
-    // Only set loading to false if we're clearing the token OR if we have both token and user
-    if (!token) {
-      setIsLoading(false);
-    }
+    if (!token) setIsLoading(false);
   };
 
-  // Enhanced setUser that manages loading state better  
   const setUserWithLoadingState = (userData: User | null) => {
-    console.log('👤 Setting user:', userData?.username || 'null');
     setUser(userData);
-    // Only set loading to false if we're clearing the user OR if we have both user and token
-    if (!userData) {
-      setIsLoading(false);
-    }
+    if (!userData) setIsLoading(false);
   };
 
-  // Effect to manage loading state when both user and token are set
   useEffect(() => {
     if (user && accessToken) {
-      console.log('✅ Both user and token set, authentication complete');
       setIsLoading(false);
     }
   }, [user, accessToken]);
 
   const setRefreshToken = async (token: string | null): Promise<void> => {
-    try {
-      if (token) {
-        await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, token);
-        console.log('🔒 Refresh token stored successfully');
-      } else {
-        await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
-        console.log('🔓 Refresh token cleared');
-      }
-    } catch (error) {
-      console.error('❌ Error managing refresh token in SecureStore:', error);
-      throw error; // Re-throw so caller knows it failed
+    if (token) {
+      await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, token);
+    } else {
+      await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
     }
   };
 
-  // FIXED: Made signIn async and await the refresh token storage
-  const signIn = useCallback(async (userData: User, accessTokenData: string, refreshTokenData?: string) => {
-    try {
-      console.log('🔐 Atomic sign in:', userData.username);
+  const signIn = useCallback(
+    async (userData: User, accessTokenData: string, refreshTokenData?: string) => {
       setUser(userData);
       setAccessTokenState(accessTokenData);
-      
-      // IMPORTANT: Await the refresh token storage before continuing
       if (refreshTokenData) {
-        console.log('💾 Storing refresh token...');
         await setRefreshToken(refreshTokenData);
-        console.log('✅ Refresh token stored, sign in complete');
       }
-      
       setIsLoading(false);
-    } catch (error) {
-      console.error('❌ Error during sign in:', error);
-      // If refresh token storage fails, still complete sign in but log the error
-      setIsLoading(false);
-      throw error;
-    }
-  }, []);
+    },
+    []
+  );
 
-  // Initialize auth state on app start
+  // Initialize + patch fetch once
   useEffect(() => {
     initializeAuth();
-    
-    // Set up the fetch interceptor
     createAuthenticatedFetch();
-    
-    // Clean up on unmount
-    return () => {
-      // Reset fetch to original if needed (though this rarely happens in React Native)
-      // global.fetch = originalFetch;
-    };
+    // no unpatch in RN; safe to keep patched until app exit
   }, []);
 
-  // Update the global auth context reference whenever state changes
+  // Keep global reference fresh for the interceptor
   useEffect(() => {
-    console.log('🔄 Auth state changed:', { 
-      hasUser: !!user, 
-      hasToken: !!accessToken, 
-      isAuthenticated, 
-      isLoading 
-    });
-    
     authContext = {
       user,
       accessToken,
@@ -232,82 +238,52 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const initializeAuth = async () => {
     try {
       setIsLoading(true);
-      console.log('🚀 Initializing auth...');
-      
-      // Try to get refresh token from SecureStore
+
       const refreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
-      console.log('🔍 Found refresh token on startup:', !!refreshToken);
-      
       if (refreshToken) {
-        console.log('🔄 Found refresh token, attempting to refresh...');
-        // Try to refresh token on app start
-        const response = await fetch(`${API_BASE_URL}/api/v1/auth/access-token`, {
-          method: 'GET',
-          headers: {
-            'refreshToken': refreshToken,
-          },
+        // Try to get a fresh access token on startup
+        const res = await fetch(`${API_BASE_URL}/api/v1/auth/access-token`, {
+          method: "GET",
+          headers: { refreshToken },
         });
 
-        if (response.ok) {
-          const result = await response.json();
-          const newToken = result.data.accessToken;
-          const newRefreshToken = result.data.refreshToken;
-          
-          setAccessTokenState(newToken);
-          
-          // Update refresh token if provided
-          if (newRefreshToken) {
-            await setRefreshToken(newRefreshToken);
-          }
-          
-          console.log('✅ Token refreshed on app start');
-          
-          // Note: We don't have user data here, but that's okay
-          // The app will need to handle this state appropriately
-          // For now, we'll just have the token without user data
+        if (res.ok) {
+          const data = await res.json();
+          const newAccess = data?.data?.accessToken as string | undefined;
+          const newRefresh = data?.data?.refreshToken as string | undefined;
+
+          if (newAccess) setAccessTokenState(newAccess);
+          if (newRefresh) await setRefreshToken(newRefresh);
         } else {
-          console.log('❌ Refresh token invalid on startup, clearing...');
-          // Refresh token is invalid, clear it
           await setRefreshToken(null);
         }
-      } else {
-        console.log('ℹ️ No refresh token found on startup');
       }
-    } catch (error) {
-      console.log('⚠️ No valid session found on startup:', error);
+    } catch {
       await setRefreshToken(null);
     } finally {
-      console.log('🏁 Auth initialization complete');
       setIsLoading(false);
     }
   };
 
   const clearAuth = async (): Promise<void> => {
-    console.log('🧹 Clearing auth state');
     setAccessTokenState(null);
     setUser(null);
     await setRefreshToken(null);
-    // Don't set loading to true here, as we want other contexts to know auth is cleared
   };
 
   const logout = async (): Promise<void> => {
     try {
-      console.log('👋 Logging out...');
-      // Get refresh token for logout call
       const refreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
-      
-      // Call logout endpoint to invalidate tokens
       await fetch(`${API_BASE_URL}/api/v1/auth/logout`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'refreshToken': refreshToken || '',
+          Authorization: `Bearer ${accessToken ?? ""}`,
+          refreshToken: refreshToken ?? "",
         },
       });
-    } catch (error) {
-      console.error('Logout error:', error);
+    } catch {
+      // ignore
     } finally {
-      // Clear local state regardless of API call success
       await clearAuth();
     }
   };
@@ -325,20 +301,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     clearAuth,
   };
 
-  return (
-    <AuthContext.Provider value={contextValue}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
 };
 
-// Custom hook to use auth context
+/* ------------------------------ Public hook ------------------------------ */
 export const useAuth = (): AuthContextType => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within an AuthProvider");
+  return ctx;
 };
 
 export default AuthProvider;
