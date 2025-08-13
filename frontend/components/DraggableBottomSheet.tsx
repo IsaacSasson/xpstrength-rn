@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import {
   Animated,
   Keyboard,
@@ -85,11 +85,32 @@ const DraggableBottomSheet: React.FC<Props> = ({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const getY = () => ((translateY as any).__getValue?.() ?? 0);
 
+  /* ───────── Helpers to ensure clean closing and state reset ───────── */
+  const resetLift = () => {
+    keyboardLiftRef.current = 0;
+  };
+
+  const performClose = () => {
+    // Always dismiss the keyboard and clear the lift before closing
+    Keyboard.dismiss();
+    resetLift();
+    baseYRef.current = SHEET_HEIGHT;
+    timing(SHEET_HEIGHT, onClose);
+  };
+
   /* ───────── Visibility open/close ───────── */
   useEffect(() => {
+    // If we're transitioning to hidden, proactively dismiss keyboard and clear lift
+    if (!visible) {
+      Keyboard.dismiss();
+      resetLift();
+    }
+
     baseYRef.current = visible ? 0 : SHEET_HEIGHT;
     const target = baseYRef.current + keyboardLiftRef.current;
-    timing(target, visible ? undefined : onClose);
+    // Animate to the correct position but DO NOT call onClose here;
+    // onClose should be invoked only by user interactions (drag/backdrop).
+    timing(target);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, SHEET_HEIGHT]);
 
@@ -103,17 +124,18 @@ const DraggableBottomSheet: React.FC<Props> = ({
 
   /* ───────── Keyboard handling (manual lift to avoid double adjustments) ───────── */
   const pushUpForKeyboard = (e: KeyboardEvent) => {
-    if (!visible) return;
+    if (!visible) return; // no-op if hidden
     const lift = -Math.round(e.endCoordinates.height * Math.max(0, Math.min(1, keyboardOffsetRatio)));
     keyboardLiftRef.current = lift;
     timing(baseYRef.current + lift);
   };
 
   const resetForKeyboard = () => {
-    // Only adjust if still visible; avoid reopening a closed sheet.
-    if (!visible) return;
-    keyboardLiftRef.current = 0;
-    timing(baseYRef.current);
+    // IMPORTANT: Always clear the lift, even if hidden, so the next open is baseline.
+    resetLift();
+    if (visible) {
+      timing(baseYRef.current);
+    }
   };
 
   useEffect(() => {
@@ -155,9 +177,7 @@ const DraggableBottomSheet: React.FC<Props> = ({
         // Compare against a threshold measured from the "lifted baseline".
         const closeThreshold = (SHEET_HEIGHT * 0.35) + lift;
         if (y > closeThreshold) {
-          // If keyboard is up, dismiss it first so we don't fight it.
-          if (lift !== 0) Keyboard.dismiss();
-          timing(SHEET_HEIGHT, onClose);
+          performClose();
         } else {
           timing(baseYRef.current + lift);
         }
@@ -168,9 +188,7 @@ const DraggableBottomSheet: React.FC<Props> = ({
   /* ───────── Backdrop press handling ───────── */
   const handleBackdropPress = () => {
     if (disableBackdropClose) return;
-    // Dismiss keyboard first if present; then close.
-    if (keyboardLiftRef.current !== 0) Keyboard.dismiss();
-    timing(SHEET_HEIGHT, onClose);
+    performClose();
   };
 
   /* ───────── Render ───────── */
@@ -183,7 +201,7 @@ const DraggableBottomSheet: React.FC<Props> = ({
       transparent
       visible={visible}
       animationType="fade"
-      onRequestClose={onClose}
+      onRequestClose={performClose}
       statusBarTranslucent
     >
       {/* Backdrop */}
@@ -198,8 +216,6 @@ const DraggableBottomSheet: React.FC<Props> = ({
 
       {/* Bottom sheet */}
       <View
-        // Acts like a KeyboardAvoidingView only when we are NOT manually lifting
-        // to avoid double adjustments on iOS.
         style={{
           position: "absolute",
           left: 0,
