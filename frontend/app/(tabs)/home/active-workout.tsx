@@ -1,4 +1,3 @@
-// Path: /components/home/ActiveWorkout/ActiveWorkout.tsx
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   View,
@@ -52,7 +51,10 @@ const NOTES_MAX_HEIGHT = 240;   // cap before making it scrollable
 
 interface Set { id: number; lbs: number; reps: number; checked?: boolean; }
 interface Exercise {
+  /** Canonical exercise id (server/library id or local temp) */
   id: string | number;
+  /** Stable, per-card unique id used for React keys */
+  uid: string;
   name: string;
   images?: string[];
   instructions?: string;
@@ -166,6 +168,13 @@ const ActiveWorkout = () => {
   const [initError, setInitError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // uid sequence to ensure stable, unique keys for the lifetime of this screen
+  const uidSeq = useRef(0);
+  const newUid = useCallback((seed: string | number) => {
+    const n = uidSeq.current++;
+    return `${String(seed)}__${n}`;
+  }, []);
+
   // *** title character limit ***
   const MAX_TITLE_LENGTH = 12;
   const truncateTitle = (title: string): string =>
@@ -188,6 +197,14 @@ const ActiveWorkout = () => {
     return historyEntry?.notes || "";
   }, [exerciseHistory]);
 
+  // add uid to any exercise object that doesn't have one yet
+  const withUid = useCallback((ex: any): Exercise => {
+    return {
+      ...ex,
+      uid: ex.uid ?? newUid(ex.id ?? "x"),
+    };
+  }, [newUid]);
+
   useEffect(() => {
     const initializeWorkout = async () => {
       try {
@@ -196,10 +213,12 @@ const ActiveWorkout = () => {
           log("[Workout] Using prewarmed data");
           setWorkoutTitle(prewarmedData.title || "Workout");
 
-          const exercisesWithNotes = prewarmedData.exercises.map((ex: any) => ({
-            ...ex,
-            notes: loadExistingNotes(ex.id) || ex.notes || ""
-          }));
+          const exercisesWithNotes = prewarmedData.exercises.map((ex: any) =>
+            withUid({
+              ...ex,
+              notes: loadExistingNotes(ex.id) || ex.notes || ""
+            })
+          );
 
           setExercises(exercisesWithNotes as Exercise[]);
           setSelectedExerciseIdx(0);
@@ -213,10 +232,12 @@ const ActiveWorkout = () => {
         if (!preset) {
           if (activeSession?.exercises?.length) {
             setWorkoutTitle(activeSession.title || "Workout");
-            const exercisesWithNotes = activeSession.exercises.map((ex: any) => ({
-              ...ex,
-              notes: loadExistingNotes(ex.id) || ex.notes || ""
-            }));
+            const exercisesWithNotes = activeSession.exercises.map((ex: any) =>
+              withUid({
+                ...ex,
+                notes: loadExistingNotes(ex.id) || ex.notes || ""
+              })
+            );
             setExercises(exercisesWithNotes as Exercise[]);
             setSelectedExerciseIdx(0);
             setIsLoading(false);
@@ -233,10 +254,12 @@ const ActiveWorkout = () => {
         if (cached?.exercises?.length) {
           log("[Workout] Using cached data");
           setWorkoutTitle(cached.title || "Workout");
-          const exercisesWithNotes = cached.exercises.map((ex: any) => ({
-            ...ex,
-            notes: loadExistingNotes(ex.id) || ex.notes || ""
-          }));
+          const exercisesWithNotes = cached.exercises.map((ex: any) =>
+            withUid({
+              ...ex,
+              notes: loadExistingNotes(ex.id) || ex.notes || ""
+            })
+          );
           setExercises(exercisesWithNotes as Exercise[]);
           setSelectedExerciseIdx(0);
           setIsLoading(false);
@@ -274,7 +297,7 @@ const ActiveWorkout = () => {
             }));
           }
 
-          return {
+          return withUid({
             id: ex.id,
             name,
             images: meta?.images || [],
@@ -282,7 +305,7 @@ const ActiveWorkout = () => {
             secondaryMuscles: meta?.secondaryMuscles || [],
             sets,
             notes: loadExistingNotes(ex.id) || "",
-          };
+          });
         });
 
         setExercises(processedExercises as Exercise[]);
@@ -297,7 +320,7 @@ const ActiveWorkout = () => {
     };
 
     initializeWorkout();
-  }, [activeSession, unitSystem, getExerciseMeta, parseWeight, convertWeight, loadExistingNotes]);
+  }, [activeSession, unitSystem, getExerciseMeta, parseWeight, convertWeight, loadExistingNotes, withUid]);
 
   /* -------------------------- sets / notes helpers ----------------------- */
   const addSet = (exIdx: number) =>
@@ -443,7 +466,7 @@ const ActiveWorkout = () => {
         return;
       }
 
-      // ✅ success: reflect in current view + global cache so *new workouts* see it
+      // success: reflect in current view + global cache so *new workouts* see it
       setCurrentNotes(notes);
       setExerciseNotes(serverId, notes);
     } catch (error) {
@@ -486,18 +509,18 @@ const ActiveWorkout = () => {
   };
 
   const handleReorderComplete = (reorderedExercises: any[]) => {
-    setExercises(reorderedExercises);
+    setExercises(reorderedExercises as Exercise[]);
     setShowReorderModal(false);
   };
 
   /* ----------------------- add/replace buffer intake --------------------- */
   const makeLocalExerciseFromList = (ex: any): Exercise => {
-    // ✅ Preserve canonical id if present; only fall back to a local id when none exists
     const canonicalOrLocalId =
       ex?.id !== undefined && ex?.id !== null ? ex.id : `aw_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
     return {
       id: canonicalOrLocalId,
+      uid: newUid(canonicalOrLocalId),
       name: ex.name,
       images: ex.images || [],
       instructions: ex.instructions || "",
@@ -523,10 +546,12 @@ const ActiveWorkout = () => {
           if (!next[pendingReplaceIdx]) return prev;
 
           const existingSets = next[pendingReplaceIdx].sets;
+          const keepUid = next[pendingReplaceIdx].uid; // preserve card identity
           const newInfo = makeLocalExerciseFromList(src);
 
           next[pendingReplaceIdx] = {
             ...newInfo,
+            uid: keepUid,
             sets: existingSets.map((s, i) => ({
               id: i + 1,
               reps: s.reps,
@@ -676,11 +701,9 @@ const ActiveWorkout = () => {
               extrapolate: "clamp",
             });
 
-            const uniqueKey = `exercise_${ex.id}_${exIdx}`;
-
             return (
               <Animated.View
-                key={uniqueKey}
+                key={ex.uid}
                 style={{
                   width: CARD_WIDTH,
                   marginRight: CARD_SPACING,
@@ -869,7 +892,7 @@ const ActiveWorkout = () => {
               className="flex-row items-center p-4 border-b border-black-200"
               onPress={opt.onPress}
               disabled={opt.disabled}
-              style={{ opacity: opt.disabled ? 0.5 : 1 }}
+              style={{ opacity: (opt as any).disabled ? 0.5 : 1 }}
             >
               <MaterialCommunityIcons
                 name={opt.icon as any}
@@ -912,7 +935,7 @@ const ActiveWorkout = () => {
                 </Text>
               )}
 
-              {/* Notes box (keeps structure; auto-grows up to NOTES_MAX_HEIGHT) */}
+              {/* Notes box */}
               {isEditingNotes ? (
                 <View
                   style={{
