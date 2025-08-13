@@ -10,11 +10,6 @@ import {
   Platform,
   Vibration,
   ActivityIndicator,
-  TextInput,
-  ScrollView,
-  Keyboard,
-  TouchableWithoutFeedback,
-  Pressable,
 } from "react-native";
 import * as Haptics from "expo-haptics";
 import { router, useFocusEffect } from "expo-router";
@@ -23,7 +18,6 @@ import DraggableBottomSheet from "@/components/DraggableBottomSheet";
 import { useThemeContext } from "@/context/ThemeContext";
 import { useWorkouts } from "@/context/WorkoutContext";
 import { useUser } from "@/context/UserProvider";
-import { userApi } from "@/services/userApi";
 import ActiveWorkoutHeader from "@/components/home/ActiveWorkout/Header";
 import ActiveWorkoutFooter from "@/components/home/ActiveWorkout/Footer";
 import ActiveWorkoutCard from "@/components/home/ActiveWorkout/CarouselCard";
@@ -44,10 +38,6 @@ const SIDE_PADDING = (SCREEN_WIDTH - CARD_WIDTH) / 2;
 const COL_WIDTH = 80;
 const CARD_HEIGHT = 540;
 const CHECK_COL_WIDTH = 32;
-
-// Notes sizing constants
-const NOTES_MIN_HEIGHT = 120;   // starting box height
-const NOTES_MAX_HEIGHT = 240;   // cap before making it scrollable
 
 interface Set { id: number; lbs: number; reps: number; checked?: boolean; }
 interface Exercise {
@@ -402,93 +392,16 @@ const ActiveWorkout = () => {
   /* ------------------------- options & modals state ---------------------- */
   const [pauseModalVisible, setPauseModalVisible] = useState(false);
   const [showOptionsSheet, setShowOptionsSheet] = useState(false);
-  const [notesModalVisible, setNotesModalVisible] = useState(false);
-  const [currentNotes, setCurrentNotes] = useState("");
-  const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [showReorderModal, setShowReorderModal] = useState(false);
   const [pendingReplaceIdx, setPendingReplaceIdx] = useState<number | null>(null);
-  const [notesSaving, setNotesSaving] = useState(false);
-  const notesInputRef = useRef<any>(null);
-
-  // dynamic height for notes editor
-  const [notesHeight, setNotesHeight] = useState(NOTES_MIN_HEIGHT);
 
   /* ------------------------- options handlers ---------------------------- */
-  const handleNotesPress = () => {
-    if (selectedExerciseIdx === null) return;
-    const initial = exercises[selectedExerciseIdx]?.notes || "";
-    setCurrentNotes(initial);
-    setNotesHeight(NOTES_MIN_HEIGHT);
-    setIsEditingNotes(false); // tap to edit
-    setNotesModalVisible(true);
-    setShowOptionsSheet(false);
-  };
-
-  // helper: normalize id to number or null
-  const toServerExerciseId = (id: unknown): number | null => {
-    const n = Number(id);
-    return Number.isFinite(n) ? n : null;
-  };
-
-  const handleNotesSave = async (notes: string) => {
-    if (selectedExerciseIdx === null) return;
-    const exercise = exercises[selectedExerciseIdx];
-    if (!exercise) return;
-
-    try {
-      setNotesSaving(true);
-      // Optimistic local update
-      updateExerciseNotes(selectedExerciseIdx, notes);
-
-      const serverId = toServerExerciseId((exercise as any).id);
-      if (serverId == null) {
-        // Cannot persist for exercises without canonical id
-        console.warn("[Notes] Skipped save: non-canonical exercise id:", (exercise as any).id);
-        setCurrentNotes(notes);
-        Alert.alert(
-          "Note saved locally",
-          "This exercise isn’t linked to a library id yet, so the note can’t be saved to history.",
-          [{ text: "OK" }]
-        );
-        return;
-      }
-
-      const result = await userApi.saveExerciseNotes(serverId, notes);
-
-      if (!result?.success) {
-        // Revert local state if API call failed
-        updateExerciseNotes(selectedExerciseIdx, currentNotes);
-        Alert.alert(
-          "Save Failed",
-          result?.error || "Failed to save notes. Please try again.",
-          [{ text: "OK" }]
-        );
-        return;
-      }
-
-      // success: reflect in current view + global cache so *new workouts* see it
-      setCurrentNotes(notes);
-      setExerciseNotes(serverId, notes);
-    } catch (error) {
-      // Revert local state on error
-      updateExerciseNotes(selectedExerciseIdx, currentNotes);
-      console.error("❌ Error saving notes:", error);
-      Alert.alert(
-        "Save Failed",
-        "Failed to save notes. Please check your connection and try again.",
-        [{ text: "OK" }]
-      );
-    } finally {
-      setNotesSaving(false);
-    }
-  };
-
-  const goToInstructions = () => {
+  const goToDetails = () => {
     if (selectedExerciseIdx === null) return;
     const ex = exercises[selectedExerciseIdx];
     router.push({
       pathname: "/home/exercise-detail",
-      params: { id: (ex as any).id, scrollTo: "bottom" },
+      params: { id: (ex as any).id },
     });
     setShowOptionsSheet(false);
   };
@@ -849,20 +762,14 @@ const ActiveWorkout = () => {
           visible={showOptionsSheet}
           onClose={() => setShowOptionsSheet(false)}
           primaryColor={primaryColor}
-          heightRatio={0.45}
+          heightRatio={0.4}
           scrollable
         >
           {[
             {
-              label: "View Exercise Instructions",
+              label: "View Exercise Details",
               icon: "information-outline",
-              onPress: goToInstructions,
-            },
-            {
-              label: notesSaving ? "Saving Notes..." : "Notes",
-              icon: "note-text-outline",
-              onPress: handleNotesPress,
-              disabled: notesSaving,
+              onPress: goToDetails,
             },
             {
               label: "Replace Exercise",
@@ -891,8 +798,6 @@ const ActiveWorkout = () => {
               key={opt.label}
               className="flex-row items-center p-4 border-b border-black-200"
               onPress={opt.onPress}
-              disabled={opt.disabled}
-              style={{ opacity: (opt as any).disabled ? 0.5 : 1 }}
             >
               <MaterialCommunityIcons
                 name={opt.icon as any}
@@ -907,106 +812,6 @@ const ActiveWorkout = () => {
               </Text>
             </TouchableOpacity>
           ))}
-        </DraggableBottomSheet>
-
-        {/* Notes Bottom Sheet — tap to edit, auto-grow lines, tap outside to save */}
-        <DraggableBottomSheet
-          visible={notesModalVisible}
-          onClose={() => {
-            setNotesModalVisible(false);
-            setIsEditingNotes(false);
-          }}
-          primaryColor={primaryColor}
-          heightRatio={0.5}
-          scrollable={!isEditingNotes}
-          keyboardOffsetRatio={0.7}
-        >
-          {/* Outside tap: dismiss keyboard -> onBlur saves */}
-          <TouchableWithoutFeedback
-            onPress={() => {
-              if (isEditingNotes) Keyboard.dismiss();
-            }}
-          >
-            <View style={{ padding: 20 }}>
-              {/* Exercise Name */}
-              {selectedExerciseIdx !== null && (
-                <Text className="text-gray-300 font-pmedium text-lg mb-4">
-                  {exercises[selectedExerciseIdx]?.name}
-                </Text>
-              )}
-
-              {/* Notes box */}
-              {isEditingNotes ? (
-                <View
-                  style={{
-                    backgroundColor: "#1A1A1A",
-                    padding: 16,
-                    borderRadius: 8,
-                  }}
-                >
-                  <TextInput
-                    ref={notesInputRef}
-                    value={currentNotes}
-                    onChangeText={setCurrentNotes}
-                    placeholder="Add your notes here..."
-                    placeholderTextColor="#666"
-                    multiline
-                    textAlignVertical="top"
-                    style={{
-                      height: notesHeight,
-                      maxHeight: NOTES_MAX_HEIGHT,
-                      color: "white",
-                      fontSize: 16,
-                      fontFamily: "Poppins-Regular",
-                    }}
-                    autoFocus
-                    onContentSizeChange={(e) => {
-                      const h = e.nativeEvent.contentSize.height;
-                      const clamped = Math.min(Math.max(h, NOTES_MIN_HEIGHT), NOTES_MAX_HEIGHT);
-                      if (clamped !== notesHeight) setNotesHeight(clamped);
-                    }}
-                    scrollEnabled={notesHeight >= NOTES_MAX_HEIGHT}
-                    onBlur={async () => {
-                      await handleNotesSave(currentNotes);
-                      setIsEditingNotes(false);
-                    }}
-                  />
-                </View>
-              ) : (
-                <Pressable
-                  onPress={() => {
-                    setIsEditingNotes(true);
-                    setTimeout(() => notesInputRef.current?.focus?.(), 0);
-                  }}
-                >
-                  <View
-                    style={{
-                      backgroundColor: "#1A1A1A",
-                      padding: 16,
-                      borderRadius: 8,
-                      minHeight: NOTES_MIN_HEIGHT,
-                      maxHeight: NOTES_MAX_HEIGHT,
-                    }}
-                  >
-                    {currentNotes.trim() ? (
-                      <ScrollView
-                        style={{ maxHeight: NOTES_MAX_HEIGHT - 2 }}
-                        keyboardShouldPersistTaps="handled"
-                      >
-                        <Text className="text-white font-pregular text-base leading-6">
-                          {currentNotes}
-                        </Text>
-                      </ScrollView>
-                    ) : (
-                      <Text className="text-gray-500 font-pregular text-base italic">
-                        Tap here to add notes
-                      </Text>
-                    )}
-                  </View>
-                </Pressable>
-              )}
-            </View>
-          </TouchableWithoutFeedback>
         </DraggableBottomSheet>
 
         <ReorderModal

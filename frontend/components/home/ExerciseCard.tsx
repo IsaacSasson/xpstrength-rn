@@ -207,7 +207,7 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
       setShowOptionsModal(false);
       router.push({
         pathname: "/home/exercise-detail",
-        params: { id: exercise.originalExerciseId, scrollTo: "bottom" },
+        params: { id: exercise.originalExerciseId },
       });
     } else {
       Alert.alert(
@@ -578,7 +578,7 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
       >
         {[
           {
-            label: "View Exercise Instructions",
+            label: "View Exercise Details",
             icon: "information-outline",
             onPress: handleViewInstructions,
           },

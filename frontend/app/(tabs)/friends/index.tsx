@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Keyboard, // 👈 added
 } from "react-native";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import TopBar from "@/components/TopBar";
@@ -43,10 +44,25 @@ const Friends = () => {
   );
   const [searchQuery, setSearchQuery] = useState("");
 
-  /* ------ Add‑friend sheet state ------ */
+  /* ------ Add-friend sheet state ------ */
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [username, setUsername] = useState("");
   const [addErr, setAddErr] = useState<string | null>(null);
+
+  /* ---------- Helpers to open/close the add-friend sheet cleanly ---------- */
+  const openAddSheet = () => {
+    // Not strictly necessary, but ensures no stray keyboard from prior screens
+    Keyboard.dismiss();
+    setShowAddSheet(true);
+  };
+
+  const closeAddSheet = () => {
+    // 👇 Step 2: proactively dismiss keyboard before hiding the sheet
+    Keyboard.dismiss();
+    setShowAddSheet(false);
+    setAddErr(null);
+    setUsername("");
+  };
 
   /* ------------------------ Tab helpers ------------------------ */
   const handleTabChange = (tab: string) =>
@@ -77,9 +93,7 @@ const Friends = () => {
         ? sendFriendRequest(trimmed)
         : Promise.reject(new Error("sendFriendRequest not implemented")));
       Alert.alert("Request Sent", `Friend request sent to ${trimmed}.`);
-      setUsername("");
-      setAddErr(null);
-      setShowAddSheet(false);
+      closeAddSheet(); // also clears field + error
     } catch (e: any) {
       setAddErr(e.message || "Something went wrong. Try again.");
     }
@@ -209,7 +223,7 @@ const Friends = () => {
           />
         </View>
         <TouchableOpacity
-          onPress={() => setShowAddSheet(true)}
+          onPress={openAddSheet}
           className="rounded-xl h-12 w-12 items-center justify-center"
           style={{ backgroundColor: primaryColor }}
         >
@@ -233,14 +247,10 @@ const Friends = () => {
         {renderTabContent()}
       </ScrollView>
 
-      {/* -------- Add Friend Bottom‑Sheet -------- */}
+      {/* -------- Add Friend Bottom-Sheet -------- */}
       <DraggableBottomSheet
         visible={showAddSheet}
-        onClose={() => {
-          setShowAddSheet(false);
-          setAddErr(null);
-          setUsername("");
-        }}
+        onClose={closeAddSheet} // 👈 ensure consistent close path
         primaryColor={primaryColor}
         heightRatio={0.45}
         keyboardOffsetRatio={0.8}
@@ -273,11 +283,7 @@ const Friends = () => {
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={() => {
-            setShowAddSheet(false);
-            setAddErr(null);
-            setUsername("");
-          }}
+          onPress={closeAddSheet} // 👈 Step 2 applied here
           className="bg-black-200 mt-4 p-4 rounded-xl"
         >
           <Text className="text-white text-center font-pmedium">Cancel</Text>
