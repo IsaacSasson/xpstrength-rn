@@ -1,9 +1,9 @@
+// Path: /app/(tabs)/finished-workout.tsx
 import React from "react";
 import {
   View,
   Text,
   ScrollView,
-  Image,
   StatusBar,
   TouchableOpacity,
 } from "react-native";
@@ -13,7 +13,6 @@ import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useThemeContext } from "@/context/ThemeContext";
 import { useWorkouts } from "@/context/WorkoutContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import pfptest from "@/assets/images/favicon.png";
 
 /* ------------------------------------------------------------------ */
 /*                           Types & Helpers                          */
@@ -63,7 +62,6 @@ const FinishedWorkout = () => {
     level = "12",
     xp = "2863",
     xpNext = "5000",
-    /* achievements prog example: [{id:'streak',title:'7-Day Streak',icon:'fire',prev:3,now:4}] */
     ach = "[]",
     ex = "[]", // exercises JSON
   } = useLocalSearchParams<{
@@ -94,10 +92,9 @@ const FinishedWorkout = () => {
   }[] = JSON.parse(ach as string);
   const exercises: ExerciseSummary[] = JSON.parse(ex as string);
 
-  // Convert volume to user's preferred unit (assuming it comes in lbs)
+  // Consistent display: convert lbs -> current unit, then formatWeight
   const convertedVolume = convertWeight(volumeNum, "imperial", unitSystem);
-  const formattedVolumeNumber = Math.round(convertedVolume);
-  const volumeUnit = unitSystem === "metric" ? "kg" : "lbs";
+  const formattedVolume = formatWeight(convertedVolume, unitSystem);
 
   /* ---------------------------------------------------------------- */
 
@@ -111,27 +108,17 @@ const FinishedWorkout = () => {
           className="rounded-2xl p-5 mt-20 mb-6"
           style={{ backgroundColor: tertiaryColor }}
         >
-          <View className="flex-row items-center mb-4">
-            <Image
-              source={pfptest}
-              style={{
-                width: 50,
-                height: 50,
-                borderRadius: 25,
-                marginRight: 12,
-              }}
-            />
-            <View>
-              <Text
-                className="text-white font-psemibold text-lg"
-                style={{ color: primaryColor }}
-              >
-                Workout Complete!
-              </Text>
-              <Text className="text-gray-100 text-xs">
-                Great job — keep the streak alive!
-              </Text>
-            </View>
+          {/* Header without image */}
+          <View className="mb-4">
+            <Text
+              className="text-white font-psemibold text-lg"
+              style={{ color: primaryColor }}
+            >
+              Workout Complete!
+            </Text>
+            <Text className="text-gray-100 text-xs">
+              Great job — keep the streak alive!
+            </Text>
           </View>
 
           {/* quick stats */}
@@ -143,7 +130,7 @@ const FinishedWorkout = () => {
                 color={primaryColor}
               />
               <Text className="text-white mt-1 font-pmedium">
-                {formattedVolumeNumber.toLocaleString()} {volumeUnit}
+                {formattedVolume}
               </Text>
               <Text className="text-gray-100 text-xs">Total Volume</Text>
             </View>
@@ -238,11 +225,16 @@ const FinishedWorkout = () => {
               </Text>
 
               {ex.sets.map((set, idx) => {
-                // Convert weight to user's preferred unit (assuming stored in lbs)
-                const convertedWeight = convertWeight(set.lbs, "imperial", unitSystem);
-                const formattedWeight = unitSystem === "metric" 
-                  ? `${convertedWeight.toFixed(1)} kg`
-                  : `${Math.round(convertedWeight)} lbs`;
+                // Per-set display stays as before (kg 1-dec, lbs whole)
+                const convertedWeight = convertWeight(
+                  set.lbs,
+                  "imperial",
+                  unitSystem
+                );
+                const formattedWeight =
+                  unitSystem === "metric"
+                    ? `${convertedWeight.toFixed(1)} kg`
+                    : `${Math.round(convertedWeight)} lbs`;
 
                 return (
                   <View

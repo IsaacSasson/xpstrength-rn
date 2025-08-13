@@ -3,21 +3,78 @@ import { api } from "@/utils/api";
 import { handleApiError } from "@/utils/handleApiError";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-/* ---------------------------- Helpers ---------------------------- */
+/* ---------------------------- Unit helpers ---------------------------- */
+// Exact constants to avoid drift when users flip units frequently
+const LBS_TO_KG = 0.45359237;
+const KG_TO_LBS = 1 / LBS_TO_KG;
+
 const toNum = (v: any) => Number(v);
 
 const UNIT_KEY = "unit_preference";
 
-// Load unit preference (imperial by default)
+// Load unit preference for UI fallback parsing when strings omit units
 const getUnitPreference = async (): Promise<"imperial" | "metric"> => {
   const saved = await AsyncStorage.getItem(UNIT_KEY);
   return saved === "metric" ? "metric" : "imperial";
 };
 
-// Convert kg <-> lbs
-const lbsToKg = (lbs: number) => lbs * 0.453592;
-const kgToLbs = (kg: number) => kg / 0.453592;
+// Display-side converters (used in hydration)
+const lbsToKg = (lbs: number) => lbs * LBS_TO_KG;
 
+/* ---------------------------- Parsing helpers ---------------------------- */
+// Robustly parse string or number weights into whole lbs for the API.
+// - "60", "60 kg", "60kgs", "135 lbs", 135 -> lbs
+// - If unit is missing, fall back to current unit preference.
+const parseWeightStringToLbs = (
+  input: unknown,
+  fallbackUnit: "imperial" | "metric"
+): number => {
+  // Object form { value, unit } defensively supported
+  if (input && typeof input === "object") {
+    const maybe = input as any;
+    if (typeof maybe.value === "number") {
+      const val = maybe.value;
+      const u = String(maybe.unit ?? (fallbackUnit === "metric" ? "kg" : "lbs")).toLowerCase();
+      if (u.startsWith("kg")) return Math.round(val * KG_TO_LBS);
+      return Math.round(val);
+    }
+  }
+
+  if (typeof input === "number") {
+    // Numbers are assumed to already be lbs in this codebase
+    return Math.max(0, Math.round(input));
+  }
+
+  if (typeof input === "string") {
+    const s = input.trim().toLowerCase();
+    const numMatch = s.match(/(\d+(?:\.\d+)?)/);
+    const unitMatch = s.match(/\b(kg|kgs|kilogram|kilograms|lb|lbs)\b/);
+    const raw = numMatch ? parseFloat(numMatch[1]) : 0;
+
+    if (unitMatch) {
+      const u = unitMatch[1];
+      if (u.startsWith("kg")) return Math.max(0, Math.round(raw * KG_TO_LBS));
+      return Math.max(0, Math.round(raw));
+    }
+
+    // No explicit unit -> use preference
+    if (fallbackUnit === "metric") return Math.max(0, Math.round(raw * KG_TO_LBS));
+    return Math.max(0, Math.round(raw));
+  }
+
+  return 0;
+};
+
+const parseReps = (input: unknown): number => {
+  if (typeof input === "number") return Math.max(0, Math.round(input));
+  if (typeof input === "string") {
+    const n = parseFloat(input);
+    return Number.isFinite(n) ? Math.max(0, Math.round(n)) : 0;
+  }
+  return 0;
+};
+
+/* ---------------------------- Plan extractor ---------------------------- */
 const extractPlan = (result: any): number[] | null => {
   const candidates = [
     result?.plan,
@@ -31,27 +88,19 @@ const extractPlan = (result: any): number[] | null => {
 };
 
 /* ------------------------- Transformers -------------------------- */
-// Component Exercise -> API exerciseObj2
+// Component Exercise -> API exerciseObj2 (server expects lbs as `weight`)
 export const transformExerciseToAPI = (exercise: any) => {
   return {
     ...exercise,
     __transform__: async () => {
-      const unit = await getUnitPreference();
-      const sets = exercise.sets.map((set: any) => {
-        // Extract numeric weight from string like "25.5 lbs" or "12 kg"
-        const weightMatch = set.weight.match(/(\d+(?:\.\d+)?)/);
-        let weight = weightMatch ? parseFloat(weightMatch[1]) : 0;
+      const unitPref = await getUnitPreference();
 
-        // If metric, convert kg -> lbs before sending
-        if (unit === "metric") {
-          weight = kgToLbs(weight);
-        }
-
-        const reps = parseInt(set.reps) || 0;
-
+      const sets = (exercise.sets || []).map((set: any) => {
+        const reps = parseReps(set.reps);
+        const lbs = parseWeightStringToLbs(set.weight, unitPref); // normalize to whole lbs
         return {
-          reps: Math.max(0, reps),
-          weight: Math.max(0, weight),
+          reps,
+          weight: Math.max(0, lbs), // API payload uses `weight` in lbs
         };
       });
 
@@ -61,17 +110,12 @@ export const transformExerciseToAPI = (exercise: any) => {
         cooldown: 60,
       };
 
-      console.log(`Transforming exercise "${exercise.name}":`, {
-        original: exercise,
-        transformed,
-      });
-
       return transformed;
     },
   };
 };
 
-// API exerciseObj2 -> Component Exercise
+// API exerciseObj2 -> Component Exercise (hydrate with unit-aware display strings)
 export const transformExerciseFromAPI = async (
   apiExercise: any,
   exerciseDatabase: any[]
@@ -85,25 +129,34 @@ export const transformExerciseFromAPI = async (
   let sets;
   if (Array.isArray(apiExercise.sets)) {
     sets = apiExercise.sets.map((set: any) => {
-      let weight = set.weight || 0;
-      // Convert lbs -> kg if metric
+      const rawLbs = Number(set.weight || 0);
       if (unit === "metric") {
-        weight = lbsToKg(weight);
+        const kg = lbsToKg(rawLbs);
+        return {
+          reps: String(parseReps(set.reps)),
+          weight: `${kg.toFixed(1)} kg`,
+        };
       }
       return {
-        reps: String(set.reps || 0),
-        weight: `${unit === "metric" ? weight.toFixed(1) + " kg" : weight + " lbs"}`,
+        reps: String(parseReps(set.reps)),
+        weight: `${Math.round(rawLbs)} lbs`,
       };
     });
   } else {
-    sets = Array.from({ length: apiExercise.sets || 1 }, () => {
-      let weight = apiExercise.weight || 0;
+    // Legacy summary shape fallback
+    const count = toNum(apiExercise.sets) || 1;
+    const baseLbs = Number(apiExercise.weight || 0);
+    sets = Array.from({ length: count }, () => {
       if (unit === "metric") {
-        weight = lbsToKg(weight);
+        const kg = lbsToKg(baseLbs);
+        return {
+          reps: String(parseReps(apiExercise.reps)),
+          weight: `${kg.toFixed(1)} kg`,
+        };
       }
       return {
-        reps: String(apiExercise.reps || 0),
-        weight: `${unit === "metric" ? weight.toFixed(1) + " kg" : weight + " lbs"}`,
+        reps: String(parseReps(apiExercise.reps)),
+        weight: `${Math.round(baseLbs)} lbs`,
       };
     });
   }
@@ -149,11 +202,6 @@ export const workoutApi = {
         transformedExercises.push(await transformExerciseToAPI(ex).__transform__());
       }
 
-      console.log("Creating workout with data:", {
-        name,
-        exercises: transformedExercises,
-      });
-
       const response = await api.post("/api/v1/user/custom-workout", {
         data: { exercises: transformedExercises, name },
       });
@@ -167,7 +215,6 @@ export const workoutApi = {
       }
 
       const result = await response.json();
-      console.log("Create workout API response:", result);
 
       let workoutData;
       if (result.data?.newCustomWorkout)
@@ -177,7 +224,6 @@ export const workoutApi = {
       else workoutData = result;
 
       if (!workoutData || !workoutData.id) {
-        console.error("No workout ID found in response:", result);
         return { success: false, error: "Server did not return a workout ID" };
       }
 
@@ -191,10 +237,8 @@ export const workoutApi = {
         updatedAt: workoutData.updatedAt,
       };
 
-      console.log("Successfully extracted workout ID:", workout.id);
       return { success: true, workout };
     } catch (error) {
-      console.error("Create workout error:", error);
       return { success: false, error: "Network error occurred" };
     }
   },
@@ -219,12 +263,6 @@ export const workoutApi = {
         transformedExercises.push(await transformExerciseToAPI(ex).__transform__());
       }
 
-      console.log("Updating workout with data:", {
-        id,
-        name,
-        exercises: transformedExercises,
-      });
-
       const response = await api.put("/api/v1/user/custom-workout", {
         data: { exercises: transformedExercises, name, id },
       });
@@ -238,7 +276,6 @@ export const workoutApi = {
       }
 
       const result = await response.json();
-      console.log("Update workout API response:", result);
 
       let workoutData;
       if (result.data?.updatedCustomWorkout)
@@ -254,15 +291,13 @@ export const workoutApi = {
         name: workoutData.name ?? name,
         exercises: workoutData.exercises || [],
         userId:
-          workoutData.userId != null ? toNum(workoutData.userId) : undefined,
+        workoutData.userId != null ? toNum(workoutData.userId) : undefined,
         createdAt: workoutData.createdAt,
         updatedAt: workoutData.updatedAt,
       };
 
-      console.log("Successfully processed update for workout ID:", workout.id);
       return { success: true, workout };
     } catch (error) {
-      console.error("Update workout error:", error);
       return { success: false, error: "Network error occurred" };
     }
   },
@@ -284,7 +319,6 @@ export const workoutApi = {
       }
 
       const result = await response.json();
-      console.log("Get custom workouts response:", result);
 
       const workoutsData =
         result.data?.customWorkouts ?? result.customWorkouts ?? [];
@@ -300,7 +334,6 @@ export const workoutApi = {
 
       return { success: true, workouts };
     } catch (error) {
-      console.error("Get workouts error:", error);
       return { success: false, error: "Network error occurred" };
     }
   },
@@ -322,12 +355,10 @@ export const workoutApi = {
       }
 
       const result = await response.json();
-      console.log("Delete workout response:", result);
 
       const planArr = extractPlan(result) ?? null;
       return { success: true, plan: planArr || undefined };
     } catch (error) {
-      console.error("Delete workout error:", error);
       return { success: false, error: "Network error occurred" };
     }
   },
@@ -350,7 +381,6 @@ export const workoutApi = {
       }
 
       const result = await response.json();
-      console.log("Get workout plan response:", result);
 
       const planArr = extractPlan(result);
       if (!planArr || planArr.length !== 7) {
@@ -359,7 +389,6 @@ export const workoutApi = {
 
       return { success: true, plan: planArr };
     } catch (error) {
-      console.error("Get workout plan error:", error);
       return { success: false, error: "Network error occurred" };
     }
   },
@@ -369,7 +398,6 @@ export const workoutApi = {
   ): Promise<{ success: boolean; plan?: number[]; error?: string }> {
     try {
       const normalized = plan.map(toNum);
-      console.log("Updating workout plan with:", normalized);
 
       const response = await api.put("/api/v1/user/workout-plan", {
         data: { newPlan: normalized },
@@ -377,7 +405,6 @@ export const workoutApi = {
 
       if (!response.ok) {
         const errorDetails = await handleApiError(response);
-        console.error("Workout plan update failed:", errorDetails);
         return {
           success: false,
           error: errorDetails.error || "Failed to update workout plan",
@@ -385,12 +412,10 @@ export const workoutApi = {
       }
 
       const result = await response.json();
-      console.log("Workout plan update response:", result);
 
       const planArr = extractPlan(result) ?? normalized;
       return { success: true, plan: planArr };
     } catch (error) {
-      console.error("Update workout plan error:", error);
       return { success: false, error: "Network error occurred" };
     }
   },

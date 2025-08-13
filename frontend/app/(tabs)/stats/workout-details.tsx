@@ -1,4 +1,3 @@
-// Path: /app/workout-details.tsx
 import React, { useMemo } from "react";
 import {
   View,
@@ -14,7 +13,7 @@ import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import { useThemeContext } from "@/context/ThemeContext";
 import { useWorkouts } from "@/context/WorkoutContext";
-import type { PastWorkout } from "./workout-history"; // reuse your type
+import type { PastWorkout } from "./workout-history";
 import pfptest from "@/assets/images/favicon.png";
 import Header from "@/components/Header";
 
@@ -62,7 +61,6 @@ const formatDate = (iso: string) =>
 const formatTimeFromSeconds = (sec: number) =>
   `${Math.floor(sec / 60)}m ${sec % 60}s`;
 
-/* -------- progress bar (same as FinishedWorkout) -------- */
 const ProgressBar: React.FC<{
   progress: number;
   total: number;
@@ -79,15 +77,11 @@ const ProgressBar: React.FC<{
   );
 };
 
-/* -------- utility to normalize exercises -------- */
 const normalizeExercises = (exs: any[]): ExerciseDetailed[] => {
   return exs.map((ex, i) => {
-    // If ex.sets is already an array of objects -> good
     if (Array.isArray(ex.sets) && typeof ex.sets[0] === "object") {
       return ex as ExerciseDetailed;
     }
-
-    // Otherwise, assume summary form { name, sets: number, reps: number, lbs? }
     const count = Number(ex.sets) || 0;
     const repsEach = Number(ex.reps) || 0;
     const lbsEach = Number(ex.lbs) || 0;
@@ -109,10 +103,10 @@ const calcTotals = (exs: ExerciseDetailed[]) => {
   exs.forEach((ex) => {
     ex.sets.forEach((s) => {
       sets += 1;
-      volume += (s.lbs || 0) * (s.reps || 0);
+      volume += (s.lbs || 0) * (s.reps || 0); // lbs * reps
     });
   });
-  return { sets, volume };
+  return { sets, volume }; // volume in lbs
 };
 
 /* ------------------------------------------------------------------ */
@@ -150,17 +144,16 @@ const WorkoutDetails: React.FC = () => {
     );
   }
 
-  // Normalize exercise shape to match FinishedWorkout style
   const detailedExercises = normalizeExercises(workout.exercises);
-  const { sets: totalSets, volume: totalVolume } =
+  const { sets: totalSets, volume: totalVolumeLbs } =
     calcTotals(detailedExercises);
 
-  // Convert total volume to user's preferred unit (assuming stored in lbs)
-  const convertedTotalVolume = convertWeight(totalVolume, "imperial", unitSystem);
-  const formattedTotalVolume = Math.round(convertedTotalVolume);
-  const volumeUnit = unitSystem === "metric" ? "kg" : "lbs";
+  // Consistent display for total volume
+  const formattedTotalVolume = formatWeight(
+    convertWeight(totalVolumeLbs, "imperial", unitSystem),
+    unitSystem
+  );
 
-  // Try to parse duration like "12m 30s" back to seconds if possible
   const durationMatch = workout.duration.match(/(\d+)m\s*(\d+)s/i);
   const durationSeconds = durationMatch
     ? Number(durationMatch[1]) * 60 + Number(durationMatch[2])
@@ -170,7 +163,6 @@ const WorkoutDetails: React.FC = () => {
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
       <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
 
-      {/* Header (keep back button) */}
       <SafeAreaView edges={["top"]} className="bg-primary">
         <View className="px-4 pt-6">
           <View className="flex-row items-center mb-6">
@@ -180,35 +172,23 @@ const WorkoutDetails: React.FC = () => {
       </SafeAreaView>
 
       <ScrollView showsVerticalScrollIndicator={false} className="px-4 pb-8">
-        {/* ---------- Summary Card (mirrors FinishedWorkout) ---------- */}
+        {/* ---------- Summary Card ---------- */}
         <View
           className="rounded-2xl p-5 mt-2 mb-6"
           style={{ backgroundColor: tertiaryColor }}
         >
-          <View className="flex-row items-center mb-4">
-            <Image
-              source={pfptest}
-              style={{
-                width: 50,
-                height: 50,
-                borderRadius: 25,
-                marginRight: 12,
-              }}
-            />
-            <View>
-              <Text
-                className="text-white font-psemibold text-lg"
-                style={{ color: primaryColor }}
-              >
-                Workout Summary
-              </Text>
-              <Text className="text-gray-100 text-xs">
-                {formatDate(workout.date)}
-              </Text>
+            <View className="mb-4 flex-row justify-between items-center">
+            <Text
+              className="text-white font-psemibold text-lg"
+              style={{ color: primaryColor }}
+            >
+              Workout Summary
+            </Text>
+            <Text className="text-gray-100 text-xs">
+              {formatDate(workout.date)}
+            </Text>
             </View>
-          </View>
 
-          {/* quick stats (3 columns like FinishedWorkout) */}
           <View className="flex-row justify-between">
             <View className="items-center flex-1">
               <MaterialCommunityIcons
@@ -217,7 +197,7 @@ const WorkoutDetails: React.FC = () => {
                 color={primaryColor}
               />
               <Text className="text-white mt-1 font-pmedium">
-                {formattedTotalVolume.toLocaleString()} {volumeUnit}
+                {formattedTotalVolume}
               </Text>
               <Text className="text-gray-100 text-xs">Total Volume</Text>
             </View>
@@ -259,11 +239,15 @@ const WorkoutDetails: React.FC = () => {
             </Text>
 
             {ex.sets.map((set, idx) => {
-              // Convert weight to user's preferred unit (assuming stored in lbs)
-              const convertedWeight = convertWeight(set.lbs, "imperial", unitSystem);
-              const formattedWeight = unitSystem === "metric" 
-                ? `${convertedWeight.toFixed(1)} kg`
-                : `${Math.round(convertedWeight)} lbs`;
+              const convertedWeight = convertWeight(
+                set.lbs,
+                "imperial",
+                unitSystem
+              );
+              const formattedWeight =
+                unitSystem === "metric"
+                  ? `${convertedWeight.toFixed(1)} kg`
+                  : `${Math.round(convertedWeight)} lbs`;
 
               return (
                 <View
@@ -274,7 +258,11 @@ const WorkoutDetails: React.FC = () => {
                   <Text className="text-gray-100">{set.reps} reps</Text>
                   <Text className="text-gray-100">{formattedWeight}</Text>
                   {set.isPR && (
-                    <FontAwesome5 name="trophy" size={14} color={primaryColor} />
+                    <FontAwesome5
+                      name="trophy"
+                      size={14}
+                      color={primaryColor}
+                    />
                   )}
                 </View>
               );

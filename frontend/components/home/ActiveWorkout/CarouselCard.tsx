@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useMemo, useCallback } from "react";
+import React, { useRef, useState, useEffect, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -10,17 +10,13 @@ import {
 } from "react-native";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import ExerciseAnatomy from "@/components/home/ActiveWorkout/ExerciseAnatomy";
-/**
- * ✅ NEW: pull unit preference from your WorkoutContext
- * Works with unit, weightUnit, or even nested objects ({ weight: 'kg' } / { system: 'metric' }).
- */
 import { useWorkouts } from "@/context/WorkoutContext";
 
 const MAX_FIELD_VALUE = 9999;
 
 export interface SetItem {
   id: number;
-  lbs: number; // internal base stays in lbs
+  lbs: number;
   reps: number;
   checked?: boolean;
 }
@@ -40,7 +36,6 @@ interface Props {
   exercise: ExerciseItem;
   exIdx: number;
 
-  // styling / layout
   primaryColor: string;
   secondaryColor: string;
   tertiaryColor: string;
@@ -48,24 +43,31 @@ interface Props {
   COL_WIDTH: number;
   CHECK_COL_WIDTH: number;
 
-  // rest timer state
   restLeft: number;
   restRunning: boolean;
 
-  // actions from parent
   onOpenOptions: (exIdx: number) => void;
   onToggleSetChecked: (exIdx: number, setIdx: number) => void;
   onUpdateSetField: (
     exIdx: number,
     setIdx: number,
     field: "reps" | "lbs",
-    value: number // value always passed back in INTERNAL BASE (lbs for weight)
+    value: number
   ) => void;
   onAddSet: (exIdx: number) => void;
   onRemoveSet: (exIdx: number) => void;
+
+  /**
+   * Index for staggered loading - each card will delay loading by index * delay
+   */
+  loadIndex: number;
 }
 
 type EditingState = { setIdx: number; field: "reps" | "lbs" } | null;
+
+const CHECKBOX_SIZE = 22;
+// Stagger SVG loading by 200ms per exercise
+const STAGGER_DELAY_MS = 200;
 
 const ActiveWorkoutCard: React.FC<Props> = ({
   exercise,
@@ -83,72 +85,63 @@ const ActiveWorkoutCard: React.FC<Props> = ({
   onUpdateSetField,
   onAddSet,
   onRemoveSet,
+  loadIndex,
 }) => {
   const editableBg = "rgba(255,255,255,0.08)";
   const listRef = useRef<ScrollView | null>(null);
 
-  // ===== Unit preference from context (robust & reactive) =====
-  const workoutsCtx = useWorkouts() as any;
+  /**
+   * Staggered loading: Each card starts loading its SVG after a delay based on its index
+   * This prevents UI blocking while ensuring all SVGs eventually load
+   */
+  const [heavyReady, setHeavyReady] = useState<boolean>(false);
+  
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
+    // Start loading SVG after staggered delay
+    const delay = loadIndex * STAGGER_DELAY_MS;
+    
+    timeoutId = setTimeout(() => {
+      setHeavyReady(true);
+    }, delay);
 
-  const unitLabel = useMemo<"kg" | "lbs">(() => {
-    // Pull candidates from common spots
-    let raw =
-      workoutsCtx?.unit ??
-      workoutsCtx?.weightUnit ??
-      workoutsCtx?.preferences?.unit ??
-      workoutsCtx?.preferences?.weightUnit ??
-      workoutsCtx?.settings?.unit ??
-      workoutsCtx?.settings?.weightUnit ??
-      "lbs";
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [loadIndex]);
 
-    // If someone stores an object like { weight: 'kg', system: 'metric' }
-    if (raw && typeof raw === "object") {
-      raw = raw.weight ?? raw.system ?? raw.unit ?? "lbs";
-    }
+  const { unitSystem, convertWeight, formatWeight } = useWorkouts();
 
-    const s = String(raw).trim().toLowerCase();
-    if (["kg", "kgs", "kilogram", "kilograms", "metric"].includes(s)) return "kg";
-    // default
-    return "lbs";
-  }, [workoutsCtx?.unit, workoutsCtx?.weightUnit, workoutsCtx?.preferences, workoutsCtx?.settings]);
-
-  // Convert helpers (internal base stays lbs)
   const toDisplayWeight = useCallback(
-    (lbs: number) => {
-      if (unitLabel === "kg") {
-        // 1 decimal for kg display
-        return Math.round((lbs / 2.20462) * 10) / 10;
-      }
-      return lbs;
-    },
-    [unitLabel]
+    (lbs: number) => convertWeight(lbs, "imperial", unitSystem),
+    [convertWeight, unitSystem]
   );
 
-  const fromDisplayWeightToLbs = useCallback(
+  const fromDisplayToLbs = useCallback(
     (displayVal: number) => {
-      if (unitLabel === "kg") return Math.round(displayVal * 2.20462);
-      return displayVal;
+      const lbsVal =
+        unitSystem === "metric"
+          ? convertWeight(displayVal, "metric", "imperial")
+          : displayVal;
+      return Math.round(lbsVal);
     },
-    [unitLabel]
+    [convertWeight, unitSystem]
   );
 
-  // Local editing controller (UI only; values saved via onUpdateSetField)
   const [editing, setEditing] = useState<EditingState>(null);
   const [editingValue, setEditingValue] = useState("");
 
-  // Image flickering state
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-  // Flicker images if available
   useEffect(() => {
-    if (exercise.images && exercise.images.length > 1) {
-      const interval = setInterval(() => {
-        setCurrentImageIndex((prev) =>
-          prev === exercise.images!.length - 1 ? 0 : prev + 1
-        );
-      }, 1500);
-      return () => clearInterval(interval);
-    }
+    if (!(exercise.images && exercise.images.length > 1)) return;
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prev) =>
+        prev === exercise.images!.length - 1 ? 0 : prev + 1
+      );
+    }, 1500);
+    return () => clearInterval(interval);
   }, [exercise.images]);
 
   const beginEdit = (setIdx: number, field: "reps" | "lbs", current: number) => {
@@ -158,29 +151,21 @@ const ActiveWorkoutCard: React.FC<Props> = ({
 
   const commitEdit = () => {
     if (!editing) return;
-
-    // clamp numeric value
-    let num = Number(editingValue.replace(/[^\d.]/g, "")); // allow decimal for kg display
+    let num = Number(editingValue.replace(/[^\d.]/g, ""));
     if (isNaN(num)) {
       setEditing(null);
       setEditingValue("");
       return;
     }
-
-    // For display we cap within MAX, then convert (for weight)
     const cappedDisplay = Math.max(0, Math.min(num, MAX_FIELD_VALUE));
-
     if (editing.field === "lbs") {
-      // convert back to internal lbs before saving
-      const internalLbs = fromDisplayWeightToLbs(cappedDisplay);
+      const internalLbs = fromDisplayToLbs(cappedDisplay);
       const clampedInternal = Math.max(0, Math.min(internalLbs, MAX_FIELD_VALUE));
       onUpdateSetField(exIdx, editing.setIdx, "lbs", clampedInternal);
     } else {
-      // reps save directly
       const clampedReps = Math.round(Math.max(0, Math.min(cappedDisplay, MAX_FIELD_VALUE)));
       onUpdateSetField(exIdx, editing.setIdx, "reps", clampedReps);
     }
-
     setEditing(null);
     setEditingValue("");
   };
@@ -196,8 +181,43 @@ const ActiveWorkoutCard: React.FC<Props> = ({
     }
   };
 
-  // Reserve ~half the card height for anatomy (rest of space becomes sets area)
+  const firstOpen = useMemo(() => {
+    const idx = exercise.sets.findIndex((s) => !s.checked);
+    return idx === -1 ? exercise.sets.length : idx;
+  }, [exercise.sets]);
+
+  const lastDone = useMemo(() => {
+    let idx = -1;
+    for (let i = 0; i < exercise.sets.length; i++) {
+      if (exercise.sets[i].checked) idx = i;
+    }
+    return idx;
+  }, [exercise.sets]);
+
   const ANATOMY_HEIGHT = Math.max(120, Math.floor(CARD_HEIGHT * 0.4));
+
+  const renderSquareCheckbox = (checked: boolean, enabled: boolean) => {
+    const borderColor = enabled ? (checked ? primaryColor : "#9CA3AF") : "transparent";
+    const borderWidth = enabled ? 2 : 0;
+    const fill = checked ? primaryColor : "transparent";
+    const iconColor = checked ? "#0F0E1A" : "transparent";
+    return (
+      <View
+        style={{
+          width: CHECKBOX_SIZE,
+          height: CHECKBOX_SIZE,
+          borderRadius: 6,
+          borderWidth,
+          borderColor,
+          backgroundColor: fill,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <MaterialCommunityIcons name="check-bold" size={14} color={iconColor} />
+      </View>
+    );
+  };
 
   return (
     <View
@@ -214,9 +234,8 @@ const ActiveWorkoutCard: React.FC<Props> = ({
         height: CARD_HEIGHT,
       }}
     >
-      {/* Header row - with properly centered exercise name */}
+      {/* Header */}
       <View style={{ position: "relative", height: 48, marginBottom: 16, justifyContent: "center" }}>
-        {/* Exercise Image (positioned absolutely on left) */}
         {exercise.images && exercise.images.length > 0 && (
           <View style={[styles.imageContainer, { position: "absolute", left: 0, top: 4 }]}>
             {exercise.images.map((image, index) => (
@@ -232,20 +251,11 @@ const ActiveWorkoutCard: React.FC<Props> = ({
             ))}
           </View>
         )}
-
-        {/* Exercise Name (truly centered) */}
         <View style={{ alignItems: "center", justifyContent: "center", paddingHorizontal: 60 }}>
-          <Text
-            className="text-2xl font-pbold text-center"
-            style={{ color: secondaryColor }}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-          >
+          <Text className="text-2xl font-pbold text-center" style={{ color: secondaryColor }} numberOfLines={1} ellipsizeMode="tail">
             {exercise.name}
           </Text>
         </View>
-
-        {/* Options button (positioned absolutely on right) */}
         <TouchableOpacity onPress={() => onOpenOptions(exIdx)} style={{ position: "absolute", right: 0, top: 14 }}>
           <MaterialCommunityIcons name="dots-vertical" size={20} color="#FFFFFF" />
         </TouchableOpacity>
@@ -264,7 +274,7 @@ const ActiveWorkoutCard: React.FC<Props> = ({
         </View>
       )}
 
-      {/* Table header - aligned with data columns */}
+      {/* Table header */}
       <View className="flex-row py-1 mb-2 rounded-lg" style={{ borderColor: secondaryColor, borderWidth: 0.3 }}>
         <View style={{ width: CHECK_COL_WIDTH }} />
         <View style={{ width: COL_WIDTH, alignItems: "center" }}>
@@ -278,12 +288,10 @@ const ActiveWorkoutCard: React.FC<Props> = ({
         </View>
       </View>
 
-      {/* ===== TOP REGION: Sets (scrollable, fills remaining space) ===== */}
+      {/* Sets */}
       <View style={{ flex: 1 }}>
         <ScrollView
-          ref={(ref) => {
-            listRef.current = ref;
-          }}
+          ref={(ref) => { listRef.current = ref; }}
           style={{ flex: 1 }}
           contentContainerStyle={{ paddingBottom: 8 }}
           nestedScrollEnabled
@@ -291,31 +299,29 @@ const ActiveWorkoutCard: React.FC<Props> = ({
         >
           {exercise.sets.map((s, setIdx) => {
             const displayWeight = toDisplayWeight(s.lbs);
+            const displayWeightLabel = formatWeight(displayWeight);
+
+            const isChecked = !!s.checked;
+            const showCheckbox = isChecked || setIdx === firstOpen;
+            const isEnabled =
+              (!isChecked && setIdx === firstOpen) || (isChecked && setIdx === lastDone);
 
             return (
-              <View
-                key={s.id}
-                className="flex-row mb-2"
-                style={{ minHeight: 32, alignItems: "center" }}
-              >
-                {/* Checkmark */}
-                <View
-                  style={{
-                    width: CHECK_COL_WIDTH,
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <TouchableOpacity
-                    onPress={() => onToggleSetChecked(exIdx, setIdx)}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <MaterialCommunityIcons
-                      name={s.checked ? "check-circle" : "checkbox-blank-circle-outline"}
-                      size={22}
-                      color={s.checked ? primaryColor : "#9CA3AF"}
-                    />
-                  </TouchableOpacity>
+              <View key={s.id} className="flex-row mb-2" style={{ minHeight: 32, alignItems: "center" }}>
+                {/* Checkbox */}
+                <View style={{ width: CHECK_COL_WIDTH, alignItems: "center", justifyContent: "center" }}>
+                  {showCheckbox ? (
+                    <TouchableOpacity
+                      onPress={() => onToggleSetChecked(exIdx, setIdx)}
+                      disabled={!isEnabled}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      style={{ opacity: isEnabled ? 1 : 0.5 }}
+                    >
+                      {renderSquareCheckbox(isChecked, isEnabled)}
+                    </TouchableOpacity>
+                  ) : (
+                    <View style={{ width: CHECKBOX_SIZE, height: CHECKBOX_SIZE }} />
+                  )}
                 </View>
 
                 {/* Set # */}
@@ -362,7 +368,7 @@ const ActiveWorkoutCard: React.FC<Props> = ({
                   )}
                 </View>
 
-                {/* Weight (unit-aware) */}
+                {/* Weight */}
                 <View style={{ width: COL_WIDTH, alignItems: "center" }}>
                   {editing && editing.setIdx === setIdx && editing.field === "lbs" ? (
                     <TextInput
@@ -372,7 +378,7 @@ const ActiveWorkoutCard: React.FC<Props> = ({
                       onSubmitEditing={commitEdit}
                       keyboardType="numeric"
                       autoFocus
-                      maxLength={5} // allow one decimal in kg
+                      maxLength={5}
                       style={{
                         color: "#FFFFFF",
                         backgroundColor: editableBg,
@@ -395,7 +401,7 @@ const ActiveWorkoutCard: React.FC<Props> = ({
                       }}
                     >
                       <Text className="text-gray-100" style={{ textAlign: "center" }}>
-                        {displayWeight} {unitLabel}
+                        {displayWeightLabel}
                       </Text>
                     </TouchableOpacity>
                   )}
@@ -406,18 +412,30 @@ const ActiveWorkoutCard: React.FC<Props> = ({
         </ScrollView>
       </View>
 
-      {/* ===== BOTTOM REGION: Anatomy (fixed, no scroll) ===== */}
+      {/* Anatomy - Always try to render, with loading indicator */}
       <View style={{ height: ANATOMY_HEIGHT, marginTop: 6, marginBottom: 10 }}>
-        <ExerciseAnatomy
-          primaryColor={primaryColor}
-          secondaryColor={secondaryColor}
-          primaryMuscles={exercise.primaryMuscles}
-          secondaryMuscles={exercise.secondaryMuscles}
-          height={ANATOMY_HEIGHT}
-        />
+        {heavyReady ? (
+          <ExerciseAnatomy
+            primaryColor={primaryColor}
+            secondaryColor={secondaryColor}
+            primaryMuscles={exercise.primaryMuscles}
+            secondaryMuscles={exercise.secondaryMuscles}
+            height={ANATOMY_HEIGHT}
+          />
+        ) : (
+          <View style={{ 
+            height: ANATOMY_HEIGHT, 
+            justifyContent: "center", 
+            alignItems: "center",
+            backgroundColor: "rgba(255,255,255,0.05)",
+            borderRadius: 8
+          }}>
+            <Text style={{ color: "#666", fontSize: 12 }}>Loading anatomy...</Text>
+          </View>
+        )}
       </View>
 
-      {/* Add / Remove buttons — stay pinned at the very bottom */}
+      {/* Add / Remove */}
       <View className="flex-row justify-between">
         <TouchableOpacity
           onPress={() => onRemoveSet(exIdx)}
@@ -459,4 +477,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ActiveWorkoutCard;
+export default React.memo(ActiveWorkoutCard);

@@ -22,7 +22,7 @@ const StatButtons: React.FC<StatButtonsProps> = ({
     { title: 'Personal Bests', icon: 'trophy', onPress: () => router.push('/stats/personal-bests') },
     { title: 'Workout History', icon: 'history', onPress: () => router.push('/stats/workout-history') }, 
     { title: 'Stats Over Time', icon: 'chart-line', onPress: () => router.push('/stats/stats-over-time') },
-    { title: 'Goals & Achievements', icon: 'medal', onPress: () => router.push('/stats/goals') }
+    { title: 'Achievements', icon: 'medal', onPress: () => router.push('/stats/achievements') }
   ],
   color, // destructure the color prop from props
   tertiaryColor // destructure the tertiaryColor prop from props

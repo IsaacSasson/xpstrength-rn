@@ -1,16 +1,15 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import {
   Animated,
-  Dimensions,
   Keyboard,
-  KeyboardAvoidingView,
   KeyboardEvent,
   Modal,
   PanResponder,
   Platform,
+  Pressable,
   ScrollView,
-  TouchableWithoutFeedback,
   View,
+  useWindowDimensions,
 } from "react-native";
 
 interface Props {
@@ -27,6 +26,9 @@ interface Props {
   /**
    * Fraction of keyboard height to raise the sheet by when the
    * keyboard opens (0 – 1). Default 0 – no lift.
+   *
+   * If > 0, this component handles keyboard lifting itself
+   * (KeyboardAvoidingView is not used to avoid double-adjusting).
    */
   keyboardOffsetRatio?: number;
   /**
@@ -38,6 +40,10 @@ interface Props {
   backgroundColor?: string;
   /** Height (px) of the draggable header area. Default 32 */
   dragZoneHeight?: number;
+  /** Backdrop opacity when the sheet is open (0–1). Default 0.35 */
+  backdropOpacity?: number;
+  /** If true, taps on the backdrop do not close the sheet */
+  disableBackdropClose?: boolean;
 }
 
 const DraggableBottomSheet: React.FC<Props> = ({
@@ -50,80 +56,128 @@ const DraggableBottomSheet: React.FC<Props> = ({
   scrollable = false,
   backgroundColor = "#1A1925",
   dragZoneHeight = 32,
+  backdropOpacity = 0.35,
+  disableBackdropClose = false,
 }) => {
-  /* ───────── Layout constants ───────── */
-  const SCREEN_HEIGHT = Dimensions.get("window").height;
-  const SHEET_HEIGHT = Math.round(SCREEN_HEIGHT * heightRatio);
+  /* ───────── Dynamic sizing (handles rotation & window resizes) ───────── */
+  const { height: SCREEN_HEIGHT } = useWindowDimensions();
+  const SHEET_HEIGHT = Math.round(Math.max(0, Math.min(1, heightRatio)) * SCREEN_HEIGHT);
 
-  /* ───────── Animated value ───────── */
+  /* ───────── Animated state ───────── */
+  // translateY is the absolute Y offset from the bottom anchor.
+  // 0    -> fully open (bottom-aligned)
+  // >0   -> pushed downward (toward closed)
   const translateY = useRef(new Animated.Value(SHEET_HEIGHT)).current;
 
-  const animateTo = (toValue: number, cb?: () => void) =>
+  // Base position when no keyboard is present: 0 if open, SHEET_HEIGHT if closed.
+  const baseYRef = useRef(visible ? 0 : SHEET_HEIGHT);
+
+  // Current keyboard lift (negative value moves the sheet upward).
+  const keyboardLiftRef = useRef(0);
+
+  const timing = (toValue: number, cb?: () => void) =>
     Animated.timing(translateY, {
       toValue,
-      duration: 300,
+      duration: 260,
       useNativeDriver: true,
-    }).start(cb);
-
-  /* Track value at drag start so we can offset correctly (esp. after keyboard push) */
-  const dragStartVal = useRef(0);
+    }).start(() => cb?.());
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const getCurrentVal = () => ((translateY as any).__getValue?.() ?? 0);
+  const getY = () => ((translateY as any).__getValue?.() ?? 0);
 
-  /* ───────── Open / close ───────── */
+  /* ───────── Visibility open/close ───────── */
   useEffect(() => {
-    if (visible) animateTo(0);
-    else animateTo(SHEET_HEIGHT);
+    baseYRef.current = visible ? 0 : SHEET_HEIGHT;
+    const target = baseYRef.current + keyboardLiftRef.current;
+    timing(target, visible ? undefined : onClose);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, SHEET_HEIGHT]);
 
-  /* ───────── Drag to close (header only) ───────── */
+  /* ───────── React to window height changes (keeps sheet size correct) ───────── */
+  useEffect(() => {
+    // Re-apply the current logical state when sizes change (e.g., rotation).
+    const target = (visible ? 0 : SHEET_HEIGHT) + keyboardLiftRef.current;
+    translateY.setValue(target);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [SHEET_HEIGHT]);
+
+  /* ───────── Keyboard handling (manual lift to avoid double adjustments) ───────── */
+  const pushUpForKeyboard = (e: KeyboardEvent) => {
+    if (!visible) return;
+    const lift = -Math.round(e.endCoordinates.height * Math.max(0, Math.min(1, keyboardOffsetRatio)));
+    keyboardLiftRef.current = lift;
+    timing(baseYRef.current + lift);
+  };
+
+  const resetForKeyboard = () => {
+    // Only adjust if still visible; avoid reopening a closed sheet.
+    if (!visible) return;
+    keyboardLiftRef.current = 0;
+    timing(baseYRef.current);
+  };
+
+  useEffect(() => {
+    if (keyboardOffsetRatio <= 0) return;
+
+    const showEvt = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvt = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const s = Keyboard.addListener(showEvt, pushUpForKeyboard);
+    const h = Keyboard.addListener(hideEvt, resetForKeyboard);
+    return () => {
+      s.remove();
+      h.remove();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [keyboardOffsetRatio, visible]);
+
+  /* ───────── Drag to close (header-only gesture to avoid scroll conflicts) ───────── */
+  const dragStartVal = useRef(0);
+
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 5,
       onPanResponderGrant: () => {
-        dragStartVal.current = getCurrentVal();
+        dragStartVal.current = getY();
       },
       onPanResponderMove: (_, g) => {
-        // Only allow dragging downward (positive dy)
-        if (g.dy > 0) translateY.setValue(dragStartVal.current + g.dy);
+        // Allow only downward dragging; clamp so we never go below fully closed.
+        if (g.dy > 0) {
+          const next = dragStartVal.current + g.dy;
+          const max = SHEET_HEIGHT; // fully closed
+          translateY.setValue(Math.min(next, max));
+        }
       },
-      onPanResponderRelease: (_, g) => {
-        const finalVal = dragStartVal.current + g.dy;
-        if (finalVal > SHEET_HEIGHT * 0.35) {
-          animateTo(SHEET_HEIGHT, onClose);
+      onPanResponderRelease: () => {
+        const y = getY();
+        const lift = keyboardLiftRef.current; // negative or 0
+        // Compare against a threshold measured from the "lifted baseline".
+        const closeThreshold = (SHEET_HEIGHT * 0.35) + lift;
+        if (y > closeThreshold) {
+          // If keyboard is up, dismiss it first so we don't fight it.
+          if (lift !== 0) Keyboard.dismiss();
+          timing(SHEET_HEIGHT, onClose);
         } else {
-          animateTo(0);
+          timing(baseYRef.current + lift);
         }
       },
     })
   ).current;
 
-  /* ───────── Keyboard handling ───────── */
-  const pushUpForKeyboard = (e: KeyboardEvent) =>
-    animateTo(-e.endCoordinates.height * keyboardOffsetRatio);
-
-  useEffect(() => {
-    if (keyboardOffsetRatio === 0) return;
-
-    const showEvt =
-      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const hideEvt =
-      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
-
-    const showSub = Keyboard.addListener(showEvt, pushUpForKeyboard);
-    const hideSub = Keyboard.addListener(hideEvt, () => animateTo(0));
-
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [keyboardOffsetRatio]);
+  /* ───────── Backdrop press handling ───────── */
+  const handleBackdropPress = () => {
+    if (disableBackdropClose) return;
+    // Dismiss keyboard first if present; then close.
+    if (keyboardLiftRef.current !== 0) Keyboard.dismiss();
+    timing(SHEET_HEIGHT, onClose);
+  };
 
   /* ───────── Render ───────── */
+  // When manually lifting for the keyboard, do not also use KeyboardAvoidingView.
+  const shouldUseKAV = keyboardOffsetRatio <= 0;
+  const containerBehavior = Platform.OS === "ios" ? "padding" : "height";
+
   return (
     <Modal
       transparent
@@ -132,73 +186,92 @@ const DraggableBottomSheet: React.FC<Props> = ({
       onRequestClose={onClose}
       statusBarTranslucent
     >
-      {/* Tap-away area */}
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0)" }} />
-      </TouchableWithoutFeedback>
+      {/* Backdrop */}
+      <Pressable
+        onPress={handleBackdropPress}
+        style={{
+          position: "absolute",
+          inset: 0,
+          backgroundColor: `rgba(0,0,0,${backdropOpacity})`,
+        }}
+      />
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ justifyContent: "flex-end" }}
+      {/* Bottom sheet */}
+      <View
+        // Acts like a KeyboardAvoidingView only when we are NOT manually lifting
+        // to avoid double adjustments on iOS.
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          bottom: 0,
+        }}
       >
-        <Animated.View
+        {/* Optional basic keyboard avoidance when manual lift is disabled */}
+        <View
           style={{
-            transform: [{ translateY }],
-            height: SHEET_HEIGHT,           // <<< fixed height
-            maxHeight: SHEET_HEIGHT,        // <<< cap just in case
-            width: "100%",
-            backgroundColor,
-            paddingHorizontal: 24,
-            paddingTop: 0,
-            paddingBottom: 32,
-            borderTopLeftRadius: 24,
-            borderTopRightRadius: 24,
-            borderTopColor: primaryColor,
-            borderTopWidth: 2,
-            overflow: "hidden",             // <<< keep content inside to allow internal scroll
+            justifyContent: "flex-end",
           }}
+          // @ts-expect-error – RN types don't allow dynamic behavior on <View>,
+          // this is a no-op on Android and used by iOS via native props.
+          behavior={shouldUseKAV ? containerBehavior : undefined}
         >
-          {/* ───── Draggable Header (ONLY this part takes pan handlers) ───── */}
-          <View
-            {...panResponder.panHandlers}
+          <Animated.View
             style={{
-              height: dragZoneHeight,
-              justifyContent: "center",
-              alignItems: "center",
-              paddingTop: 12,
-              marginBottom: 12,
+              transform: [{ translateY }],
+              height: SHEET_HEIGHT,
+              maxHeight: SHEET_HEIGHT,
+              width: "100%",
+              backgroundColor,
+              paddingHorizontal: 24,
+              paddingTop: 0,
+              paddingBottom: 32,
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              borderTopColor: primaryColor,
+              borderTopWidth: 2,
+              overflow: "hidden",
             }}
           >
-            {/* Drag-handle */}
+            {/* Drag handle header (gesture bound here to avoid ScrollView conflicts) */}
             <View
+              {...panResponder.panHandlers}
               style={{
-                width: 40,
-                height: 4,
-                borderRadius: 2,
-                backgroundColor: primaryColor,
+                height: dragZoneHeight,
+                justifyContent: "center",
+                alignItems: "center",
+                paddingTop: 12,
+                marginBottom: 12,
               }}
-            />
-          </View>
+            >
+              <View
+                style={{
+                  width: 40,
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: primaryColor,
+                }}
+              />
+            </View>
 
-          {/* Content area gets remaining height */}
-          <View style={{ flex: 1 }}>
-            {scrollable ? (
-              <ScrollView
-                style={{ flex: 1 }}
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingBottom: 40 }}
-                keyboardShouldPersistTaps="handled"
-              >
-                {children}
-              </ScrollView>
-            ) : (
-              // If you pass your own ScrollView as children (like in WeeklyPlan),
-              // it'll now scroll within the fixed-height sheet.
-              children
-            )}
-          </View>
-        </Animated.View>
-      </KeyboardAvoidingView>
+            {/* Content */}
+            <View style={{ flex: 1 }}>
+              {scrollable ? (
+                <ScrollView
+                  style={{ flex: 1 }}
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={{ paddingBottom: 40 }}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {children}
+                </ScrollView>
+              ) : (
+                children
+              )}
+            </View>
+          </Animated.View>
+        </View>
+      </View>
     </Modal>
   );
 };
