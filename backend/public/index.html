@@ -10,16 +10,17 @@
         margin: 20px;
       }
       input,
-      button {
+      button,
+      textarea {
         padding: 6px 10px;
         margin: 4px 0;
       }
       #log {
-        white-space: pre-wrap;
-        background: #f6f8fa;
+        background: #0b1020;
+        color: #e5e7eb;
         padding: 10px;
-        border-radius: 6px;
-        height: 300px;
+        border-radius: 8px;
+        height: 360px;
         overflow: auto;
       }
       .row {
@@ -28,90 +29,427 @@
         align-items: center;
         flex-wrap: wrap;
       }
+      .card {
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 12px;
+        margin: 12px 0;
+      }
+      textarea {
+        width: 420px;
+        height: 80px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          monospace;
+      }
+      label {
+        font-size: 12px;
+        color: #374151;
+      }
+      .small {
+        font-size: 12px;
+        color: #6b7280;
+      }
+
+      /* Log line formatting */
+      .log-line {
+        display: grid;
+        grid-template-columns: 110px 120px 1fr;
+        gap: 8px;
+        padding: 6px 8px;
+        border-bottom: 1px dashed rgba(255, 255, 255, 0.06);
+      }
+      .log-time {
+        color: #9ca3af;
+        font-variant-numeric: tabular-nums;
+      }
+      .tag {
+        display: inline-block;
+        padding: 2px 4px;
+        font-size: 20px;
+        line-height: 16px;
+        color: #111827;
+        background: #e5e7eb;
+        justify-self: start;
+      }
+      .tag.ok {
+        background: #bbf7d0;
+      } /* green */
+      .tag.info {
+        background: #bfdbfe;
+      } /* blue */
+      .tag.event {
+        background: #ddd6fe;
+      } /* violet */
+      .tag.warn {
+        background: #fde68a;
+      } /* yellow */
+      .tag.error {
+        background: #fecaca;
+      } /* red */
+      .log-msg {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          monospace;
+      }
+
+      /* Optional JSON syntax hinting (subtle) */
+      .j-key {
+        color: #93c5fd;
+      } /* light blue */
+      .j-str {
+        color: #86efac;
+      } /* light green */
+      .j-num {
+        color: #fca5a5;
+      } /* salmon */
+      .j-bool {
+        color: #fcd34d;
+      } /* amber */
+      .j-null {
+        color: #fda4af;
+      } /* pink */
     </style>
   </head>
   <body>
     <h1>Socket.IO Test</h1>
 
-    <div class="row">
-      <label>Token:</label>
-      <input id="token" placeholder="demo (if no ACCESS_SECRET)" size="40" />
-      <button id="connectBtn">Connect</button>
-      <button id="disconnectBtn" disabled>Disconnect</button>
+    <!-- API base + tokens -->
+    <div class="card">
+      <div class="row">
+        <label>API Base:</label>
+        <input id="apiBase" value="http://localhost:4000" size="40" />
+      </div>
+      <div class="row">
+        <label>WS Token (used to connect):</label>
+        <input
+          id="token"
+          placeholder="paste or fetch via buttons below"
+          size="50"
+        />
+        <button id="connectBtn">Connect</button>
+        <button id="disconnectBtn" disabled>Disconnect</button>
+      </div>
+      <div class="small">
+        Make sure your API enables CORS if you open this file directly in a
+        browser.
+      </div>
     </div>
 
-    <div class="row">
-      <button id="syncBtn" disabled>Sync Now</button>
-      <button id="pingBtn" disabled>Ping</button>
+    <!-- Login & WS-token retrieval -->
+    <div class="card">
+      <h3>Auth Flow</h3>
+      <div class="row">
+        <input id="username" placeholder="username" />
+        <input id="password" placeholder="password" type="password" />
+        <button id="loginBtn">Login (REST)</button>
+      </div>
+      <div class="row">
+        <button id="fetchWsBtn" disabled>
+          Get WS Token (uses accessToken)
+        </button>
+      </div>
+      <div class="small">
+        POST /api/v1/auth/login → returns body.data.accessToken &
+        refreshToken<br />
+        GET /api/v1/network/websocket-token with Authorization: Bearer
+        &lt;accessToken&gt; → returns body.data.wsToken
+      </div>
     </div>
 
-    <h3>Log</h3>
+    <!-- Events testing -->
+    <div class="card">
+      <div class="row">
+        <button id="syncBtn" disabled>Sync (get unseen)</button>
+        <button id="pingBtn" disabled>Ping (creates 1 dummy)</button>
+        <input id="markId" type="number" placeholder="upToId" />
+        <button id="markBtn" disabled>Mark Seen Up To</button>
+      </div>
+    </div>
+
+    <!-- Create/spam events -->
+    <div class="card">
+      <div class="row">
+        <input id="evtType" placeholder="type (default: testEvent)" size="22" />
+        <input id="actorId" placeholder="actorId (optional)" size="16" />
+        <input id="resourceId" placeholder="resourceId (optional)" size="16" />
+      </div>
+      <label>Payload JSON</label><br />
+      <textarea id="payload">{ "msg": "hello" }</textarea><br />
+      <div class="row">
+        <button id="createBtn" disabled>Create Event</button>
+        <input
+          id="spamCount"
+          type="number"
+          placeholder="N (1..100)"
+          min="1"
+          max="100"
+          style="width: 100px"
+        />
+        <button id="spamBtn" disabled>Spam Dummy N</button>
+      </div>
+    </div>
+
+    <div
+      class="row"
+      style="justify-content: space-between; align-items: center"
+    >
+      <h3 style="margin: 0">Log</h3>
+      <button id="clearLogBtn">Clear Log</button>
+    </div>
     <div id="log"></div>
 
-    <!-- Socket.IO client from CDN (no SRI for dev) -->
+    <!-- Socket.IO client -->
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-
     <script>
-      let socket;
+      let socket,
+        accessToken = null,
+        refreshToken = null,
+        wsToken = null;
 
-      const logEl = document.getElementById("log");
-      function log(...args) {
-        const line = args
-          .map((a) => (typeof a === "string" ? a : JSON.stringify(a)))
-          .join(" ");
-        logEl.textContent += line + "\n";
+      const $ = (id) => document.getElementById(id);
+      const logEl = $("log");
+
+      /* ---------- Pretty logger ---------- */
+      function nowStamp() {
+        const d = new Date();
+        const ms = String(d.getMilliseconds()).padStart(3, "0");
+        return d.toLocaleTimeString([], { hour12: false }) + "." + ms;
+      }
+      function classify(tag) {
+        const t = String(tag || "").toLowerCase();
+        if (/(error|fail|unauth|denied)/.test(t)) return "error";
+        if (/(warn|slow)/.test(t)) return "warn";
+        if (/(connected|ok|success)/.test(t)) return "ok";
+        if (/(newevent|newevents|pong|eventsseen)/.test(t)) return "event";
+        return "info";
+      }
+      function jsonSyntaxHighlight(jsonText) {
+        // basic highlighting for readability on dark bg
+        return jsonText
+          .replace(
+            /(&|<|>)/g,
+            (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[m])
+          )
+          .replace(
+            /("(\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*"(?=\s*:))/g,
+            '<span class="j-key">$&</span>'
+          ) // keys
+          .replace(
+            /"(\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*"/g,
+            '<span class="j-str">$&</span>'
+          ) // strings
+          .replace(/\b(true|false)\b/g, '<span class="j-bool">$1</span>') // booleans
+          .replace(/\b(null)\b/g, '<span class="j-null">$1</span>') // null
+          .replace(/-?\b\d+(\.\d+)?\b/g, '<span class="j-num">$&</span>'); // numbers
+      }
+      function toPrettyText(v) {
+        if (typeof v === "string") return v;
+        try {
+          return JSON.stringify(v, null, 2);
+        } catch {
+          return String(v);
+        }
+      }
+      function log(tag, ...rest) {
+        // allow old calls like log("connected", {...}) or log("error", msg)
+        if (typeof tag !== "string") {
+          rest = [tag, ...rest];
+          tag = "log";
+        }
+        const msg = rest.length <= 1 ? rest[0] : rest;
+
+        const line = document.createElement("div");
+        line.className = "log-line";
+
+        const timeEl = document.createElement("div");
+        timeEl.className = "log-time";
+        timeEl.textContent = nowStamp();
+
+        const tagEl = document.createElement("div");
+        tagEl.className = "tag " + classify(tag);
+        tagEl.textContent = tag;
+
+        const msgEl = document.createElement("div");
+        msgEl.className = "log-msg";
+        const txt = toPrettyText(msg);
+        // try to detect JSON-ish text to highlight
+        if (typeof msg === "object") {
+          msgEl.innerHTML = jsonSyntaxHighlight(toPrettyText(msg));
+        } else if (/^[\[{].*[\]}]$/.test(txt.trim())) {
+          msgEl.innerHTML = jsonSyntaxHighlight(txt);
+        } else {
+          msgEl.textContent = txt ?? "";
+        }
+
+        line.appendChild(timeEl);
+        line.appendChild(tagEl);
+        line.appendChild(msgEl);
+
+        logEl.appendChild(line);
         logEl.scrollTop = logEl.scrollHeight;
       }
+      $("clearLogBtn").onclick = () => {
+        logEl.innerHTML = "";
+      };
 
-      const connectBtn = document.getElementById("connectBtn");
-      const disconnectBtn = document.getElementById("disconnectBtn");
-      const syncBtn = document.getElementById("syncBtn");
-      const pingBtn = document.getElementById("pingBtn");
+      /* ---------- Existing UI wiring ---------- */
+      const connectBtn = $("connectBtn");
+      const disconnectBtn = $("disconnectBtn");
+      const syncBtn = $("syncBtn");
+      const pingBtn = $("pingBtn");
+      const markBtn = $("markBtn");
+      const createBtn = $("createBtn");
+      const spamBtn = $("spamBtn");
+      const loginBtn = $("loginBtn");
+      const fetchWsBtn = $("fetchWsBtn");
 
+      function setEnabled(connected) {
+        connectBtn.disabled = connected;
+        disconnectBtn.disabled = !connected;
+        syncBtn.disabled = !connected;
+        pingBtn.disabled = !connected;
+        markBtn.disabled = !connected;
+        createBtn.disabled = !connected;
+        spamBtn.disabled = !connected;
+      }
+
+      async function apiFetch(path, options = {}) {
+        const base = $("apiBase").value.trim();
+        const url = base.replace(/\/+$/, "") + path;
+        const resp = await fetch(url, options);
+        const text = await resp.text();
+        let json;
+        try {
+          json = text ? JSON.parse(text) : {};
+        } catch {
+          log("error", "Non-JSON response:", text.slice(0, 200));
+          throw new Error("Non-JSON response");
+        }
+        if (!resp.ok) {
+          const msg = (json && (json.message || json.error)) || resp.statusText;
+          throw new Error(msg);
+        }
+        return json;
+      }
+
+      // --- Auth Flow ---
+      loginBtn.onclick = async () => {
+        const username = $("username").value.trim();
+        const password = $("password").value; // do NOT trim passwords
+        if (!username || !password) return alert("Enter username and password");
+
+        try {
+          const body = await apiFetch("/api/v1/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ data: { username, password } }),
+          });
+
+          const data = body.data ?? body;
+          accessToken =
+            data.accessToken ?? data.token ?? data.access_token ?? null;
+          refreshToken = data.refreshToken ?? data.refresh_token ?? null;
+
+          log("login_ok", { accessToken, refreshToken });
+          if (accessToken) fetchWsBtn.disabled = false;
+          else
+            alert("Login succeeded but no accessToken field found in response");
+        } catch (e) {
+          log("error", "login_error", String(e.message || e));
+          alert("Login failed: " + (e.message || e));
+        }
+      };
+
+      fetchWsBtn.onclick = async () => {
+        if (!accessToken) return alert("Login first to get accessToken");
+        try {
+          const body = await apiFetch("/api/v1/network/websocket-token", {
+            method: "GET",
+            headers: { Authorization: "Bearer " + accessToken },
+          });
+
+          const data = body.data ?? body;
+          wsToken =
+            data.wsToken ?? data.token ?? data.ws_token ?? data.WsToken ?? null;
+
+          if (!wsToken) {
+            log("warn", "WS token not found in expected keys", data);
+            return alert(
+              "WS token not found in response.data (expected key: wsToken)"
+            );
+          }
+
+          $("token").value = wsToken;
+          log("ws_token_ok", { wsToken });
+        } catch (e) {
+          log("error", "ws_token_error", String(e.message || e));
+          alert("WS token fetch failed: " + (e.message || e));
+        }
+      };
+
+      // --- Socket wiring ---
       connectBtn.onclick = () => {
-        const token = document.getElementById("token").value.trim();
-        if (!token) return alert("Enter a token");
+        const token = $("token").value.trim();
+        if (!token)
+          return alert("Enter a WS token (or fetch it via 'Get WS Token')");
 
-        // Point this to your Socket.IO server/port
-        socket = io("http://localhost:4000", {
-          path: "/socket",
-          auth: { token },
-        });
+        const base = $("apiBase").value.trim().replace(/\/+$/, "");
+        socket = io(base, { path: "/socket", auth: { token } });
 
-        //Default IO Socket Callbacks
         socket.on("connect", () => {
-          //When you have a succesful connection sends this
           log("connected", { id: socket.id });
-          connectBtn.disabled = true;
-          disconnectBtn.disabled = false;
-          syncBtn.disabled = false;
-          pingBtn.disabled = false;
+          setEnabled(true);
         });
-
         socket.on("connect_error", (err) =>
-          //On a failed connection sends this with our custom error we handled in the error middleware (First sends to an app error, then the next sends it to the connect error by scoekt)
-          log("connect_error", { message: err.message })
+          log("error", "connect_error", { message: err.message })
         );
-
-        //Custom Error callback, we send errors back on this callback
-        socket.on("error", (err) => log("socket_error", err));
-
-        //Everytime someone disconects, socketIO sends this event with their reason
+        socket.on("error", (err) => log("error", "socket_error", err));
         socket.on("disconnect", (reason) => {
-          log("disconnected", { reason });
-          connectBtn.disabled = false;
-          disconnectBtn.disabled = true;
-          syncBtn.disabled = true;
-          pingBtn.disabled = true;
+          log("disconnect", { reason });
+          setEnabled(false);
         });
 
-        //Custom Pong Event
+        // app events (server -> client)
         socket.on("pong", (payload) => log("pong", payload));
+        socket.on("newEvent", (evt) => log("newEvent", evt));
+        socket.on("newEvents", (evts) => log("newEvents", evts));
+        socket.on("eventsSeenUpToId", (upToId) =>
+          log("eventsSeenUpToId", upToId)
+        );
       };
 
       disconnectBtn.onclick = () => socket?.disconnect();
+
+      // buttons -> emits
       syncBtn.onclick = () => socket?.emit("syncNow");
       pingBtn.onclick = () => socket?.emit("ping");
+      markBtn.onclick = () => {
+        const upToId = Number($("markId").value);
+        if (!Number.isFinite(upToId) || upToId < 1)
+          return alert("Enter a valid upToId");
+        socket?.emit("markEvents", upToId);
+      };
+      $("createBtn").onclick = () => {
+        const type = $("evtType").value.trim() || "testEvent";
+        const actorId = $("actorId").value.trim() || null;
+        const resourceId = $("resourceId").value.trim() || null;
+        let payload = {};
+        const raw = $("payload").value;
+        if (raw.trim()) {
+          try {
+            payload = JSON.parse(raw);
+          } catch {
+            return alert("Payload must be valid JSON");
+          }
+        }
+        socket?.emit("createEvent", { type, actorId, resourceId, payload });
+      };
+      $("spamBtn").onclick = () => {
+        const n = Number($("spamCount").value || "5");
+        if (!Number.isFinite(n) || n < 1) return alert("Enter N >= 1");
+        socket?.emit("spamDummy", { n });
+      };
     </script>
   </body>
 </html>
