@@ -22,7 +22,10 @@ export interface SetItem {
 }
 
 export interface ExerciseItem {
-  id: string;
+  /** Stable per-card uid used for React keys */
+  uid: string;
+  /** Canonical exercise id */
+  id: string | number;
   name: string;
   instructions: string;
   images?: number[];
@@ -98,14 +101,10 @@ const ActiveWorkoutCard: React.FC<Props> = ({
   
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
-    
-    // Start loading SVG after staggered delay
     const delay = loadIndex * STAGGER_DELAY_MS;
-    
     timeoutId = setTimeout(() => {
       setHeavyReady(true);
     }, delay);
-
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
@@ -240,7 +239,7 @@ const ActiveWorkoutCard: React.FC<Props> = ({
           <View style={[styles.imageContainer, { position: "absolute", left: 0, top: 4 }]}>
             {exercise.images.map((image, index) => (
               <Image
-                key={index}
+                key={String(index)}
                 source={image}
                 style={[
                   styles.exerciseImage,
@@ -260,8 +259,6 @@ const ActiveWorkoutCard: React.FC<Props> = ({
           <MaterialCommunityIcons name="dots-vertical" size={20} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
-
-    
 
       {/* Table header */}
       <View className="flex-row py-1 mb-2 rounded-lg" style={{ borderColor: secondaryColor, borderWidth: 0.3 }}>
@@ -287,7 +284,8 @@ const ActiveWorkoutCard: React.FC<Props> = ({
           showsVerticalScrollIndicator={false}
         >
           {exercise.sets.map((s, setIdx) => {
-            const displayWeight = toDisplayWeight(s.lbs);
+            const { convertWeight, formatWeight, unitSystem } = useWorkouts();
+            const displayWeight = convertWeight(s.lbs, "imperial", unitSystem);
             const displayWeightLabel = formatWeight(displayWeight);
 
             const isChecked = !!s.checked;
@@ -296,7 +294,11 @@ const ActiveWorkoutCard: React.FC<Props> = ({
               (!isChecked && setIdx === firstOpen) || (isChecked && setIdx === lastDone);
 
             return (
-              <View key={s.id} className="flex-row mb-2" style={{ minHeight: 32, alignItems: "center" }}>
+              <View
+                key={`${exercise.uid}::set::${s.id}`}
+                className="flex-row mb-2"
+                style={{ minHeight: 32, alignItems: "center" }}
+              >
                 {/* Checkbox */}
                 <View style={{ width: CHECK_COL_WIDTH, alignItems: "center", justifyContent: "center" }}>
                   {showCheckbox ? (
@@ -331,7 +333,7 @@ const ActiveWorkoutCard: React.FC<Props> = ({
                       maxLength={4}
                       style={{
                         color: "#FFFFFF",
-                        backgroundColor: editableBg,
+                        backgroundColor: "rgba(255,255,255,0.08)",
                         paddingVertical: 2,
                         paddingHorizontal: 6,
                         borderRadius: 10,
@@ -343,7 +345,7 @@ const ActiveWorkoutCard: React.FC<Props> = ({
                     <TouchableOpacity
                       onPress={() => beginEdit(setIdx, "reps", s.reps)}
                       style={{
-                        backgroundColor: editableBg,
+                        backgroundColor: "rgba(255,255,255,0.08)",
                         paddingVertical: 2,
                         paddingHorizontal: 6,
                         borderRadius: 10,
@@ -370,7 +372,7 @@ const ActiveWorkoutCard: React.FC<Props> = ({
                       maxLength={5}
                       style={{
                         color: "#FFFFFF",
-                        backgroundColor: editableBg,
+                        backgroundColor: "rgba(255,255,255,0.08)",
                         paddingVertical: 2,
                         paddingHorizontal: 6,
                         borderRadius: 10,
@@ -382,7 +384,7 @@ const ActiveWorkoutCard: React.FC<Props> = ({
                     <TouchableOpacity
                       onPress={() => beginEdit(setIdx, "lbs", displayWeight)}
                       style={{
-                        backgroundColor: editableBg,
+                        backgroundColor: "rgba(255,255,255,0.08)",
                         paddingVertical: 2,
                         paddingHorizontal: 6,
                         borderRadius: 10,
@@ -401,19 +403,19 @@ const ActiveWorkoutCard: React.FC<Props> = ({
         </ScrollView>
       </View>
 
-      {/* Anatomy - Always try to render, with loading indicator */}
-      <View style={{ height: ANATOMY_HEIGHT, marginTop: 6, marginBottom: 10 }}>
+      {/* Anatomy */}
+      <View style={{ height: Math.max(120, Math.floor(CARD_HEIGHT * 0.4)), marginTop: 6, marginBottom: 10 }}>
         {heavyReady ? (
           <ExerciseAnatomy
             primaryColor={primaryColor}
             secondaryColor={secondaryColor}
             primaryMuscles={exercise.primaryMuscles}
             secondaryMuscles={exercise.secondaryMuscles}
-            height={ANATOMY_HEIGHT}
+            height={Math.max(120, Math.floor(CARD_HEIGHT * 0.4))}
           />
         ) : (
           <View style={{ 
-            height: ANATOMY_HEIGHT, 
+            height: Math.max(120, Math.floor(CARD_HEIGHT * 0.4)), 
             justifyContent: "center", 
             alignItems: "center",
             backgroundColor: "rgba(255,255,255,0.05)",
