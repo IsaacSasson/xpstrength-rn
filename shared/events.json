@@ -9,5 +9,6 @@
   "muscleLevelUp",
   "milestoneComplete",
   "newPersonalBest",
-  "firstTimeCompletingExercise"
+  "firstTimeCompletingExercise",
+  "dummyEvent"
 ]
