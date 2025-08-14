@@ -131,20 +131,34 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!isAuthenticated) return false;
 
       try {
-        const result = await userApi.updateProfilePicture(imageUri);
-        if (!result.success) {
-          setError(result.error || "Failed to update profile picture");
+        console.log("🖼️ Updating profile picture...");
+        
+        // Immediately show the new image in UI for instant feedback
+        const previousUri = profilePictureUri;
+        setProfilePictureUri(imageUri);
+
+        // Upload the image
+        const uploadResult = await userApi.updateProfilePicture(imageUri);
+        if (!uploadResult.success) {
+          // Revert to previous image on upload failure
+          setProfilePictureUri(previousUri);
+          setError(uploadResult.error || "Failed to update profile picture");
           return false;
         }
 
-        // Immediately re-download the server copy (authorized) so we point <Image> at the cached file
-        const pic = await userApi.getProfilePicture(accessToken || undefined);
-        if (pic.success) {
-          setProfilePictureUri(pic.uri ?? null);
+        console.log("✅ Profile picture uploaded successfully");
+
+        // Force refresh the profile picture from server with cache clearing
+        const downloadResult = await userApi.getProfilePicture(accessToken || undefined);
+        if (downloadResult.success && downloadResult.uri) {
+          console.log("✅ Downloaded fresh profile picture from server");
+          setProfilePictureUri(downloadResult.uri);
         } else {
-          // fallback to picked image if server fetch fails
-          setProfilePictureUri(imageUri);
+          console.log("⚠️ Failed to download fresh image, keeping uploaded image");
+          // Keep the uploaded image if server download fails
+          // setProfilePictureUri(imageUri); // Already set above
         }
+
         return true;
       } catch (err) {
         console.error("❌ Error updating profile picture:", err);
@@ -152,7 +166,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return false;
       }
     },
-    [isAuthenticated, accessToken]
+    [isAuthenticated, accessToken, profilePictureUri]
   );
 
   /* ----------------------------- Profile Update ----------------------------- */
