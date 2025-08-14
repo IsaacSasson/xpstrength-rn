@@ -128,6 +128,14 @@ const Profile = () => {
     await refreshProfile();
   };
 
+  // Determine which image to display - prefer the latest profilePictureUri
+  const profileImage = useMemo(() => {
+    if (profilePictureUri) {
+      return { uri: profilePictureUri };
+    }
+    return profileDefault;
+  }, [profilePictureUri]);
+
   if (isLoading && !profile) {
     return (
       <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
@@ -177,8 +185,15 @@ const Profile = () => {
             <View className="flex-row justify-between">
               <View className="flex-row">
                 <Image
-                  source={profilePictureUri ? { uri: profilePictureUri } : profileDefault}
-                  style={{ width: 60, height: 60, borderRadius: 30 }}
+                  source={profileImage}
+                  style={{ 
+                    width: 60, 
+                    height: 60, 
+                    borderRadius: 30,
+                    backgroundColor: '#2A2A2A' // Fallback background while loading
+                  }}
+                  // Force image refresh on URI change
+                  key={profilePictureUri || 'default'}
                 />
                 <View className="ml-3">
                   <Text

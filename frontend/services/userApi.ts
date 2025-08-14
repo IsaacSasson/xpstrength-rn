@@ -101,6 +101,33 @@ const transformExerciseHistoryFromAPI = (apiHistory: any): ExerciseHistory => {
   return transformed;
 };
 
+/* ----------------------------- Profile Picture Cache Management ----------------------------- */
+const clearProfilePictureCache = async (): Promise<void> => {
+  if (Platform.OS === "web") {
+    // On web, we can't directly clear file cache, but we can revoke object URLs
+    // The next fetch will get a fresh blob
+    return;
+  }
+
+  try {
+    // Clear all potential cached profile picture files
+    const cacheDir = FileSystem.cacheDirectory;
+    if (!cacheDir) return;
+
+    const files = await FileSystem.readDirectoryAsync(cacheDir);
+    const pfpFiles = files.filter(file => file.startsWith('pfp-') && file.endsWith('.jpg'));
+    
+    // Delete all profile picture cache files
+    await Promise.all(
+      pfpFiles.map(file => 
+        FileSystem.deleteAsync(`${cacheDir}${file}`, { idempotent: true }).catch(() => {})
+      )
+    );
+  } catch (error) {
+    console.log("Failed to clear profile picture cache:", error);
+  }
+};
+
 /* ----------------------------- API Service ----------------------------- */
 export const userApi = {
   /* ----------- Profile ----------- */
@@ -254,21 +281,24 @@ export const userApi = {
   },
 
   /* ----------- Profile Picture ----------- */
-  async getProfilePicture(accessToken?: string): Promise<{
+  async getProfilePicture(accessToken?: string, forceRefresh: boolean = false): Promise<{
     success: boolean;
     uri?: string;
     error?: string;
   }> {
     try {
+      // If forcing refresh, clear cache first
+      if (forceRefresh) {
+        await clearProfilePictureCache();
+      }
+
       // Native: download to cache with Authorization header
       if (Platform.OS !== "web") {
-        const url = `${API_BASE_URL}/api/v1/user/profile-pic`;  // ✅ Fixed endpoint
-        const dest = `${FileSystem.cacheDirectory}pfp-current.jpg`;
-
-        // Remove any stale file (ok if it doesn't exist)
-        try {
-          await FileSystem.deleteAsync(dest, { idempotent: true });
-        } catch {}
+        const url = `${API_BASE_URL}/api/v1/user/profile-pic`;
+        
+        // Use timestamp to ensure unique filename and avoid caching issues
+        const timestamp = Date.now();
+        const dest = `${FileSystem.cacheDirectory}pfp-${timestamp}.jpg`;
 
         const { status, uri } = await FileSystem.downloadAsync(url, dest, {
           headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
@@ -283,8 +313,9 @@ export const userApi = {
         return { success: false, error: `Failed to fetch profile picture (status ${status})` };
       }
 
-      // Web: blob -> object URL
-      const response = await api.get("/api/v1/user/profile-pic");  // ✅ Fixed endpoint
+      // Web: blob -> object URL with cache busting
+      const cacheBuster = forceRefresh ? `?t=${Date.now()}` : '';
+      const response = await api.get(`/api/v1/user/profile-pic${cacheBuster}`);
 
       if (response.status === 404) {
         return { success: true, uri: undefined };
@@ -313,6 +344,9 @@ export const userApi = {
     error?: string;
   }> {
     try {
+      // Clear existing cache before uploading
+      await clearProfilePictureCache();
+
       const formData = new FormData();
       formData.append('newPFP', {
         uri: imageUri,
@@ -320,7 +354,7 @@ export const userApi = {
         name: 'profile.jpg',
       } as any);
 
-      const response = await api.postFormData("/api/v1/user/profile-pic", formData);  // ✅ Fixed endpoint
+      const response = await api.postFormData("/api/v1/user/profile-pic", formData);
 
       if (!response.ok) {
         const errorDetails = await handleApiError(response);

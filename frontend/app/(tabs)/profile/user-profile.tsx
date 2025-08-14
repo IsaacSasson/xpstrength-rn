@@ -99,7 +99,9 @@ const UserProfile = () => {
     currentPassword: "",
   });
   const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
+  // Update form when profile or profilePictureUri changes
   useEffect(() => {
     if (profile) {
       setForm((prev) => ({
@@ -110,13 +112,16 @@ const UserProfile = () => {
         hasChanges: false,
       }));
     }
+  }, [profile]);
+
+  useEffect(() => {
     if (profilePictureUri) {
       setForm((prev) => ({
         ...prev,
         avatarUri: profilePictureUri,
       }));
     }
-  }, [profile, profilePictureUri]);
+  }, [profilePictureUri]);
 
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => ({
@@ -154,6 +159,8 @@ const UserProfile = () => {
   );
 
   const pickImage = async () => {
+    if (uploadingImage) return; // Prevent multiple simultaneous uploads
+
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
       Alert.alert(
@@ -166,18 +173,26 @@ const UserProfile = () => {
     const img = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      quality: 0.7,
+      quality: 0.8,
       aspect: [1, 1],
     });
 
     if (!img.canceled && img.assets?.[0]?.uri) {
       const newUri = img.assets[0].uri;
-      update("avatarUri", newUri);
-
-      const uploadResult = await updateProfilePicture(newUri);
-      if (!uploadResult) {
-        Alert.alert("Error", "Failed to update profile picture.");
-        update("avatarUri", profilePictureUri ?? null);
+      
+      setUploadingImage(true);
+      try {
+        const uploadResult = await updateProfilePicture(newUri);
+        if (!uploadResult) {
+          Alert.alert("Error", "Failed to update profile picture. Please try again.");
+        } else {
+          Alert.alert("Success", "Profile picture updated successfully!");
+        }
+      } catch (error) {
+        console.error("Error updating profile picture:", error);
+        Alert.alert("Error", "An unexpected error occurred while updating your profile picture.");
+      } finally {
+        setUploadingImage(false);
       }
     }
   };
@@ -246,6 +261,9 @@ const UserProfile = () => {
     }
   };
 
+  // Get the current display image (prioritize form state for immediate feedback)
+  const currentDisplayImage = form.avatarUri ? { uri: form.avatarUri } : profileDefault;
+
   return (
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
       <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
@@ -268,9 +286,14 @@ const UserProfile = () => {
         >
           {/* avatar */}
           <View className="items-center mb-8">
-            <TouchableOpacity onPress={pickImage} activeOpacity={0.8}>
+            <TouchableOpacity 
+              onPress={pickImage} 
+              activeOpacity={0.8}
+              disabled={uploadingImage}
+              style={{ opacity: uploadingImage ? 0.7 : 1 }}
+            >
               <Image
-                source={form.avatarUri ? { uri: form.avatarUri } : profileDefault}
+                source={currentDisplayImage}
                 style={{
                   width: 120,
                   height: 120,
@@ -283,9 +306,16 @@ const UserProfile = () => {
                 className="absolute bottom-0 right-0 bg-black-200 rounded-full p-2"
                 style={{ borderWidth: 2, borderColor: primaryColor }}
               >
-                <FontAwesome5 name="camera" size={14} color={primaryColor} />
+                {uploadingImage ? (
+                  <ActivityIndicator size={14} color={primaryColor} />
+                ) : (
+                  <FontAwesome5 name="camera" size={14} color={primaryColor} />
+                )}
               </View>
             </TouchableOpacity>
+            {uploadingImage && (
+              <Text className="text-gray-400 text-xs mt-2">Uploading...</Text>
+            )}
           </View>
 
           {/* username */}
