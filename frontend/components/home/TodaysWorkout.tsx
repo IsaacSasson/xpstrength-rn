@@ -1,3 +1,4 @@
+// Path: /components/home/TodaysWorkout.tsx
 import React, { useMemo, useState, useEffect, useCallback } from "react";
 import { View, Text, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
@@ -59,7 +60,6 @@ const TodaysWorkout: React.FC<Props> = ({ workout, allowCreate = true, selectedD
 
   /* -------------------- Typed href helpers (Href-safe) ------------------- */
   const createWorkoutHref = useMemo<Href>(() => {
-    // Use an object with a literal pathname so TypeScript keeps the literal type.
     return dayName
       ? ({ pathname: "/home/create-workout", params: { day: dayName } } as const)
       : ("/home/create-workout" as const);
@@ -167,7 +167,6 @@ const TodaysWorkout: React.FC<Props> = ({ workout, allowCreate = true, selectedD
     const launchPreset = buildLaunchPresetFromWorkout(workoutData);
     setLaunchPreset(launchPreset);
 
-    // This can stay as an object; pathname is a literal string.
     router.replace({ pathname: "/home/active-workout" });
   };
 
@@ -198,7 +197,7 @@ const TodaysWorkout: React.FC<Props> = ({ workout, allowCreate = true, selectedD
       setAssignSheetVisible(false);
       setTimeout(() => {
         router.push(href);
-      }, 220); // allow the dismiss animation to complete
+      }, 220);
     },
     []
   );
@@ -330,8 +329,9 @@ const TodaysWorkout: React.FC<Props> = ({ workout, allowCreate = true, selectedD
           </Text>
 
           {allowCreate && (
+            /* CHANGED: open the Assign sheet (was navigate to create-workout) */
             <TouchableOpacity
-              onPress={() => navigateAfterClose(createWorkoutHref)}
+              onPress={openAssignSheet}
               style={{ backgroundColor: primaryColor }}
               className="flex-row items-center px-6 py-3 rounded-lg"
               activeOpacity={0.7}
@@ -386,7 +386,6 @@ const TodaysWorkout: React.FC<Props> = ({ workout, allowCreate = true, selectedD
           <Text className="text-white ml-10 text-base font-pmedium">Rest Day</Text>
         </TouchableOpacity>
 
-        {/* Close then navigate to Create Workout */}
         {allowCreate && (
           <TouchableOpacity
             onPress={
