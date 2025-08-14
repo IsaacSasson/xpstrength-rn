@@ -6,12 +6,12 @@ import AddEvent from "../utils/AddEvent.js";
 
 //Singular event sent to user
 export function sendEvent(event, socket) {
-  socket.emit("newEvent", event);
+  socket.to(`user${socket.data.user.id}`).emit("newEvent", event);
 }
 
 //Multiple events sent to user via an Array of events
 export function sendEvents(events, socket) {
-  socket.emit("newEvents", events);
+  socket.to(`user${socket.data.user.id}`).emit("newEvents", events);
 }
 
 export async function createEvent(
@@ -20,7 +20,8 @@ export async function createEvent(
   actorId,
   resourceId,
   payload,
-  socket
+  socket,
+  forward
 ) {
   try {
     await sequelize.transaction(async (t) => {
@@ -28,17 +29,20 @@ export async function createEvent(
       newEvent = await newEvent.forward(t);
 
       const plain = newEvent.get ? newEvent.get({ plain: true }) : newEvent;
-      t.afterCommit(() => {
-        try {
-          sendEvent(plain, socket);
-        } catch (err) {
-          throw new AppError(
-            "Failed to event back through socket",
-            500,
-            "WEBSOCKET"
-          );
-        }
-      });
+
+      if (forward) {
+        t.afterCommit(() => {
+          try {
+            sendEvent(plain, socket);
+          } catch (err) {
+            throw new AppError(
+              "Failed to event back through socket",
+              500,
+              "WEBSOCKET"
+            );
+          }
+        });
+      }
     });
   } catch (err) {
     throw mapSequelizeError(err);
@@ -56,6 +60,7 @@ export async function markEventsSeen(upToId, userId, socket) {
   }
 }
 
+//Future might add an option for events with ref ID to be recieved
 export async function getAllUnseenEvents(userId, socket) {
   try {
     await sequelize.transaction(async (t) => {

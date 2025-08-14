@@ -1,9 +1,11 @@
 [
   "friend-request-cancelled",
+  "friend-request-initiated",
   "friend-request-accepted",
   "friend-request-declined",
   "friend-status-updated",
-  "known-user-profile-updated",
+  "user-profile-updated",
+  "user-profile-pic-updated",
   "friend-removed",
   "userLevelUp",
   "muscleLevelUp",

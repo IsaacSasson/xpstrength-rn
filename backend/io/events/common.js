@@ -6,25 +6,33 @@ export function attachCommonHandlers(io, socket, buckets) {
   const userId = socket.data.user.id;
 
   safeHandler(socket, "ping", async () => {
-    socket.emit("pong", { ts: Date.now() });
-
-    //Testing creating random event
-    await EventService.createEvent(
-      socket.data.user.id,
-      "dummyEvent",
-      null,
-      1,
-      { msg: "dummyPongEvent" },
-      socket
-    );
+    socket.to(`user:${userId}`).emit("pong", { ts: Date.now() });
   });
 
-  safeHandler(socket, "syncNow", async () => {
-    await EventService.getAllUnseenEvents(socket.data.user.id, socket);
+  safeHandler(socket, "dataSync", async () => {
+    const bucket = buckets.get(userId);
+    if (!bucket) {
+      return;
+    }
+    const friendData = await getFriendData(user);
+    bucket.friends = friendData.friends;
+    bucket.incomingRequests = friendData.incomingRequests;
+    bucket.outgoingRequests = friendData.outgoingRequests;
+    bucket.blocked = friendData.blocked;
+    socket.to(`user:${userId}`).emit("dataSync", {
+      friends: bucket.friends,
+      incomingRequests: bucket.incomingRequests,
+      outgoingRequests: bucket.outgoingRequests,
+      blocked: bucket.blocked,
+    });
+  });
+
+  safeHandler(socket, "eventSync", async () => {
+    await EventService.getAllUnseenEvents(userId, socket);
   });
 
   safeHandler(socket, "markEvents", async (upToId) => {
-    await EventService.markEventsSeen(upToId, socket.data.user.id, socket);
+    await EventService.markEventsSeen(upToId, userId, socket);
   });
 
   if (process.env.NODE_ENV !== "production") {

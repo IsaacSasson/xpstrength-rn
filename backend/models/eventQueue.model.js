@@ -28,7 +28,7 @@ const Event = sequelize.define(
             onDelete: 'SET NULL',
         },
         resourceId: {
-            type: DataTypes.INTEGER, allowNull: false,
+            type: DataTypes.INTEGER, allowNull: true,
             comment: "What resource is the event referenceing?"
         },
         payload: {

@@ -8,7 +8,7 @@ export function ensureBucket(userId) {
       incomingRequests: null,
       outgoingRequests: null,
       blocked: null,
-      status: null,
+      status: "Online",
       sockets: new Set(),
     });
   }

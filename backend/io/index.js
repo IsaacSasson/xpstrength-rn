@@ -1,7 +1,7 @@
 import { Server } from "socket.io";
 import authMiddleware from "./middleware/auth.js";
 import { attachCommonHandlers } from "./events/common.js";
-import { attachSyncHandlers } from "./events/sync.js";
+import { attachFriendHandlers } from "./events/friends.js";
 import { buckets } from "./state/buckets.js";
 import socketLogger from "./middleware/socketLogger.js";
 
@@ -27,7 +27,7 @@ export function createIo(server) {
   // per-connection handlers
   io.on("connection", (socket) => {
     attachCommonHandlers(io, socket, buckets);
-    //attachSyncHandlers(io, socket, buckets); // emits requestSync on connect
+    attachFriendHandlers(io, socket, buckets);
   });
 
   return io;

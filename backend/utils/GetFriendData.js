@@ -47,16 +47,12 @@ export async function getFriendData(user) {
         }),
       ]);
 
-      // Return plain arrays of user IDs (deduped just in case)
+      // Return plain sets of user IDs
       return {
-        friends: Array.from(new Set(friends.map((r) => Number(r.friendId)))),
-        incomingRequests: Array.from(
-          new Set(incoming.map((r) => Number(r.incomingId)))
-        ),
-        outgoingRequests: Array.from(
-          new Set(outgoing.map((r) => Number(r.outgoingId)))
-        ),
-        blocked: Array.from(new Set(blocked.map((r) => Number(r.blockedId)))),
+        friends: new Set(friends.map((r) => Number(r.friendId))),
+        incomingRequests: new Set(incoming.map((r) => Number(r.incomingId))),
+        outgoingRequests: new Set(outgoing.map((r) => Number(r.outgoingId))),
+        blocked: new Set(blocked.map((r) => Number(r.blockedId))),
       };
     });
   } catch (err) {
