@@ -63,11 +63,11 @@ export async function postLogin(req, res, next) {
 
 //Returns accessToken for user, and resets refresh token
 export async function getAccessToken(req, res, next) {
-  if (!req?.headers?.refreshToken) {
+  if (!req?.headers?.refreshtoken) {
     throw new AppError("No refresh token provided", 401, "NO_TOKEN");
   }
   try {
-    const token = req?.headers?.refreshToken;
+    const token = req?.headers?.refreshtoken;
 
     const { accessToken, refreshToken } = await authService.accessToken(
       token,

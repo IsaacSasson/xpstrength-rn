@@ -17,6 +17,21 @@ export function userXpDelta(level: number): number {
   return Math.floor((raw * CAP) / (raw + K));
 }
 
+export function muscleXpDelta(M: number): number {
+  const level = Math.min(Math.max(Math.floor(M), 1), 1000);
+  const a = 2000;
+  const E = 0.25;
+  const B2 = 120;
+  const H = 1.17;
+  const Km = 20000;
+  const CAP2 = 20000;
+
+  const linPart = a * level * Math.exp(-E * (level - 1));
+  const expPart = B2 * Math.pow(H, level - 1) * (1 - Math.exp(-E * (level - 1)));
+  const raw = linPart + expPart;
+  return Math.floor((CAP2 * raw) / (raw + Km));
+}
+
 /**
  * Calculate total XP needed to reach a specific level
  */
@@ -54,4 +69,12 @@ export function calculateXpProgress(currentLevel: number, currentXp: number) {
     totalForCurrentLevel: xpForCurrentLevel,
     totalForNextLevel: xpForNextLevel,
   };
+}
+
+export function totalXpForMuscleLevel(level: number): number {
+  let total = 0;
+  for (let L = 1; L <= level; L++) {
+    total += muscleXpDelta(L);
+  }
+  return total;
 }

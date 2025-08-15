@@ -1,26 +1,23 @@
 // Path: /context/UserProvider.tsx
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/context/AuthProvider";
 import { userApi, UserProfile, ExerciseHistory } from "@/services/userApi";
+import { totalXpForUserLevel } from "@/utils/xpUtils";
 
 /* ----------------------------- Types ----------------------------- */
 interface UserContextType {
-  // Profile data
   profile: UserProfile | null;
   profilePictureUri: string | null;
   exerciseHistory: ExerciseHistory;
-  
-  // Legacy support for existing code
+
   currency: number;
   experience: number;
   level: number;
-  
-  // Loading states
+
   isLoading: boolean;
   isRefreshing: boolean;
   error: string | null;
-  
-  // Actions
+
   refreshProfile: () => Promise<void>;
   updateProfilePicture: (imageUri: string) => Promise<boolean>;
   updateProfile: (updates: {
@@ -29,11 +26,29 @@ interface UserContextType {
     fitnessGoal?: string;
   }) => Promise<boolean>;
   addCurrency: (amount: number) => void;
-  addExperience: (amount: number) => void;
+  addExperience: (amount: number, skipLevelUpBonus?: boolean) => void;
   clearError: () => void;
 
-  /** immediately reflect saved notes in local cache so new workouts see them */
+  /** Immediately reflect saved notes in local cache so new workouts see them */
   setExerciseNotes: (exerciseId: number | string, notes: string) => void;
+}
+
+/* ----------------------------- Helpers ----------------------------- */
+// Shallow structural equality for ExerciseHistory to avoid thrashing state.
+function equalExerciseHistory(a: ExerciseHistory, b: ExerciseHistory): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  if (aKeys.length !== bKeys.length) return false;
+  for (let i = 0; i < aKeys.length; i++) {
+    const k = aKeys[i];
+    if (!(k in b)) return false;
+    const aVal = (a as any)[k];
+    const bVal = (b as any)[k];
+    if (JSON.stringify(aVal) !== JSON.stringify(bVal)) return false;
+  }
+  return true;
 }
 
 /* ----------------------------- Context ----------------------------- */
@@ -59,8 +74,7 @@ const UserContext = createContext<UserContextType>({
 /* ----------------------------- Provider ----------------------------- */
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading: authLoading, user, accessToken, setAccessToken } = useAuth();
-  
-  // State
+
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profilePictureUri, setProfilePictureUri] = useState<string | null>(null);
   const [exerciseHistory, setExerciseHistory] = useState<ExerciseHistory>({});
@@ -84,11 +98,9 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         console.log("🔄 Loading profile data for user:", user?.username);
 
-        // Pass accessToken so native PFP download can include Authorization header
         const result = await userApi.loadAllUserData(accessToken || undefined);
 
         if (result.success) {
-          // Update state with the loaded data
           if (result.profile) setProfile(result.profile);
 
           if (result.profilePictureUri) {
@@ -98,7 +110,11 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
 
           if (result.exerciseHistory) {
-            setExerciseHistory(result.exerciseHistory);
+            // Narrow once and keep it strongly typed inside this block
+            const incoming = result.exerciseHistory as ExerciseHistory;
+            setExerciseHistory((prev) =>
+              equalExerciseHistory(prev, incoming) ? prev : incoming
+            );
           } else {
             setExerciseHistory({});
           }
@@ -132,33 +148,20 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       try {
         console.log("🖼️ Updating profile picture...");
-        
-        // Immediately show the new image in UI for instant feedback
         const previousUri = profilePictureUri;
         setProfilePictureUri(imageUri);
 
-        // Upload the image
         const uploadResult = await userApi.updateProfilePicture(imageUri);
         if (!uploadResult.success) {
-          // Revert to previous image on upload failure
           setProfilePictureUri(previousUri);
           setError(uploadResult.error || "Failed to update profile picture");
           return false;
         }
 
-        console.log("✅ Profile picture uploaded successfully");
-
-        // Force refresh the profile picture from server with cache clearing
         const downloadResult = await userApi.getProfilePicture(accessToken || undefined);
         if (downloadResult.success && downloadResult.uri) {
-          console.log("✅ Downloaded fresh profile picture from server");
           setProfilePictureUri(downloadResult.uri);
-        } else {
-          console.log("⚠️ Failed to download fresh image, keeping uploaded image");
-          // Keep the uploaded image if server download fails
-          // setProfilePictureUri(imageUri); // Already set above
         }
-
         return true;
       } catch (err) {
         console.error("❌ Error updating profile picture:", err);
@@ -185,9 +188,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (updates.fitnessGoal !== undefined) apiUpdates.newFitnessGoal = updates.fitnessGoal;
 
         const result = await userApi.updateProfile(apiUpdates);
-        
+
         if (result.success) {
-          // Update access token if provided (server may rotate it)
           if (result.accessToken) {
             await setAccessToken(result.accessToken);
           }
@@ -206,17 +208,28 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [isAuthenticated, setAccessToken]
   );
 
-  /* ----------------------------- Legacy Support ----------------------------- */
+  /* ----------------------------- Rewards Management ----------------------------- */
   const addCurrency = useCallback((amount: number) => {
     setProfile(prev => prev ? { ...prev, totalCoins: prev.totalCoins + amount } : null);
   }, []);
 
-  const addExperience = useCallback((amount: number) => {
+  const addExperience = useCallback((amount: number, skipLevelUpBonus = false) => {
     setProfile(prev => {
       if (!prev) return null;
+
       const newXp = prev.xp + amount;
-      const newLevel = Math.floor(newXp / 1000) + 1;
-      if (newLevel > prev.level) {
+
+      const calculateLevelFromXp = (xp: number): number => {
+        let level = 1;
+        while (level <= 1000 && totalXpForUserLevel(level + 1) <= xp) {
+          level++;
+        }
+        return level;
+      };
+
+      const newLevel = calculateLevelFromXp(newXp);
+
+      if (newLevel > prev.level && !skipLevelUpBonus) {
         const levelUpBonus = newLevel * 50;
         return {
           ...prev,
@@ -225,7 +238,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
           totalCoins: prev.totalCoins + levelUpBonus
         };
       }
-      return { ...prev, xp: newXp };
+
+      return { ...prev, xp: newXp, level: newLevel };
     });
   }, []);
 
@@ -236,6 +250,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const key = String(exerciseId);
     setExerciseHistory(prev => {
       const prevEntry = (prev as any)[key] || {};
+      // No-op when nothing changed
+      if (prevEntry?.notes === notes) return prev;
       return {
         ...(prev as any),
         [key]: { ...prevEntry, notes },
@@ -259,19 +275,19 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [isAuthenticated, authLoading, hasInitialized, loadProfileData]);
 
   /* ----------------------------- Context Value ----------------------------- */
-  const contextValue: UserContextType = {
+  const contextValue: UserContextType = useMemo(() => ({
     profile,
     profilePictureUri,
     exerciseHistory,
-    // Legacy support
+
     currency: profile?.totalCoins || 0,
     experience: profile?.xp || 0,
     level: profile?.level || 1,
-    // States
+
     isLoading,
     isRefreshing,
     error,
-    // Actions
+
     refreshProfile,
     updateProfilePicture,
     updateProfile,
@@ -279,7 +295,21 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     addExperience,
     clearError,
     setExerciseNotes,
-  };
+  }), [
+    profile,
+    profilePictureUri,
+    exerciseHistory,
+    isLoading,
+    isRefreshing,
+    error,
+    refreshProfile,
+    updateProfilePicture,
+    updateProfile,
+    addCurrency,
+    addExperience,
+    clearError,
+    setExerciseNotes,
+  ]);
 
   return (
     <UserContext.Provider value={contextValue}>
@@ -289,6 +319,4 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 };
 
 export const useUser = () => useContext(UserContext);
-
-// Legacy export for backward compatibility
 export const useUserProgress = () => useContext(UserContext);

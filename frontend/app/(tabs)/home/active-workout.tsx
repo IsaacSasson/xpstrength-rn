@@ -1,3 +1,4 @@
+// Path: /app/(tabs)/ActiveWorkout.tsx
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   View,
@@ -29,6 +30,7 @@ import { getLaunchPreset, getPrewarmedWorkout, clearWorkoutData } from "@/utils/
 import { makeCacheKey, readCachedSession } from "@/utils/activeWorkoutCache";
 import { log } from "@/utils/devLog";
 import { getTempExercises } from "@/utils/exerciseBuffer";
+import { workoutLoggingApi, convertExerciseToLogFormat } from "@/services/workoutLoggingApi";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_PREVIEW_SCALE = 0.9;
@@ -41,9 +43,7 @@ const CHECK_COL_WIDTH = 32;
 
 interface Set { id: number; lbs: number; reps: number; checked?: boolean; }
 interface Exercise {
-  /** Canonical exercise id (server/library id or local temp) */
   id: string | number;
-  /** Stable, per-card unique id used for React keys */
   uid: string;
   name: string;
   images?: string[];
@@ -64,8 +64,7 @@ const ActiveWorkout = () => {
     convertWeight,
     getExerciseMeta,
   } = useWorkouts();
-  // ⬇️ pull in exercise history + cache updater
-  const { exerciseHistory, setExerciseNotes } = useUser();
+  const { exerciseHistory } = useUser();
 
   /* ---------------------------- workout timer ---------------------------- */
   const [elapsed, setElapsed] = useState(0);
@@ -157,15 +156,17 @@ const ActiveWorkout = () => {
   const [selectedExerciseIdx, setSelectedExerciseIdx] = useState<number | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isFinishing, setIsFinishing] = useState(false);
 
-  // uid sequence to ensure stable, unique keys for the lifetime of this screen
   const uidSeq = useRef(0);
   const newUid = useCallback((seed: string | number) => {
     const n = uidSeq.current++;
     return `${String(seed)}__${n}`;
   }, []);
 
-  // *** title character limit ***
+  // Avoid re-loading notes into exercises more than once per unique card
+  const notesLoadedRef = useRef(new Set<string>());
+
   const MAX_TITLE_LENGTH = 12;
   const truncateTitle = (title: string): string =>
     title.length <= MAX_TITLE_LENGTH ? title : title.substring(0, MAX_TITLE_LENGTH).trim() + "...";
@@ -180,14 +181,18 @@ const ActiveWorkout = () => {
     }
   }, [isLoading, fade]);
 
-  // load existing notes from history
-  const loadExistingNotes = useCallback((exerciseId: string | number): string => {
-    if (!exerciseHistory) return "";
-    const historyEntry = exerciseHistory[String(exerciseId)];
-    return historyEntry?.notes || "";
+  /* ---------- Make loadExistingNotes stable regardless of exerciseHistory changes ---------- */
+  const exerciseHistoryRef = useRef(exerciseHistory);
+  useEffect(() => {
+    exerciseHistoryRef.current = exerciseHistory;
   }, [exerciseHistory]);
 
-  // add uid to any exercise object that doesn't have one yet
+  const loadExistingNotes = useCallback((exerciseId: string | number): string => {
+    const hist = exerciseHistoryRef.current as any;
+    const entry = hist?.[String(exerciseId)];
+    return entry?.notes || "";
+  }, []);
+
   const withUid = useCallback((ex: any): Exercise => {
     return {
       ...ex,
@@ -203,12 +208,20 @@ const ActiveWorkout = () => {
           log("[Workout] Using prewarmed data");
           setWorkoutTitle(prewarmedData.title || "Workout");
 
-          const exercisesWithNotes = prewarmedData.exercises.map((ex: any) =>
-            withUid({
-              ...ex,
-              notes: loadExistingNotes(ex.id) || ex.notes || ""
-            })
-          );
+          const exercisesWithNotes = prewarmedData.exercises.map((ex: any) => {
+            const uid = ex.uid ?? newUid(ex.id ?? "x");
+            const notesKey = `${uid}_notes_loaded`;
+
+            if (!notesLoadedRef.current.has(notesKey)) {
+              notesLoadedRef.current.add(notesKey);
+              return withUid({
+                ...ex,
+                notes: loadExistingNotes(ex.id) || ex.notes || ""
+              });
+            }
+
+            return withUid(ex);
+          });
 
           setExercises(exercisesWithNotes as Exercise[]);
           setSelectedExerciseIdx(0);
@@ -222,12 +235,20 @@ const ActiveWorkout = () => {
         if (!preset) {
           if (activeSession?.exercises?.length) {
             setWorkoutTitle(activeSession.title || "Workout");
-            const exercisesWithNotes = activeSession.exercises.map((ex: any) =>
-              withUid({
-                ...ex,
-                notes: loadExistingNotes(ex.id) || ex.notes || ""
-              })
-            );
+            const exercisesWithNotes = activeSession.exercises.map((ex: any) => {
+              const uid = ex.uid ?? newUid(ex.id ?? "x");
+              const notesKey = `${uid}_notes_loaded`;
+
+              if (!notesLoadedRef.current.has(notesKey)) {
+                notesLoadedRef.current.add(notesKey);
+                return withUid({
+                  ...ex,
+                  notes: loadExistingNotes(ex.id) || ex.notes || ""
+                });
+              }
+
+              return withUid(ex);
+            });
             setExercises(exercisesWithNotes as Exercise[]);
             setSelectedExerciseIdx(0);
             setIsLoading(false);
@@ -244,12 +265,20 @@ const ActiveWorkout = () => {
         if (cached?.exercises?.length) {
           log("[Workout] Using cached data");
           setWorkoutTitle(cached.title || "Workout");
-          const exercisesWithNotes = cached.exercises.map((ex: any) =>
-            withUid({
-              ...ex,
-              notes: loadExistingNotes(ex.id) || ex.notes || ""
-            })
-          );
+          const exercisesWithNotes = cached.exercises.map((ex: any) => {
+            const uid = ex.uid ?? newUid(ex.id ?? "x");
+            const notesKey = `${uid}_notes_loaded`;
+
+            if (!notesLoadedRef.current.has(notesKey)) {
+              notesLoadedRef.current.add(notesKey);
+              return withUid({
+                ...ex,
+                notes: loadExistingNotes(ex.id) || ex.notes || ""
+              });
+            }
+
+            return withUid(ex);
+          });
           setExercises(exercisesWithNotes as Exercise[]);
           setSelectedExerciseIdx(0);
           setIsLoading(false);
@@ -269,12 +298,12 @@ const ActiveWorkout = () => {
           if (Array.isArray(ex.sets) && ex.sets.length > 0) {
             sets = ex.sets.map((s, j) => {
               const reps = Number(s?.reps) || 0;
-              let lbs = 0;
+              let displayWeight = 0;
               if (s?.weight != null) {
                 const parsed = parseWeight(String(s.weight));
-                lbs = convertWeight(parsed.value, parsed.unit, unitSystem);
+                displayWeight = convertWeight(parsed.value, parsed.unit, unitSystem);
               }
-              return { id: j + 1, reps, lbs, checked: false };
+              return { id: j + 1, reps, lbs: displayWeight, checked: false };
             });
           } else {
             const count = ex.setsCount || 3;
@@ -287,6 +316,15 @@ const ActiveWorkout = () => {
             }));
           }
 
+          const uid = newUid(ex.id);
+          const notesKey = `${uid}_notes_loaded`;
+
+          let notes = "";
+          if (!notesLoadedRef.current.has(notesKey)) {
+            notesLoadedRef.current.add(notesKey);
+            notes = loadExistingNotes(ex.id);
+          }
+
           return withUid({
             id: ex.id,
             name,
@@ -294,7 +332,7 @@ const ActiveWorkout = () => {
             primaryMuscles: meta?.primaryMuscles || [],
             secondaryMuscles: meta?.secondaryMuscles || [],
             sets,
-            notes: loadExistingNotes(ex.id) || "",
+            notes,
           });
         });
 
@@ -310,7 +348,23 @@ const ActiveWorkout = () => {
     };
 
     initializeWorkout();
-  }, [activeSession, unitSystem, getExerciseMeta, parseWeight, convertWeight, loadExistingNotes, withUid]);
+    // Dependencies intentionally exclude exerciseHistory so notes saves won't rebuild the workout.
+    // loadExistingNotes is stable due to reading from a ref.
+  }, [activeSession, unitSystem, getExerciseMeta, parseWeight, convertWeight, loadExistingNotes, withUid, newUid]);
+
+  /* ---------- When exerciseHistory changes, update only the 'notes' field in-place ---------- */
+  useEffect(() => {
+    if (!exerciseHistory) return;
+    setExercises((prev) =>
+      prev.map((ex) => {
+        const nextNotes = (exerciseHistory as any)?.[String(ex.id)]?.notes;
+        if (typeof nextNotes === "string" && nextNotes !== ex.notes) {
+          return { ...ex, notes: nextNotes };
+        }
+        return ex;
+      })
+    );
+  }, [exerciseHistory]);
 
   /* -------------------------- sets / notes helpers ----------------------- */
   const addSet = (exIdx: number) =>
@@ -459,7 +513,7 @@ const ActiveWorkout = () => {
           if (!next[pendingReplaceIdx]) return prev;
 
           const existingSets = next[pendingReplaceIdx].sets;
-          const keepUid = next[pendingReplaceIdx].uid; // preserve card identity
+          const keepUid = next[pendingReplaceIdx].uid;
           const newInfo = makeLocalExerciseFromList(src);
 
           next[pendingReplaceIdx] = {
@@ -480,8 +534,65 @@ const ActiveWorkout = () => {
       }
 
       setExercises((prev) => [...prev, ...buffered.map((b: any) => makeLocalExerciseFromList(b))]);
-    }, [pendingReplaceIdx])
+    }, [pendingReplaceIdx, newUid])
   );
+
+  /* ----------------------- Finish workout with real API ----------------------- */
+  const handleFinishWorkout = async () => {
+    try {
+      setIsFinishing(true);
+
+      const apiExercises = exercises
+        .filter(ex => ex.sets.some(set => set.checked))
+        .map(ex => convertExerciseToLogFormat(ex, convertWeight, unitSystem));
+
+      if (apiExercises.length === 0) {
+        Alert.alert("No completed exercises", "You need to complete at least one set to finish your workout.");
+        return;
+      }
+
+      const totalVolumeLbs = exercises.reduce(
+        (sum, ex) => sum + ex.sets
+          .filter(s => s.checked)
+          .reduce((acc, s) => {
+            const wLbs = unitSystem === "metric" ? convertWeight(s.lbs, "metric", "imperial") : s.lbs;
+            return acc + wLbs * s.reps;
+          }, 0),
+        0
+      );
+
+      const workoutPayload = {
+        length: elapsed,
+        exercises: apiExercises
+      };
+
+      const result = await workoutLoggingApi.logWorkout(workoutPayload);
+
+      if (!result.success) {
+        Alert.alert("Error", result.error || "Failed to save workout");
+        return;
+      }
+
+      clearActiveSession();
+      clearWorkoutData();
+
+      router.replace({
+        pathname: "/home/finished-workout",
+        params: {
+          volume: String(totalVolumeLbs),
+          elapsed: String(elapsed),
+          xpGained: String(result.userGainedXP || 0),
+          events: JSON.stringify(result.events || []),
+          muscleCategoryXP: JSON.stringify(result.muscleCategoryGainedXP || {}),
+        },
+      });
+    } catch (error) {
+      console.error("❌ Error finishing workout:", error);
+      Alert.alert("Error", "Failed to save workout. Please try again.");
+    } finally {
+      setIsFinishing(false);
+    }
+  };
 
   /* -------------------------------- render ------------------------------- */
   if (initError) {
@@ -551,36 +662,7 @@ const ActiveWorkout = () => {
             setPaused(true);
             setPauseModalVisible(true);
           }}
-          onFinish={() => {
-            const summaries = exercises.map((ex) => ({
-              id: (ex as any).id,
-              name: (ex as any).name,
-              sets: ex.sets.map((s) => ({ reps: s.reps, lbs: s.lbs })),
-            }));
-
-            const totalVolume = exercises.reduce(
-              (sum, ex) => sum + ex.sets.reduce((acc, s) => acc + s.lbs * s.reps, 0),
-              0
-            );
-
-            const xpGained = Math.floor(totalVolume / 100);
-
-            clearActiveSession();
-            clearWorkoutData();
-            router.replace({
-              pathname: "/home/finished-workout",
-              params: {
-                volume: String(totalVolume),
-                elapsed: String(elapsed),
-                xpGained: String(xpGained),
-                level: "12",
-                xp: "2863",
-                xpNext: "5000",
-                ach: "[]",
-                ex: JSON.stringify(summaries),
-              },
-            });
-          }}
+          onFinish={handleFinishWorkout}
         />
 
         <Animated.ScrollView
@@ -822,6 +904,23 @@ const ActiveWorkout = () => {
           primaryColor={primaryColor}
           tertiaryColor={tertiaryColor}
         />
+
+        {isFinishing && (
+          <View style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1000
+          }}>
+            <ActivityIndicator size="large" color={primaryColor} />
+            <Text className="text-white font-pmedium mt-4 text-lg">Saving workout...</Text>
+          </View>
+        )}
 
         <ConfirmCancelModal
           visible={false}

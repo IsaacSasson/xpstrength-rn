@@ -55,9 +55,11 @@ const ExerciseDetail = () => {
 
   // Notes state
   const [currentNotes, setCurrentNotes] = useState("");
+  const [draftNotes, setDraftNotes] = useState("");
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [notesSaving, setNotesSaving] = useState(false);
   const [notesHeight, setNotesHeight] = useState(NOTES_MIN_HEIGHT);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const scrollRef = useRef<ScrollView>(null);
   const notesInputRef = useRef<any>(null);
@@ -90,13 +92,16 @@ const ExerciseDetail = () => {
     }
   }, [exerciseId]);
 
-  // Load existing notes from history when exercise is loaded
+  // Load existing notes from history when exercise is loaded - FIXED DEPENDENCIES
   useEffect(() => {
     if (exercise && exerciseHistory) {
       const historyEntry = exerciseHistory[String(exercise.id)];
-      setCurrentNotes(historyEntry?.notes || "");
+      const notes = historyEntry?.notes || "";
+      // Only update if notes actually changed to prevent unnecessary re-renders
+      setCurrentNotes(prev => prev !== notes ? notes : prev);
+      setDraftNotes(prev => prev !== notes ? notes : prev);
     }
-  }, [exercise, exerciseHistory]);
+  }, [exercise?.id, exerciseHistory?.[String(exercise?.id)]?.notes]); // More specific dependencies
 
   useEffect(() => {
     if (exercise && exercise.images.length > 1) {
@@ -126,7 +131,7 @@ const ExerciseDetail = () => {
     return Number.isFinite(n) ? n : null;
   };
 
-  const handleNotesSave = async (notes: string) => {
+  const handleNotesSave = async () => {
     if (!exercise) return;
 
     try {
@@ -136,7 +141,8 @@ const ExerciseDetail = () => {
       if (serverId == null) {
         // Cannot persist for exercises without canonical id
         console.warn("[Notes] Skipped save: non-canonical exercise id:", exercise.id);
-        setCurrentNotes(notes);
+        setCurrentNotes(draftNotes);
+        setHasUnsavedChanges(false);
         Alert.alert(
           "Note saved locally",
           "This exercise isn't linked to a library id yet, so the note can't be saved to history.",
@@ -145,7 +151,7 @@ const ExerciseDetail = () => {
         return;
       }
 
-      const result = await userApi.saveExerciseNotes(serverId, notes);
+      const result = await userApi.saveExerciseNotes(serverId, draftNotes);
 
       if (!result?.success) {
         Alert.alert(
@@ -156,9 +162,15 @@ const ExerciseDetail = () => {
         return;
       }
 
-      // success: reflect in current view + global cache so *new workouts* see it
-      setCurrentNotes(notes);
-      setExerciseNotes(serverId, notes);
+      // Update local state first to prevent workflow disruption
+      setCurrentNotes(draftNotes);
+      setHasUnsavedChanges(false);
+      setIsEditingNotes(false);
+      
+      // Then update global cache - but do it in a way that doesn't trigger
+      // a full reload of the current workout
+      setExerciseNotes(serverId, draftNotes);
+      
     } catch (error) {
       console.error("❌ Error saving notes:", error);
       Alert.alert(
@@ -168,6 +180,34 @@ const ExerciseDetail = () => {
       );
     } finally {
       setNotesSaving(false);
+    }
+  };
+
+  const handleNotesChange = (text: string) => {
+    setDraftNotes(text);
+    setHasUnsavedChanges(text !== currentNotes);
+  };
+
+  const handleCancelEdit = () => {
+    if (hasUnsavedChanges) {
+      Alert.alert(
+        "Discard Changes?",
+        "You have unsaved changes. Are you sure you want to discard them?",
+        [
+          { text: "Keep Editing", style: "cancel" },
+          {
+            text: "Discard",
+            style: "destructive",
+            onPress: () => {
+              setDraftNotes(currentNotes);
+              setHasUnsavedChanges(false);
+              setIsEditingNotes(false);
+            },
+          },
+        ]
+      );
+    } else {
+      setIsEditingNotes(false);
     }
   };
 
@@ -261,7 +301,7 @@ const ExerciseDetail = () => {
           onContentSizeChange={() => setContentReady(true)}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Exercise Images */}
+          {/* Exercise Images - MOVED TO TOP */}
           <View style={styles.imageContainer}>
             {exercise.images.length > 0 ? (
               <>
@@ -306,8 +346,190 @@ const ExerciseDetail = () => {
             )}
           </View>
 
-          {/* Exercise Details */}
-          <View className="mt-6">
+          {/* Notes Section - MOVED BELOW IMAGES */}
+          <View
+            className="rounded-xl p-4 mb-4 mt-6"
+            style={{ 
+              backgroundColor: tertiaryColor,
+              borderWidth: isEditingNotes ? 2 : 0,
+              borderColor: isEditingNotes ? primaryColor : 'transparent'
+            }}
+          >
+            <View className="flex-row items-center justify-between mb-3">
+              <View className="flex-row items-center">
+                <MaterialCommunityIcons
+                  name="note-edit-outline"
+                  size={22}
+                  color={primaryColor}
+                />
+                <Text className="text-white font-psemibold text-lg ml-2">
+                  My Notes
+                </Text>
+                {hasUnsavedChanges && (
+                  <View 
+                    className="ml-2 w-2 h-2 rounded-full"
+                    style={{ backgroundColor: '#FF6B6B' }}
+                  />
+                )}
+              </View>
+              {notesSaving && (
+                <ActivityIndicator size="small" color={primaryColor} />
+              )}
+            </View>
+
+            {isEditingNotes ? (
+              <View className="space-y-4">
+                <View
+                  style={{
+                    backgroundColor: "#1A1A1A",
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: '#333',
+                  }}
+                >
+                  <TextInput
+                    ref={notesInputRef}
+                    value={draftNotes}
+                    onChangeText={handleNotesChange}
+                    placeholder="Add your personal notes about this exercise..."
+                    placeholderTextColor="#666"
+                    multiline
+                    textAlignVertical="top"
+                    style={{
+                      height: notesHeight,
+                      maxHeight: NOTES_MAX_HEIGHT,
+                      color: "white",
+                      fontSize: 16,
+                      fontFamily: "Poppins-Regular",
+                      padding: 16,
+                    }}
+                    autoFocus
+                    onContentSizeChange={(e) => {
+                      const h = e.nativeEvent.contentSize.height;
+                      const clamped = Math.min(Math.max(h + 32, NOTES_MIN_HEIGHT), NOTES_MAX_HEIGHT);
+                      if (clamped !== notesHeight) setNotesHeight(clamped);
+                    }}
+                    scrollEnabled={notesHeight >= NOTES_MAX_HEIGHT}
+                  />
+                </View>
+                
+                {/* Action buttons */}
+                <View className="flex-row space-x-3">
+                  <TouchableOpacity
+                    onPress={handleNotesSave}
+                    disabled={notesSaving || !hasUnsavedChanges}
+                    className="flex-1 py-3 rounded-lg flex-row items-center justify-center"
+                    style={{ 
+                      backgroundColor: hasUnsavedChanges ? primaryColor : '#666',
+                      opacity: notesSaving ? 0.7 : 1
+                    }}
+                  >
+                    {notesSaving ? (
+                      <ActivityIndicator size="small" color="white" />
+                    ) : (
+                      <>
+                        <MaterialCommunityIcons
+                          name="content-save"
+                          size={20}
+                          color="white"
+                        />
+                        <Text className="text-white font-pmedium ml-2">
+                          Save Notes
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    onPress={handleCancelEdit}
+                    disabled={notesSaving}
+                    className="px-6 py-3 rounded-lg border"
+                    style={{ 
+                      borderColor: '#666',
+                      opacity: notesSaving ? 0.7 : 1
+                    }}
+                  >
+                    <Text className="text-gray-300 font-pmedium">Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <View>
+                <Pressable
+                  onPress={() => {
+                    setIsEditingNotes(true);
+                    setTimeout(() => notesInputRef.current?.focus?.(), 100);
+                  }}
+                >
+                  <View
+                    style={{
+                      backgroundColor: "#1A1A1A",
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: currentNotes.trim() ? '#333' : '#444',
+                      borderStyle: currentNotes.trim() ? 'solid' : 'dashed',
+                      minHeight: 80,
+                      padding: 16,
+                      justifyContent: currentNotes.trim() ? 'flex-start' : 'center',
+                    }}
+                  >
+                    {currentNotes.trim() ? (
+                      <ScrollView
+                        style={{ maxHeight: NOTES_MAX_HEIGHT - 32 }}
+                        keyboardShouldPersistTaps="handled"
+                      >
+                        <Text className="text-white font-pregular text-base leading-6">
+                          {currentNotes}
+                        </Text>
+                      </ScrollView>
+                    ) : (
+                      <View className="items-center">
+                        <MaterialCommunityIcons
+                          name="plus-circle-outline"
+                          size={24}
+                          color="#666"
+                        />
+                        <Text className="text-gray-500 font-pregular text-base mt-2 text-center">
+                          Tap to add your personal notes
+                        </Text>
+                        <Text className="text-gray-600 font-pregular text-sm mt-1 text-center">
+                          Track your form cues, weight progression, or observations
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </Pressable>
+
+                {currentNotes.trim() && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      setIsEditingNotes(true);
+                      setTimeout(() => notesInputRef.current?.focus?.(), 100);
+                    }}
+                    className="mt-3 px-4 py-2 rounded-lg flex-row items-center"
+                    style={{ 
+                      borderWidth: 1, 
+                      borderColor: primaryColor, 
+                      alignSelf: 'flex-start',
+                      backgroundColor: `${primaryColor}15`
+                    }}
+                  >
+                    <MaterialCommunityIcons
+                      name="pencil"
+                      size={16}
+                      color={primaryColor}
+                    />
+                    <Text className="font-pmedium ml-2" style={{ color: primaryColor }}>
+                      Edit Notes
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+          </View>
+
+          {/* Exercise Details - AFTER NOTES */}
+          <View>
             {/* Primary Muscles */}
             <View
               className="rounded-xl p-4 mb-4"
@@ -400,113 +622,6 @@ const ExerciseDetail = () => {
                     </View>
                   )}
               </View>
-            </View>
-
-            {/* Notes Section */}
-            <View
-              className="rounded-xl p-4 mb-4"
-              style={{ backgroundColor: tertiaryColor }}
-            >
-              <View className="flex-row items-center justify-between mb-3">
-                <View className="flex-row items-center">
-                  <MaterialCommunityIcons
-                    name="note-text-outline"
-                    size={20}
-                    color={primaryColor}
-                  />
-                  <Text className="text-white font-psemibold text-lg ml-2">
-                    Notes
-                  </Text>
-                </View>
-                {notesSaving && (
-                  <ActivityIndicator size="small" color={primaryColor} />
-                )}
-              </View>
-
-              {isEditingNotes ? (
-                <View
-                  style={{
-                    backgroundColor: "#1A1A1A",
-                    padding: 16,
-                    borderRadius: 8,
-                  }}
-                >
-                  <TextInput
-                    ref={notesInputRef}
-                    value={currentNotes}
-                    onChangeText={setCurrentNotes}
-                    placeholder="Add your notes here..."
-                    placeholderTextColor="#666"
-                    multiline
-                    textAlignVertical="top"
-                    style={{
-                      height: notesHeight,
-                      maxHeight: NOTES_MAX_HEIGHT,
-                      color: "white",
-                      fontSize: 16,
-                      fontFamily: "Poppins-Regular",
-                    }}
-                    autoFocus
-                    onContentSizeChange={(e) => {
-                      const h = e.nativeEvent.contentSize.height;
-                      const clamped = Math.min(Math.max(h, NOTES_MIN_HEIGHT), NOTES_MAX_HEIGHT);
-                      if (clamped !== notesHeight) setNotesHeight(clamped);
-                    }}
-                    scrollEnabled={notesHeight >= NOTES_MAX_HEIGHT}
-                    onBlur={async () => {
-                      await handleNotesSave(currentNotes);
-                      setIsEditingNotes(false);
-                    }}
-                  />
-                </View>
-              ) : (
-                <Pressable
-                  onPress={() => {
-                    setIsEditingNotes(true);
-                    setTimeout(() => notesInputRef.current?.focus?.(), 0);
-                  }}
-                >
-                  <View
-                    style={{
-                      backgroundColor: "#1A1A1A",
-                      padding: 16,
-                      borderRadius: 8,
-                      minHeight: NOTES_MIN_HEIGHT,
-                      maxHeight: NOTES_MAX_HEIGHT,
-                    }}
-                  >
-                    {currentNotes.trim() ? (
-                      <ScrollView
-                        style={{ maxHeight: NOTES_MAX_HEIGHT - 2 }}
-                        keyboardShouldPersistTaps="handled"
-                      >
-                        <Text className="text-white font-pregular text-base leading-6">
-                          {currentNotes}
-                        </Text>
-                      </ScrollView>
-                    ) : (
-                      <Text className="text-gray-500 font-pregular text-base italic">
-                        Tap here to add notes about this exercise...
-                      </Text>
-                    )}
-                  </View>
-                </Pressable>
-              )}
-
-              {!isEditingNotes && currentNotes.trim() && (
-                <TouchableOpacity
-                  onPress={() => {
-                    setIsEditingNotes(true);
-                    setTimeout(() => notesInputRef.current?.focus?.(), 0);
-                  }}
-                  className="mt-3 px-4 py-2 rounded-lg"
-                  style={{ borderWidth: 1, borderColor: primaryColor, alignSelf: 'flex-start' }}
-                >
-                  <Text className="text-white font-pmedium" style={{ color: primaryColor }}>
-                    Edit Notes
-                  </Text>
-                </TouchableOpacity>
-              )}
             </View>
 
             {/* Instructions */}

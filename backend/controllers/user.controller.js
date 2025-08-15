@@ -351,7 +351,7 @@ export async function getExerciseHistory(req, res, next) {
 
 export async function postSaveNotes(req, res, next) {
   const user = req?.user ?? null;
-  const notes = req?.body?.data?.notes ?? null;
+  const notes = req?.body?.data?.notes || "No notes";
   const exerciseId = req?.params?.exerciseId;
 
   try {

@@ -187,7 +187,7 @@ export function attachFriendHandlers(io, socket, buckets) {
     return profiles;
   });
 
-  afeHandler(socket, "getAllFriendStatus", async () => {
+  safeHandler(socket, "getAllFriendStatus", async () => {
     const bucket = buckets.get(userId);
 
     const uniqueIds = [...new Set([...bucket.friends])];

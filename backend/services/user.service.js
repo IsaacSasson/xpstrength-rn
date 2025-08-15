@@ -487,7 +487,7 @@ export async function logWorkout(user, workout) {
         let newHistory = {
           sets: exerciseSets,
           cooldown: exerciseCooldown,
-          notes: exerciseNotes ?? "No Notes",
+          notes: exerciseNotes || "No Notes",
         };
 
         let newLog = {

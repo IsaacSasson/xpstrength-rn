@@ -39,19 +39,19 @@ interface AuthContextType {
 /* ------------------------------- Auth context ------------------------------- */
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-/* 
+/*
   Global reference that the fetch interceptor reads from.
   We update it from the provider via useEffect.
 */
 let authContext: AuthContextType | null = null;
 
-/* 
+/*
   Single-flight refresh: all 401s wait for the same refresh.
   Resolves to a string accessToken on success, or null on failure.
 */
 let refreshPromise: Promise<string | null> | null = null;
 
-/* 
+/*
   Make fetch patch idempotent so we don't wrap multiple times in fast refresh/dev.
 */
 let fetchPatched = false;
@@ -76,7 +76,7 @@ const createAuthenticatedFetch = () => {
 
       const res = await originalFetch(`${API_BASE_URL}/api/v1/auth/access-token`, {
         method: "GET",
-        headers: { refreshToken },
+        headers: { refreshToken: refreshToken },
       });
 
       if (!res.ok) return null;
@@ -94,7 +94,7 @@ const createAuthenticatedFetch = () => {
       }
 
       return newAccess;
-    } catch (e) {
+    } catch {
       return null;
     }
   };
@@ -186,17 +186,35 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (!userData) setIsLoading(false);
   };
 
-  useEffect(() => {
-    if (user && accessToken) {
-      setIsLoading(false);
-    }
-  }, [user, accessToken]);
-
   const setRefreshToken = async (token: string | null): Promise<void> => {
     if (token) {
       await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, token);
     } else {
       await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
+    }
+  };
+
+  const clearAuth = async (): Promise<void> => {
+    setAccessTokenState(null);
+    setUser(null);
+    await setRefreshToken(null);
+  };
+
+  const logout = async (): Promise<void> => {
+    try {
+      const refreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+      await fetch(`${API_BASE_URL}/api/v1/auth/logout`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken ?? ""}`,
+          // Server expects lowercase 'refreshtoken'
+          refreshtoken: refreshToken ?? "",
+        },
+      });
+    } catch {
+      // ignore network/logout errors
+    } finally {
+      await clearAuth();
     }
   };
 
@@ -233,7 +251,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       logout,
       clearAuth,
     };
-  }, [user, accessToken, isLoading, isAuthenticated, signIn]);
+  }, [user, accessToken, isLoading, isAuthenticated, signIn, logout, clearAuth]);
+
+  useEffect(() => {
+    if (user && accessToken) {
+      setIsLoading(false);
+    }
+  }, [user, accessToken]);
 
   const initializeAuth = async () => {
     try {
@@ -244,7 +268,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // Try to get a fresh access token on startup
         const res = await fetch(`${API_BASE_URL}/api/v1/auth/access-token`, {
           method: "GET",
-          headers: { refreshToken },
+          // Server expects lowercase 'refreshtoken'
+          headers: { refreshtoken: refreshToken },
         });
 
         if (res.ok) {
@@ -262,29 +287,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       await setRefreshToken(null);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const clearAuth = async (): Promise<void> => {
-    setAccessTokenState(null);
-    setUser(null);
-    await setRefreshToken(null);
-  };
-
-  const logout = async (): Promise<void> => {
-    try {
-      const refreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
-      await fetch(`${API_BASE_URL}/api/v1/auth/logout`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken ?? ""}`,
-          refreshToken: refreshToken ?? "",
-        },
-      });
-    } catch {
-      // ignore
-    } finally {
-      await clearAuth();
     }
   };
 

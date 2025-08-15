@@ -4,18 +4,21 @@ import { UserProvider } from './UserProvider';
 import { ThemeProvider } from './ThemeContext';
 import { AuthProvider } from './AuthProvider';
 import { WorkoutProvider } from './WorkoutContext';
+import { SocketProvider } from './SocketProvider';
 
 // This component combines all providers
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <AuthProvider>
-      <UserProvider>
-        <ThemeProvider>
-          <WorkoutProvider>
-            {children}
-          </WorkoutProvider>
-        </ThemeProvider>
-      </UserProvider>
+      <SocketProvider>
+        <UserProvider>
+          <ThemeProvider>
+            <WorkoutProvider>
+              {children}
+            </WorkoutProvider>
+          </ThemeProvider>
+        </UserProvider>
+      </SocketProvider>
     </AuthProvider>
   );
 };
