@@ -16,15 +16,16 @@ export function attachCommonHandlers(io, socket, buckets) {
       return;
     }
     const friendData = await getFriendData(socket.data.user);
+    console.log(friendData);
     bucket.friends = friendData.friends;
     bucket.incomingRequests = friendData.incomingRequests;
     bucket.outgoingRequests = friendData.outgoingRequests;
     bucket.blocked = friendData.blocked;
     io.to(`user:${userId}`).emit("dataSync", {
-      friends: bucket.friends,
-      incomingRequests: bucket.incomingRequests,
-      outgoingRequests: bucket.outgoingRequests,
-      blocked: bucket.blocked,
+      friends: Array.from(bucket.friends),
+      incomingRequests: Array.from(bucket.incomingRequests),
+      outgoingRequests: Array.from(bucket.outgoingRequests),
+      blocked: Array.from(bucket.blocked),
     });
   });
 
