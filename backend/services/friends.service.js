@@ -154,7 +154,7 @@ export async function acceptRequest(friendUserId, socket, bucket) {
       );
 
       const friendAcc = await User.findOne({
-        where: { userId: friendUserId },
+        where: { id: friendUserId },
         transaction: t,
       });
 
@@ -162,7 +162,10 @@ export async function acceptRequest(friendUserId, socket, bucket) {
 
       friendAcc.save({ transaction: t });
 
-      const userAcc = await User.findOne({ where: { userId }, transaction: t });
+      const userAcc = await User.findOne({
+        where: { id: userId },
+        transaction: t,
+      });
 
       userAcc.totalFriends += 1;
 
@@ -329,7 +332,7 @@ export async function cancelRequest(friendUserId, socket, bucket) {
 export async function removeFriend(friendId, socket, bucket) {
   try {
     const userId = socket.data.user.id;
-    friendBucket = buckets.get(friendId);
+    let friendBucket = buckets.get(friendId);
 
     if (!bucket.friends.has(friendId)) {
       throw new AppError(
@@ -345,16 +348,16 @@ export async function removeFriend(friendId, socket, bucket) {
         transaction: t,
       });
 
-      userAccFriend.destroy({ transaction: t });
+      await userAccFriend.destroy({ transaction: t });
 
-      const friendAccFriend = Friend.findOne({
+      const friendAccFriend = await Friend.findOne({
         where: { userId: friendId, friendId: userId },
         transaction: t,
       });
 
       const friendAccFriendId = friendAccFriend.id;
 
-      friendAccFriend.destoy({ transaction: t });
+      await friendAccFriend.destroy({ transaction: t });
 
       if (friendBucket) {
         friendBucket.friends.delete(userId);
@@ -379,7 +382,25 @@ export async function removeFriend(friendId, socket, bucket) {
         );
       }
 
-      bucket.friends.remove(friendId);
+      bucket.friends.delete(friendId);
+
+      const friendAcc = await User.findOne({
+        where: { id: friendId },
+        transaction: t,
+      });
+
+      friendAcc.totalFriends -= 1;
+
+      friendAcc.save({ transaction: t });
+
+      const userAcc = await User.findOne({
+        where: { id: userId },
+        transaction: t,
+      });
+
+      userAcc.totalFriends -= 1;
+
+      userAcc.save({ transaction: t });
 
       return friendId;
     });
@@ -522,7 +543,7 @@ export async function statusChanged(fromId, toId, status) {
 
 export async function getKnownProfile(profileId) {
   try {
-    let profile = await User.findOne({ where: { userId: profileId } });
+    let profile = await User.findOne({ where: { id: profileId } });
     profile = parseProfileObj(profile);
     const { profilePic, ...noPic } = profile;
     return noPic;
@@ -533,7 +554,7 @@ export async function getKnownProfile(profileId) {
 
 export async function getKnownProfilePic(profileId) {
   try {
-    let profile = await User.findOne({ where: { userId: profileId } });
+    let profile = await User.findOne({ where: { id: profileId } });
     return profile.profilePic;
   } catch (err) {
     throw mapSequelizeError(err);
