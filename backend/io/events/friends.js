@@ -82,7 +82,7 @@ export function attachFriendHandlers(io, socket, buckets) {
     const bucket = buckets.get(userId);
 
     const uniqueIds = [
-      new Set([
+      ...new Set([
         ...bucket.friends,
         ...bucket.outgoingRequests,
         ...bucket.incomingRequests,
@@ -100,7 +100,7 @@ export function attachFriendHandlers(io, socket, buckets) {
     const bucket = buckets.get(userId);
 
     const uniqueIds = [
-      new Set([
+      ...new Set([
         ...bucket.friends,
         ...bucket.outgoingRequests,
         ...bucket.incomingRequests,
@@ -190,7 +190,7 @@ export function attachFriendHandlers(io, socket, buckets) {
   safeHandler(socket, "getAllFriendStatus", async () => {
     const bucket = buckets.get(userId);
 
-    const uniqueIds = [...new Set([...bucket.friends])];
+    const uniqueIds = [...bucket.friends];
 
     const statuses = await Promise.all(
       uniqueIds.map(async (id) => {
