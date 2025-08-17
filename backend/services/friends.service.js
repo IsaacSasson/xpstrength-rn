@@ -53,7 +53,7 @@ export async function addFriend(friendUsername, socket, bucket) {
 
       //Check if they sent you a request
       if (bucket.incomingRequests.has(friendUserId)) {
-        return await acceptFriend(friendUserId, socket, bucket);
+        return await acceptRequest(friendUserId, socket, bucket);
       }
 
       const OutgoingReq = await OutgoingRequests.create(
