@@ -63,9 +63,7 @@ export function attachFriendHandlers(io, socket, buckets) {
     const bucket = buckets.get(userId);
 
     if (!bucket.blocked.has(friendId)) {
-      throw new AppError(
-        "Cannot unblock a foreign user does not have already blocked"
-      );
+      throw new AppError("Cannot unblock a user that you haven't blocked");
     }
 
     return await FriendService.unblockFriend(friendId, socket, bucket);
