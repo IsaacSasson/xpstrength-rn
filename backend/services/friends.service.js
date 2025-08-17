@@ -137,7 +137,7 @@ export async function acceptRequest(friendUserId, socket, bucket) {
       OutgoingReq.destroy({ transaction: t });
 
       const IncomingReq = await IncomingRequests.findOne({
-        where: { userId: userId, outgoingId: friendUserId },
+        where: { userId: userId, incomingId: friendUserId },
         transaction: t,
       });
 
@@ -226,7 +226,7 @@ export async function declineRequest(friendUserId, socket, bucket) {
       OutgoingReq.destroy({ transaction: t });
 
       const IncomingReq = await IncomingRequests.findOne({
-        where: { userId: userId, outgoingId: friendUserId },
+        where: { userId: userId, incomingId: friendUserId },
         transaction: t,
       });
 
@@ -286,7 +286,7 @@ export async function cancelRequest(friendUserId, socket, bucket) {
       OutgoingReq.destroy({ transaction: t });
 
       const IncomingReq = await IncomingRequests.findOne({
-        where: { userId: friendUserId, outgoingId: userId },
+        where: { userId: friendUserId, incomingId: userId },
         transaction: t,
       });
 
