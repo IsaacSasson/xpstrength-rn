@@ -14,7 +14,7 @@ SafeHanlder used so we can support App Errors with out service calls
 
 No need for try Catch's in services except for mapping sequelize errors, then it gets caught my the Handler
 */
-export function createIo(server) {
+export async function createIo(server) {
   const io = new Server(server, {
     path: "/socket",
     cors: { origin: true, credentials: true },

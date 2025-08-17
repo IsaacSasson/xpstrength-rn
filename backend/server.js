@@ -62,7 +62,7 @@ app.use(express.static(path.join(__dirname, "public")));
 const server = http.createServer(app);
 
 //Websocket Server
-createIo(server);
+export const io = await createIo(server);
 
 //  Boot sequence
 async function start() {

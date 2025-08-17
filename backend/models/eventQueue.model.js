@@ -62,6 +62,15 @@ Event.markSeen = async (userId, upToId, t = null) => {
     );
 };
 
+Event.allFromRef = async (userId, minRef, t = null) => {
+    return Event.findAll({ 
+    where: {
+        userId,
+        id: { [Op.gte]: minRef},
+    }, 
+    transaction: t});
+};   
+
 //Todo Write a tester for Event
 
 export default Event;

@@ -109,6 +109,28 @@
       .j-null {
         color: #fda4af;
       } /* pink */
+
+      /* Listener list */
+      .listener-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: #f3f4f6;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        padding: 6px 8px;
+        margin: 6px 0;
+      }
+      .listener-name {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          monospace;
+        font-size: 12px;
+      }
+      .danger {
+        background: #fee2e2;
+        border: 1px solid #fecaca;
+        color: #991b1b;
+      }
     </style>
   </head>
   <body>
@@ -190,6 +212,51 @@
       </div>
     </div>
 
+    <!-- Generic emitter -->
+    <div class="card">
+      <h3>Custom Emit</h3>
+      <div class="row">
+        <input
+          id="customEvtName"
+          placeholder="event name (e.g. myEvent)"
+          size="28"
+        />
+      </div>
+      <label>Payload JSON (optional)</label><br />
+      <textarea id="customPayload">{}</textarea><br />
+      <div class="row">
+        <button id="emitBtn" disabled>Emit Custom Event</button>
+      </div>
+      <div class="small">
+        Sends <code>socket.emit(eventName, payload)</code>. If payload is empty,
+        emits with no args.
+      </div>
+    </div>
+
+    <!-- Dynamic listeners -->
+    <div class="card">
+      <h3>Custom Listeners</h3>
+      <div class="row">
+        <input
+          id="listenEvtName"
+          placeholder="event to listen for (e.g. orderCreated)"
+          size="34"
+        />
+        <button id="addListenerBtn" disabled>Add Listener</button>
+        <label
+          style="display: flex; align-items: center; gap: 6px; margin-left: 8px"
+        >
+          <input type="checkbox" id="onAnyToggle" disabled />
+          Log all inbound events (onAny)
+        </label>
+      </div>
+      <div id="listenersList"></div>
+      <div class="small">
+        Each listener will <code>socket.on(name, handler)</code> and log the
+        payload. You can remove listeners individually.
+      </div>
+    </div>
+
     <div
       class="row"
       style="justify-content: space-between; align-items: center"
@@ -221,11 +288,11 @@
         if (/(error|fail|unauth|denied)/.test(t)) return "error";
         if (/(warn|slow)/.test(t)) return "warn";
         if (/(connected|ok|success)/.test(t)) return "ok";
-        if (/(newevent|newevents|pong|eventsseen)/.test(t)) return "event";
+        if (/(newevent|newevents|pong|eventsseen|emit|recv)/.test(t))
+          return "event";
         return "info";
       }
       function jsonSyntaxHighlight(jsonText) {
-        // basic highlighting for readability on dark bg
         return jsonText
           .replace(
             /(&|<|>)/g,
@@ -234,14 +301,14 @@
           .replace(
             /("(\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*"(?=\s*:))/g,
             '<span class="j-key">$&</span>'
-          ) // keys
+          )
           .replace(
             /"(\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*"/g,
             '<span class="j-str">$&</span>'
-          ) // strings
-          .replace(/\b(true|false)\b/g, '<span class="j-bool">$1</span>') // booleans
-          .replace(/\b(null)\b/g, '<span class="j-null">$1</span>') // null
-          .replace(/-?\b\d+(\.\d+)?\b/g, '<span class="j-num">$&</span>'); // numbers
+          )
+          .replace(/\b(true|false)\b/g, '<span class="j-bool">$1</span>')
+          .replace(/\b(null)\b/g, '<span class="j-null">$1</span>')
+          .replace(/-?\b\d+(\.\d+)?\b/g, '<span class="j-num">$&</span>');
       }
       function toPrettyText(v) {
         if (typeof v === "string") return v;
@@ -252,7 +319,6 @@
         }
       }
       function log(tag, ...rest) {
-        // allow old calls like log("connected", {...}) or log("error", msg)
         if (typeof tag !== "string") {
           rest = [tag, ...rest];
           tag = "log";
@@ -273,7 +339,6 @@
         const msgEl = document.createElement("div");
         msgEl.className = "log-msg";
         const txt = toPrettyText(msg);
-        // try to detect JSON-ish text to highlight
         if (typeof msg === "object") {
           msgEl.innerHTML = jsonSyntaxHighlight(toPrettyText(msg));
         } else if (/^[\[{].*[\]}]$/.test(txt.trim())) {
@@ -304,6 +369,16 @@
       const loginBtn = $("loginBtn");
       const fetchWsBtn = $("fetchWsBtn");
 
+      // new elements
+      const emitBtn = $("emitBtn");
+      const addListenerBtn = $("addListenerBtn");
+      const onAnyToggle = $("onAnyToggle");
+      const listenersList = $("listenersList");
+
+      // listeners registry
+      const activeListeners = new Map(); // name -> handler
+      let onAnyHandler = null;
+
       function setEnabled(connected) {
         connectBtn.disabled = connected;
         disconnectBtn.disabled = !connected;
@@ -312,6 +387,9 @@
         markBtn.disabled = !connected;
         createBtn.disabled = !connected;
         spamBtn.disabled = !connected;
+        emitBtn.disabled = !connected;
+        addListenerBtn.disabled = !connected;
+        onAnyToggle.disabled = !connected;
       }
 
       async function apiFetch(path, options = {}) {
@@ -336,7 +414,7 @@
       // --- Auth Flow ---
       loginBtn.onclick = async () => {
         const username = $("username").value.trim();
-        const password = $("password").value; // do NOT trim passwords
+        const password = $("password").value;
         if (!username || !password) return alert("Enter username and password");
 
         try {
@@ -419,9 +497,29 @@
         );
       };
 
-      disconnectBtn.onclick = () => socket?.disconnect();
+      disconnectBtn.onclick = () => {
+        // cleanup dynamic listeners
+        if (socket) {
+          if (onAnyHandler) {
+            try {
+              socket.offAny(onAnyHandler);
+            } catch {}
+            onAnyHandler = null;
+          }
+          for (const [name, fn] of activeListeners) {
+            try {
+              socket.off(name, fn);
+            } catch {}
+          }
+          activeListeners.clear();
+        }
+        listenersList.innerHTML = "";
+        onAnyToggle.checked = false;
 
-      // buttons -> emits
+        socket?.disconnect();
+      };
+
+      // buttons -> emits (fixed)
       syncBtn.onclick = () => socket?.emit("syncNow");
       pingBtn.onclick = () => socket?.emit("ping");
       markBtn.onclick = () => {
@@ -449,6 +547,106 @@
         const n = Number($("spamCount").value || "5");
         if (!Number.isFinite(n) || n < 1) return alert("Enter N >= 1");
         socket?.emit("spamDummy", { n });
+      };
+
+      // --- Generic custom emitter ---
+      emitBtn.onclick = () => {
+        const evtName = $("customEvtName").value.trim();
+        if (!evtName) return alert("Enter an event name to emit");
+
+        let payload = null;
+        const raw = $("customPayload").value;
+        if (raw.trim()) {
+          try {
+            payload = JSON.parse(raw);
+          } catch {
+            return alert("Payload must be valid JSON (or empty for none)");
+          }
+        }
+
+        if (payload === null) {
+          socket?.emit(evtName);
+          log("emit", { event: evtName, payload: null });
+        } else {
+          socket?.emit(evtName, payload);
+          log("emit", { event: evtName, payload });
+        }
+      };
+
+      // --- Dynamic listeners UI ---
+      function renderListenerItem(name) {
+        const item = document.createElement("div");
+        item.className = "listener-item";
+
+        const label = document.createElement("div");
+        label.className = "listener-name";
+        label.textContent = name;
+
+        const removeBtn = document.createElement("button");
+        removeBtn.className = "danger";
+        removeBtn.textContent = "Remove";
+        removeBtn.onclick = () => {
+          const fn = activeListeners.get(name);
+          if (fn) {
+            try {
+              socket?.off(name, fn);
+            } catch {}
+            activeListeners.delete(name);
+          }
+          item.remove();
+          log("info", `Removed listener for '${name}'`);
+        };
+
+        item.appendChild(label);
+        item.appendChild(removeBtn);
+        listenersList.appendChild(item);
+      }
+
+      addListenerBtn.onclick = () => {
+        const name = $("listenEvtName").value.trim();
+        if (!name) return alert("Enter an event name to listen for");
+        if (activeListeners.has(name))
+          return alert("Listener already exists for: " + name);
+
+        const fn = (payload, ...rest) => {
+          if (rest && rest.length) {
+            log("recv", { event: name, payload, extraArgs: rest });
+          } else {
+            log("recv", { event: name, payload });
+          }
+        };
+        activeListeners.set(name, fn);
+        socket?.on(name, fn);
+        renderListenerItem(name);
+        log("info", `Added listener for '${name}'`);
+      };
+
+      onAnyToggle.onchange = (e) => {
+        if (!socket) return;
+        if (e.target.checked) {
+          if (onAnyHandler) return; // already set
+          onAnyHandler = (eventName, ...args) => {
+            if (!args.length) log("recv", { event: eventName, payload: null });
+            else if (args.length === 1)
+              log("recv", { event: eventName, payload: args[0] });
+            else
+              log("recv", {
+                event: eventName,
+                payload: args[0],
+                extraArgs: args.slice(1),
+              });
+          };
+          socket.onAny(onAnyHandler);
+          log("info", "onAny logging enabled");
+        } else {
+          if (onAnyHandler) {
+            try {
+              socket.offAny(onAnyHandler);
+            } catch {}
+            onAnyHandler = null;
+            log("info", "onAny logging disabled");
+          }
+        }
       };
     </script>
   </body>

@@ -1,12 +1,13 @@
 import { safeHandler } from "../../utils/safeHandler.js";
 import AppError from "../../utils/AppError.js";
 import EventService from "../../services/eventsOutbox.service.js";
+import { getFriendData } from "../../utils/GetFriendData.js";
 
 export function attachCommonHandlers(io, socket, buckets) {
   const userId = socket.data.user.id;
 
   safeHandler(socket, "ping", async () => {
-    socket.to(`user:${userId}`).emit("pong", { ts: Date.now() });
+    io.to(`user:${userId}`).emit("pong", { ts: Date.now() });
   });
 
   safeHandler(socket, "dataSync", async () => {
@@ -14,12 +15,12 @@ export function attachCommonHandlers(io, socket, buckets) {
     if (!bucket) {
       return;
     }
-    const friendData = await getFriendData(user);
+    const friendData = await getFriendData(socket.data.user);
     bucket.friends = friendData.friends;
     bucket.incomingRequests = friendData.incomingRequests;
     bucket.outgoingRequests = friendData.outgoingRequests;
     bucket.blocked = friendData.blocked;
-    socket.to(`user:${userId}`).emit("dataSync", {
+    io.to(`user:${userId}`).emit("dataSync", {
       friends: bucket.friends,
       incomingRequests: bucket.incomingRequests,
       outgoingRequests: bucket.outgoingRequests,
@@ -29,6 +30,10 @@ export function attachCommonHandlers(io, socket, buckets) {
 
   safeHandler(socket, "eventSync", async () => {
     await EventService.getAllUnseenEvents(userId, socket);
+  });
+
+  safeHandler(socket, "eventStream", async (ref) => {
+    await EventService.getEventsAfterRef(userId, socket, ref);
   });
 
   safeHandler(socket, "markEvents", async (upToId) => {
