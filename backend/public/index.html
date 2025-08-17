@@ -566,9 +566,17 @@
 
         if (payload === null) {
           socket?.emit(evtName);
-          log("emit", { event: evtName, payload: null });
+          log("emit", {
+            event: evtName,
+            payload: null,
+            ack: (response) => {
+              console.log("response");
+            },
+          });
         } else {
-          socket?.emit(evtName, payload);
+          socket?.emit(evtName, payload, (response) => {
+            console.log(response);
+          });
           log("emit", { event: evtName, payload });
         }
       };
