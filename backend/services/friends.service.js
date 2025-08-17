@@ -27,14 +27,22 @@ export async function addFriend(friendUsername, socket, bucket) {
         throw new AppError("Username not found", 400, "BAD_DATA_WS");
       }
 
-      //Check if their blocked
+      //Check if blocked
       if (
         await Blocked.findOne({
           where: { userId: friendUserId, blockedId: socket.data.user.id },
           transaction: t,
         })
       ) {
-        throw new AppError("User is blocked by friend, cant request");
+        throw new AppError("User is blocked by Outgoing, cant request");
+      }
+      if (
+        await Blocked.findOne({
+          where: { userId: socket.data.user.id, blockedId: friendUserId },
+          transaction: t,
+        })
+      ) {
+        throw new AppError("User has OutGoing Blocked, cant request");
       }
 
       //Check if their already friends
@@ -420,6 +428,14 @@ export async function blockFriend(friendId, socket, bucket) {
         { transaction: t }
       );
 
+      if (!blockedObj) {
+        throw new AppError(
+          "Blocked Object wasnt able to be created",
+          500,
+          "INTERNAL_WS"
+        );
+      }
+
       bucket.blocked.add(friendId);
 
       return blockedObj.get?.({ plain: true }) || blockedObj;
@@ -440,7 +456,15 @@ export async function unblockFriend(friendId, socket, bucket) {
         transaction: t,
       });
 
-      blockedObj.destroy({ transaction: t });
+      if (!blockedObj) {
+        throw new AppError(
+          "Blocked Object never existed for user",
+          500,
+          "INTERNAL_WS"
+        );
+      }
+
+      await blockedObj.destroy({ transaction: t });
 
       bucket.blocked.delete(friendId);
 

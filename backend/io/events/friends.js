@@ -70,8 +70,6 @@ export function attachFriendHandlers(io, socket, buckets) {
   });
 
   safeHandler(socket, "sendReport", async (reportObj, offenderId) => {
-    const bucket = buckets.get(userId);
-
     await ReportService.reportUser(reportObj, offenderId, userId);
     return { msg: "Report succesfully recieved" };
   });
