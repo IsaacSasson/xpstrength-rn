@@ -176,7 +176,7 @@ export async function acceptRequest(friendUserId, socket, bucket) {
           userId,
           friendResource.id,
           parseProfileObj(userAcc),
-          friendBucket.socket.values().next().value,
+          friendBucket.sockets.values().next().value,
           true
         );
       } else {
@@ -240,7 +240,7 @@ export async function declineRequest(friendUserId, socket, bucket) {
           userId,
           outGoingReqId,
           null,
-          friendBucket.socket.values().next().value,
+          friendBucket.sockets.values().next().value,
           true
         );
       } else {
@@ -302,7 +302,7 @@ export async function cancelRequest(friendUserId, socket, bucket) {
           userId,
           IncomingReqId,
           null,
-          friendBucket.socket.values().next().value,
+          friendBucket.sockets.values().next().value,
           true
         );
       } else {
