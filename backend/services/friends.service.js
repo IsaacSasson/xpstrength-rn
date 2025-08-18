@@ -207,8 +207,6 @@ export async function acceptRequest(friendUserId, socket, bucket, auto) {
         transaction: t,
       });
 
-      const incomingReqId = IncomingReq.id;
-
       if (!IncomingReq) {
         throw new AppError(
           "No IncomingReq found to accept friend Request",
@@ -216,6 +214,8 @@ export async function acceptRequest(friendUserId, socket, bucket, auto) {
           "BAD-DATA-WS"
         );
       }
+
+      const incomingReqId = IncomingReq.id;
 
       await IncomingReq.destroy({ transaction: t });
 
