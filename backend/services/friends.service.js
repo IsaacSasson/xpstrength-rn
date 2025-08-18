@@ -20,11 +20,16 @@ export async function addFriend(friendUsername, socket, bucket) {
         where: { username: friendUsername },
         transaction: t,
       });
+
+      //Check if the Friend ID even exists
+      if (!friend) {
+        throw new AppError("Username not found", 400, "BAD_DATA_WS");
+      }
       let friendUserId = friend.id;
 
       //Check if the Friend ID even exists
       if (!friendUserId) {
-        throw new AppError("Username not found", 400, "BAD_DATA_WS");
+        throw new AppError("Internal Database Error", 500, "INTERNAL_WS");
       }
 
       //Check if blocked
@@ -142,14 +147,14 @@ export async function acceptRequest(friendUserId, socket, bucket) {
         transaction: t,
       });
 
-      OutgoingReq.destroy({ transaction: t });
+      await OutgoingReq.destroy({ transaction: t });
 
       const IncomingReq = await IncomingRequests.findOne({
         where: { userId: userId, incomingId: friendUserId },
         transaction: t,
       });
 
-      IncomingReq.destroy({ transaction: t });
+      await IncomingReq.destroy({ transaction: t });
 
       await Friend.create(
         { userId: userId, friendId: friendUserId },
@@ -234,14 +239,14 @@ export async function declineRequest(friendUserId, socket, bucket) {
 
       const outGoingReqId = OutgoingReq.id;
 
-      OutgoingReq.destroy({ transaction: t });
+      await OutgoingReq.destroy({ transaction: t });
 
       const IncomingReq = await IncomingRequests.findOne({
         where: { userId: userId, incomingId: friendUserId },
         transaction: t,
       });
 
-      IncomingReq.destroy({ transaction: t });
+      await IncomingReq.destroy({ transaction: t });
 
       if (friendBucket) {
         friendBucket.outgoingRequests.delete(userId);
@@ -294,7 +299,7 @@ export async function cancelRequest(friendUserId, socket, bucket) {
         transaction: t,
       });
 
-      OutgoingReq.destroy({ transaction: t });
+      await OutgoingReq.destroy({ transaction: t });
 
       const IncomingReq = await IncomingRequests.findOne({
         where: { userId: friendUserId, incomingId: userId },
@@ -303,7 +308,7 @@ export async function cancelRequest(friendUserId, socket, bucket) {
 
       const IncomingReqId = IncomingReq.id;
 
-      IncomingReq.destroy({ transaction: t });
+      await IncomingReq.destroy({ transaction: t });
 
       if (friendBucket) {
         friendBucket.incomingRequests.delete(userId);
