@@ -6,7 +6,7 @@ export function safeHandler(socket, eventName, handler) {
     try {
       const result = await handler(payload, ack);
       if (typeof ack === "function" && result !== undefined) {
-        ack({ ok: true, data: result });
+        ack(result);
       }
     } catch (err) {
       emitSocketError(socket, err, ack);

@@ -24,13 +24,17 @@ export async function addFriend(friendUsername, socket, bucket) {
 
       //Check if the Friend ID even exists
       if (!friend) {
-        throw new AppError("Username not found", 400, "BAD_DATA_WS");
+        throw new AppError("Username not found", 400, "BAD-DATA-WS");
       }
       let friendUserId = friend.id;
 
       //Check if the Friend ID even exists
       if (!friendUserId) {
-        throw new AppError("Internal Database Error", 500, "INTERNAL_WS");
+        throw new AppError("Internal Database Error", 500, "DB-INTERNAL");
+      }
+
+      if (friendUserId === socket.data.user.id) {
+        throw new AppError("You cannot add yourself", 400, "BAD-DATA-WS");
       }
 
       //Check if blocked
@@ -64,18 +68,18 @@ export async function addFriend(friendUsername, socket, bucket) {
         throw new AppError(
           "Your already friends with user",
           400,
-          "BAD_DATA_WS"
+          "BAD-DATA-WS"
         );
       }
 
       //Check if you already sent a request
       if (bucket.outgoingRequests.has(friendUserId)) {
-        throw new AppError("User already requested", 400, "BAD_DATA_WS");
+        throw new AppError("User already requested", 400, "BAD-DATA-WS");
       }
 
       //Check if they sent you a request
       if (bucket.incomingRequests.has(friendUserId)) {
-        return await acceptRequest(friendUserId, socket, bucket);
+        return await acceptRequest(friendUserId, socket, bucket, true);
       }
 
       const OutgoingReq = await OutgoingRequests.create(
@@ -124,7 +128,21 @@ export async function addFriend(friendUsername, socket, bucket) {
 
       await history.log(t);
 
-      return parseProfileObj(friend);
+      const safeProfile = parseProfileObj(friend);
+      const userId = socket.data.user.id; // I know its bad at the end of the file but who cares!
+      return ok(
+        "FRIEND_REQUEST_SENT",
+        {
+          userId: userId,
+          friendUserId: friendUserId,
+          outgoingRequestId: OutgoingReq.id,
+          deltas: {
+            addToOutgoing: friendUserId,
+          },
+          friendProfile: safeProfile,
+        },
+        "Friend request sent."
+      );
     });
   } catch (err) {
     throw mapSequelizeError(err);
@@ -136,7 +154,7 @@ export async function parseProfileObj(profile) {
     throw new AppError(
       "No Profile added to parseProfileObj",
       400,
-      "BAD-DATA_WS"
+      "BAD-DATA-WS"
     );
   }
   const {
@@ -152,7 +170,7 @@ export async function parseProfileObj(profile) {
 }
 
 //When you accept a friend you get their status in return
-export async function acceptRequest(friendUserId, socket, bucket) {
+export async function acceptRequest(friendUserId, socket, bucket, auto) {
   try {
     const userId = socket.data.user.id;
 
@@ -161,7 +179,7 @@ export async function acceptRequest(friendUserId, socket, bucket) {
         throw new AppError(
           "Cannot accept a friendRequest from a user who did not request you",
           400,
-          "BAD-DATA_WS"
+          "BAD-DATA-WS"
         );
       }
 
@@ -178,7 +196,7 @@ export async function acceptRequest(friendUserId, socket, bucket) {
         throw new AppError(
           "No Outgoing Request found to accept friend Request",
           500,
-          "DB Error"
+          "BAD-DATA-WS"
         );
       }
 
@@ -189,17 +207,19 @@ export async function acceptRequest(friendUserId, socket, bucket) {
         transaction: t,
       });
 
+      const incomingReqId = IncomingReq.id;
+
       if (!IncomingReq) {
         throw new AppError(
           "No IncomingReq found to accept friend Request",
           500,
-          "DB Error"
+          "BAD-DATA-WS"
         );
       }
 
       await IncomingReq.destroy({ transaction: t });
 
-      await Friend.create(
+      const userResource = await Friend.create(
         { userId: userId, friendId: friendUserId },
         { transaction: t }
       );
@@ -218,7 +238,7 @@ export async function acceptRequest(friendUserId, socket, bucket) {
         throw new AppError(
           "No Friend Account found during accept request process",
           500,
-          "DB_ERROR"
+          "DB-INTERNAL"
         );
       }
 
@@ -235,7 +255,7 @@ export async function acceptRequest(friendUserId, socket, bucket) {
         throw new AppError(
           "No User Profile account found during accept request process",
           500,
-          "DB_ERROR"
+          "DB-INTERNAL"
         );
       }
 
@@ -245,6 +265,7 @@ export async function acceptRequest(friendUserId, socket, bucket) {
 
       if (friendBucket) {
         friendBucket.outgoingRequests.delete(userId);
+        friendBucket.friends.add(userId);
         await EventService.createEvent(
           friendUserId,
           "friend-request-accepted",
@@ -267,6 +288,7 @@ export async function acceptRequest(friendUserId, socket, bucket) {
       }
 
       bucket.incomingRequests.delete(friendUserId);
+      bucket.friends.add(friendUserId);
 
       const history = new AddHistory(
         "FRIEND",
@@ -277,7 +299,46 @@ export async function acceptRequest(friendUserId, socket, bucket) {
 
       await history.log(t);
 
-      return parseProfileObj(friendAcc);
+      const safeProfile = parseProfileObj(friendAcc);
+      const friendResourceId = friendResource.id;
+      const userResourceId = userResource.id;
+
+      if (auto) {
+        return ok(
+          "FRIEND_REQUEST_AUTOMATCH_ACCEPTED",
+          {
+            userId,
+            friendUserId,
+            friendshipIdForUser: userResourceId,
+            friendshipIdForFriend: friendResourceId,
+            deltas: {
+              removeFromIncoming: friendUserId,
+              removeFromTheirOutgoing: userId,
+              addToFriends: friendUserId,
+            },
+            friendProfile: safeProfile,
+          },
+          "Request matched and accepted."
+        );
+      } else {
+        return ok(
+          "FRIEND_REQUEST_ACCEPTED",
+          {
+            userId,
+            friendUserId,
+            friendshipIdForUser: userResourceId,
+            friendshipIdForFriend: friendResourceId,
+            removedIncomingId: incomingReqId, // IncomingRequests.id (if you captured it)
+            deltas: {
+              removeFromIncoming: friendUserId,
+              removeFromTheirOutgoing: userId,
+              addToFriends: friendUserId,
+            },
+            friendProfile: safeProfile,
+          },
+          "Friend request accepted."
+        );
+      }
     });
   } catch (err) {
     throw mapSequelizeError(err);
@@ -309,7 +370,7 @@ export async function declineRequest(friendUserId, socket, bucket) {
         throw new AppError(
           "Couldnt find Outgoing Request for decline Request",
           500,
-          "DB_ERROR"
+          "DB-INTERNAL"
         );
       }
 
@@ -326,9 +387,11 @@ export async function declineRequest(friendUserId, socket, bucket) {
         throw new AppError(
           "Couldnt find Incoming Request for decline Request",
           500,
-          "DB_ERROR"
+          "DB-INTERNAL"
         );
       }
+
+      const incomingId = IncomingReq.id;
 
       await IncomingReq.destroy({ transaction: t });
 
@@ -366,7 +429,18 @@ export async function declineRequest(friendUserId, socket, bucket) {
 
       await history.log(t);
 
-      return friendUserId;
+      return ok(
+        "FRIEND_REQUEST_DECLINED",
+        {
+          userId,
+          friendUserId,
+          removedIncomingId: incomingId ?? null,
+          deltas: {
+            removeFromIncoming: friendUserId,
+          },
+        },
+        "Friend request declined."
+      );
     });
   } catch (err) {
     throw mapSequelizeError(err);
@@ -396,9 +470,11 @@ export async function cancelRequest(friendUserId, socket, bucket) {
         throw new AppError(
           "OutGoing Request Not found to cancel",
           500,
-          "INTERNAL DB ERROR"
+          "DB-INTERNAL"
         );
       }
+
+      const OutgoingReqId = OutgoingReq.id;
 
       await OutgoingReq.destroy({ transaction: t });
 
@@ -411,7 +487,7 @@ export async function cancelRequest(friendUserId, socket, bucket) {
         throw new AppError(
           "IncomingRequest Request not found to for the user you cancelled on!",
           500,
-          "INTERNAL DB ERROR"
+          "DB-INTERNAL"
         );
       }
 
@@ -453,7 +529,18 @@ export async function cancelRequest(friendUserId, socket, bucket) {
 
       await history.log(t);
 
-      return friendUserId;
+      return ok(
+        "FRIEND_REQUEST_CANCELLED",
+        {
+          userId,
+          friendUserId,
+          removedOutgoingId: OutgoingReqId ?? null,
+          deltas: {
+            removeFromOutgoing: friendUserId,
+          },
+        },
+        "Friend request cancelled."
+      );
     });
   } catch (err) {
     throw mapSequelizeError(err);
@@ -469,7 +556,7 @@ export async function removeFriend(friendId, socket, bucket) {
       throw new AppError(
         "Cannot remove a friend you are not friends with",
         400,
-        "BAD_DATA_WS"
+        "BAD-DATA-WS"
       );
     }
 
@@ -483,9 +570,11 @@ export async function removeFriend(friendId, socket, bucket) {
         throw new AppError(
           "Could not find friend of user to destory",
           400,
-          "BAD_DATA"
+          "BAD-DATA-WS"
         );
       }
+
+      const userAccFriendId = userAccFriend.id;
 
       await userAccFriend.destroy({ transaction: t });
 
@@ -498,7 +587,7 @@ export async function removeFriend(friendId, socket, bucket) {
         throw new AppError(
           "Could not find friend of user to destory",
           400,
-          "BAD_DATA"
+          "BAD-DATA-WS"
         );
       }
 
@@ -544,7 +633,7 @@ export async function removeFriend(friendId, socket, bucket) {
         );
       }
 
-      friendAcc.totalFriends -= 1;
+      friendAcc.totalFriends = Math.max(0, friendAcc.totalFriends - 1);
 
       await friendAcc.save({ transaction: t });
 
@@ -561,7 +650,7 @@ export async function removeFriend(friendId, socket, bucket) {
         );
       }
 
-      userAcc.totalFriends -= 1;
+      userAcc.totalFriends = Math.max(0, userAcc.totalFriends - 1);
 
       await userAcc.save({ transaction: t });
 
@@ -574,7 +663,19 @@ export async function removeFriend(friendId, socket, bucket) {
 
       await history.log(t);
 
-      return friendId;
+      return ok(
+        "FRIEND_REMOVED",
+        {
+          userId,
+          friendUserId: friendId,
+          removedFriendshipIdForUser: userAccFriendId ?? null,
+          removedFriendshipIdForFriend: friendAccFriendId ?? null,
+          deltas: {
+            removeFromFriends: friendId,
+          },
+        },
+        "Friend removed."
+      );
     });
   } catch (err) {
     throw mapSequelizeError(err);
@@ -596,9 +697,11 @@ export async function blockFriend(friendId, socket, bucket) {
         throw new AppError(
           "Blocked Object wasnt able to be created",
           500,
-          "INTERNAL_WS"
+          "DB-INTERNAL"
         );
       }
+
+      const blockedId = blockedObj.id;
 
       bucket.blocked.add(friendId);
 
@@ -611,7 +714,21 @@ export async function blockFriend(friendId, socket, bucket) {
 
       await history.log(t);
 
-      return blockedObj.get?.({ plain: true }) || blockedObj;
+      return ok(
+        "USER_BLOCKED",
+        {
+          userId,
+          friendUserId: friendId,
+          blockId: blockedId,
+          deltas: {
+            addToBlocked: friendId,
+            removeFromFriends: friendId,
+            removeFromIncoming: friendId,
+            removeFromOutgoing: friendId,
+          },
+        },
+        "User blocked."
+      );
     });
   } catch (err) {
     throw mapSequelizeError(err);
@@ -633,9 +750,11 @@ export async function unblockFriend(friendId, socket, bucket) {
         throw new AppError(
           "Blocked Object never existed for user",
           500,
-          "INTERNAL_WS"
+          "DB-INTERNAL"
         );
       }
+
+      const blockedId = blockedObj.id;
 
       await blockedObj.destroy({ transaction: t });
 
@@ -650,7 +769,18 @@ export async function unblockFriend(friendId, socket, bucket) {
 
       await history.log(t);
 
-      return friendId;
+      return ok(
+        "USER_UNBLOCKED",
+        {
+          userId,
+          friendUserId: friendId,
+          removedBlockId: blockedId ?? null,
+          deltas: {
+            removeFromBlocked: friendId,
+          },
+        },
+        "User unblocked."
+      );
     });
   } catch (err) {
     throw mapSequelizeError(err);
@@ -666,7 +796,7 @@ export async function profileUpdated(fromId, toId) {
         toId,
         "user-profile-updated",
         fromId,
-        toId,
+        null,
         null,
         toIdBucket.sockets.values().next().value,
         true
@@ -676,7 +806,7 @@ export async function profileUpdated(fromId, toId) {
         toId,
         "user-profile-updated",
         fromId,
-        toId,
+        null,
         null,
         null,
         false
@@ -696,7 +826,7 @@ export async function profilePictureUpdated(fromId, toId) {
         toId,
         "user-profile-pic-updated",
         fromId,
-        toId,
+        null,
         null,
         toIdBucket.sockets.values().next().value,
         true
@@ -706,7 +836,7 @@ export async function profilePictureUpdated(fromId, toId) {
         toId,
         "user-profile-pic-updated",
         fromId,
-        toId,
+        null,
         null,
         null,
         false
@@ -726,7 +856,7 @@ export async function statusChanged(fromId, toId, status) {
         toId,
         "friend-status-updated",
         fromId,
-        toId,
+        null,
         { status: status },
         toIdBucket.sockets.values().next().value,
         true
@@ -736,7 +866,7 @@ export async function statusChanged(fromId, toId, status) {
         toId,
         "friend-status-updated",
         fromId,
-        toId,
+        null,
         { status: status },
         null,
         false
@@ -751,10 +881,11 @@ export async function getKnownProfile(profileId) {
   try {
     let profile = await User.findOne({ where: { id: profileId } });
     if (!profile) {
-      throw new AppError("Profile not found for profileId", 400, "BAD_DATA_WS");
+      throw new AppError("Profile not found for profileId", 400, "BAD-DATA-WS");
     }
     profile = parseProfileObj(profile);
     const { profilePic, ...noPic } = profile;
+
     return noPic;
   } catch (err) {
     throw mapSequelizeError(err);
@@ -768,7 +899,7 @@ export async function getKnownProfilePic(profileId) {
       throw new AppError(
         "ProfilePic not found for profileId",
         400,
-        "BAD_DATA_WS"
+        "BAD-DATA-WS"
       );
     }
     return profile.profilePic;
@@ -783,6 +914,13 @@ export async function getFriendStatus(friendId) {
   } catch (err) {
     throw mapSequelizeError(err);
   }
+}
+
+function ok(code, data, message) {
+  return { ok: true, code, data, message };
+}
+function err(code, message) {
+  return { ok: false, code, message };
 }
 
 export default {

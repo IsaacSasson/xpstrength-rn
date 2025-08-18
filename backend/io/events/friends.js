@@ -7,6 +7,11 @@ safeHandler(socket, "ping", async () => {
     socket.to(`user:${userId}`).emit("pong", { ts: Date.now() });
   });
   */
+
+function ok(code, data, message) {
+  return { ok: true, code, data, message };
+}
+
 export function attachFriendHandlers(io, socket, buckets) {
   const userId = socket.data.user.id;
 
@@ -88,7 +93,14 @@ export function attachFriendHandlers(io, socket, buckets) {
       uniqueIds.map((id) => FriendService.profileUpdated(userId, id))
     );
 
-    return { msg: "Sent to all online/offline Knowns of user" };
+    return ok(
+      "PROFILE_UPDATE_FANNED_OUT",
+      {
+        recipients: Array.from(uniqueIds),
+        count: uniqueIds.length,
+      },
+      "Update broadcast queued."
+    );
   });
 
   safeHandler(socket, "profilePictureUpdated", async () => {
@@ -106,7 +118,14 @@ export function attachFriendHandlers(io, socket, buckets) {
       uniqueIds.map((id) => FriendService.profilePictureUpdated(userId, id))
     );
 
-    return { msg: "Sent to all online/offline Knowns of user" };
+    return ok(
+      "PROFILE-PIC_UPDATE_FANNED_OUT",
+      {
+        recipients: Array.from(uniqueIds),
+        count: uniqueIds.length,
+      },
+      "Update broadcast queued."
+    );
   });
 
   safeHandler(socket, "statusChanged", async (status) => {
@@ -120,7 +139,15 @@ export function attachFriendHandlers(io, socket, buckets) {
       uniqueIds.map((id) => FriendService.statusChanged(userId, id, status))
     );
 
-    return { msg: "Sent to all online/offline Knowns of user" };
+    return ok(
+      "STATUS_CHANGED_FANNED_OUT",
+      {
+        status,
+        recipients: Array.from(bucket.friends),
+        count: bucket.friends.size,
+      },
+      "Status update broadcast queued."
+    );
   });
 
   safeHandler(socket, "getKnownProfile", async (knownId) => {
@@ -179,7 +206,10 @@ export function attachFriendHandlers(io, socket, buckets) {
       })
     );
 
-    return profiles;
+    return ok("KNOWN_PROFILES", {
+      list: profiles,
+      map: Object.fromEntries(profiles.map((x) => [x.id, x.profile])),
+    });
   });
 
   safeHandler(socket, "getAllFriendStatus", async () => {
