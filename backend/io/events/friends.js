@@ -224,6 +224,6 @@ export function attachFriendHandlers(io, socket, buckets) {
       })
     );
 
-    return statuses;
+    return ok("FRIEND_STATUSES", { list: statuses });
   });
 }
