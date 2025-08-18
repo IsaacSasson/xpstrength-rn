@@ -245,7 +245,7 @@ export async function acceptRequest(friendUserId, socket, bucket) {
 
       if (friendBucket) {
         friendBucket.outgoingRequests.delete(userId);
-        EventService.createEvent(
+        await EventService.createEvent(
           friendUserId,
           "friend-request-accepted",
           userId,
@@ -255,7 +255,7 @@ export async function acceptRequest(friendUserId, socket, bucket) {
           true
         );
       } else {
-        EventService.createEvent(
+        await EventService.createEvent(
           friendUserId,
           "friend-request-accepted",
           userId,
@@ -334,7 +334,7 @@ export async function declineRequest(friendUserId, socket, bucket) {
 
       if (friendBucket) {
         friendBucket.outgoingRequests.delete(userId);
-        EventService.createEvent(
+        await EventService.createEvent(
           friendUserId,
           "friend-request-declined",
           userId,
@@ -344,7 +344,7 @@ export async function declineRequest(friendUserId, socket, bucket) {
           true
         );
       } else {
-        EventService.createEvent(
+        await EventService.createEvent(
           friendUserId,
           "friend-request-declined",
           userId,
@@ -421,7 +421,7 @@ export async function cancelRequest(friendUserId, socket, bucket) {
 
       if (friendBucket) {
         friendBucket.incomingRequests.delete(userId);
-        EventService.createEvent(
+        await EventService.createEvent(
           friendUserId,
           "friend-request-cancelled",
           userId,
@@ -431,7 +431,7 @@ export async function cancelRequest(friendUserId, socket, bucket) {
           true
         );
       } else {
-        EventService.createEvent(
+        await EventService.createEvent(
           friendUserId,
           "friend-request-cancelled",
           userId,
@@ -508,7 +508,7 @@ export async function removeFriend(friendId, socket, bucket) {
 
       if (friendBucket) {
         friendBucket.friends.delete(userId);
-        EventService.createEvent(
+        await EventService.createEvent(
           friendId,
           "friend-removed",
           userId,
@@ -518,7 +518,7 @@ export async function removeFriend(friendId, socket, bucket) {
           true
         );
       } else {
-        EventService.createEvent(
+        await EventService.createEvent(
           friendId,
           "friend-removed",
           userId,

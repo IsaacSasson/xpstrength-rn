@@ -2,7 +2,6 @@ import { safeHandler } from "../../utils/safeHandler.js";
 import AppError from "../../utils/AppError.js";
 import FriendService from "../../services/friends.service.js";
 import ReportService from "../../services/report.service.js";
-import friendsService from "../../services/friends.service.js";
 /*
 safeHandler(socket, "ping", async () => {
     socket.to(`user:${userId}`).emit("pong", { ts: Date.now() });
@@ -115,7 +114,7 @@ export function attachFriendHandlers(io, socket, buckets) {
 
     bucket.status = status;
 
-    const uniqueIds = [new Set([...bucket.friends])];
+    const uniqueIds = [...bucket.friends];
 
     await Promise.all(
       uniqueIds.map((id) => FriendService.statusChanged(userId, id, status))
