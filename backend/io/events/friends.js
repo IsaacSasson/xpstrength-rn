@@ -49,7 +49,7 @@ export function attachFriendHandlers(io, socket, buckets) {
     const bucket = buckets.get(userId);
 
     if (bucket.blocked.has(friendId)) {
-      throw new AppError("User already has friend blocked", 400, "BAD_DATA_WS");
+      throw new AppError("User already has friend blocked", 400, "BAD-DATA-WS");
     }
 
     if (bucket.friends.has(friendId)) {

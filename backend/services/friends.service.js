@@ -195,7 +195,7 @@ export async function acceptRequest(friendUserId, socket, bucket, auto) {
       if (!OutgoingReq) {
         throw new AppError(
           "No Outgoing Request found to accept friend Request",
-          500,
+          400,
           "BAD-DATA-WS"
         );
       }
@@ -212,7 +212,7 @@ export async function acceptRequest(friendUserId, socket, bucket, auto) {
       if (!IncomingReq) {
         throw new AppError(
           "No IncomingReq found to accept friend Request",
-          500,
+          400,
           "BAD-DATA-WS"
         );
       }
