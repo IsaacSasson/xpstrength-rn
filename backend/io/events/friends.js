@@ -75,7 +75,7 @@ export function attachFriendHandlers(io, socket, buckets) {
 
   safeHandler(socket, "sendReport", async (reportObj, offenderId) => {
     await ReportService.reportUser(reportObj, offenderId, userId);
-    return { msg: "Report succesfully recieved" };
+    return { msg: "Report successfully recieved" };
   });
 
   safeHandler(socket, "profileUpdated", async () => {

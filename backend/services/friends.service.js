@@ -121,7 +121,7 @@ export async function addFriend(friendUsername, socket, bucket) {
 
       const history = new AddHistory(
         "FRIEND",
-        "User succesfully added friend",
+        "User successfully added friend",
         socket.data.user.id,
         friendUserId
       );
@@ -292,7 +292,7 @@ export async function acceptRequest(friendUserId, socket, bucket, auto) {
 
       const history = new AddHistory(
         "FRIEND",
-        "User succesfully accepted incoming friendRequest",
+        "User successfully accepted incoming friendRequest",
         socket.data.user.id,
         friendUserId
       );
@@ -422,7 +422,7 @@ export async function declineRequest(friendUserId, socket, bucket) {
 
       const history = new AddHistory(
         "FRIEND",
-        "User succesfully declined incoming friendRequest",
+        "User successfully declined incoming friendRequest",
         socket.data.user.id,
         friendUserId
       );
@@ -522,7 +522,7 @@ export async function cancelRequest(friendUserId, socket, bucket) {
 
       const history = new AddHistory(
         "FRIEND",
-        "User succesfully cancelled outgoing friendRequest",
+        "User successfully cancelled outgoing friendRequest",
         socket.data.user.id,
         friendUserId
       );
@@ -656,7 +656,7 @@ export async function removeFriend(friendId, socket, bucket) {
 
       const history = new AddHistory(
         "FRIEND",
-        "User succesfully removed friend",
+        "User successfully removed friend",
         socket.data.user.id,
         friendId
       );
@@ -707,7 +707,7 @@ export async function blockFriend(friendId, socket, bucket) {
 
       const history = new AddHistory(
         "FRIEND",
-        "User succesfully blocked aggressor",
+        "User successfully blocked aggressor",
         socket.data.user.id,
         friendId
       );
@@ -762,7 +762,7 @@ export async function unblockFriend(friendId, socket, bucket) {
 
       const history = new AddHistory(
         "FRIEND",
-        "User succesfully unblocked aggressor",
+        "User successfully unblocked aggressor",
         socket.data.user.id,
         friendId
       );
