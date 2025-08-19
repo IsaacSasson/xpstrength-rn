@@ -2,7 +2,7 @@
 import request from "supertest";
 import server from "../../server"; // adjust if your HTTP tests import from a different file
 import { io as ClientIO } from "socket.io-client";
-import NetworkService from "../../src/services/network.service.js"; // adjust path if needed
+import NetworkService from "../../services/network.service.js"; // adjust path if needed
 
 export async function createHttpUser() {
   const username = `u_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;

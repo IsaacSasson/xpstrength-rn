@@ -26,7 +26,7 @@ const createAuthUser = async (
   return { user, accessToken };
 };
 
-describe.skip("POST /api/v1/user/log‑workout", () => {
+describe("POST /api/v1/user/log‑workout", () => {
   it("returns 400 BAD_DATA if no payload is sent", async () => {
     const { accessToken } = await createAuthUser();
     const res = await request(server)
