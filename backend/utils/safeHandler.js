@@ -4,7 +4,8 @@ import { emitSocketError } from "./socketErrors.js";
 export function safeHandler(socket, eventName, handler) {
   socket.on(eventName, async (payload, ack) => {
     try {
-      const result = await handler(payload, ack);
+      //Payload must be an array, Ack must be a func
+      const result = await handler(...payload, ack);
       if (typeof ack === "function" && result !== undefined) {
         ack(result);
       }

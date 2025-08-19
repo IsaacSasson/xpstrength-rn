@@ -211,12 +211,34 @@ export function attachFriendHandlers(io, socket, buckets) {
     );
 
     return ok("KNOWN_PROFILES", {
-      list: profiles,
       map: Object.fromEntries(profiles.map((x) => [x.id, x.profile])),
     });
   });
 
-  safeHandler(socket, "getAllFriendStatus", async () => {
+  safeHandler(socket, "getAllKnownProfilePics", async () => {
+    const bucket = buckets.get(userId);
+
+    const uniqueIds = [
+      ...new Set([
+        ...bucket.friends,
+        ...bucket.outgoingRequests,
+        ...bucket.incomingRequests,
+      ]),
+    ];
+
+    const profiles = await Promise.all(
+      uniqueIds.map(async (id) => {
+        const pic = await FriendService.getKnownProfilePic(id);
+        return { id, pic };
+      })
+    );
+
+    return ok("KNOWN_PROFILE_PICS", {
+      map: Object.fromEntries(profiles.map((x) => [x.id, x.pic])),
+    });
+  });
+
+  safeHandler(socket, "getAllFriendStatuses", async () => {
     const bucket = buckets.get(userId);
 
     const uniqueIds = [...bucket.friends];
@@ -228,6 +250,8 @@ export function attachFriendHandlers(io, socket, buckets) {
       })
     );
 
-    return ok("FRIEND_STATUSES", { list: statuses });
+    return ok("FRIEND_STATUSES", {
+      map: Object.fromEntries(statuses.map((x) => [x.id, x.status])),
+    });
   });
 }

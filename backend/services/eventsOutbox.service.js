@@ -7,13 +7,11 @@ import { io } from "../server.js";
 
 //Singular event sent to user
 export function sendEvent(event, socket) {
-  console.log(`Sending ${event} to user`);
   io.to(`user:${socket.data.user.id}`).emit("newEvent", event);
 }
 
 //Multiple events sent to user via an Array of events
 export function sendEvents(events, socket) {
-  console.log(`Sending ${events} to user`);
   io.to(`user:${socket.data.user.id}`).emit("newEvents", events);
 }
 

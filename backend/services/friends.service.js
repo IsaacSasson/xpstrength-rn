@@ -1167,6 +1167,7 @@ export default {
   acceptRequest,
   declineRequest,
   cancelRequest,
+  removeFriend,
   blockFriend,
   unblockFriend,
   profileUpdated,

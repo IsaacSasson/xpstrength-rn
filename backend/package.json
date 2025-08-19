@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "cross-env NODE_ENV=development nodemon server.js",
     "db:reset:dev": "cross-env NODE_ENV=development sequelize db:seed --seed 20250804171500-reset-dev-db.cjs",
+    "db:update:dev": "cross-env NODE_ENV=development sequelize db:seed --seed update-dev-db.cjs",
     "test": "cross-env NODE_ENV=test node --experimental-vm-modules ./node_modules/jest/bin/jest.js --detectOpenHandles",
     "lineCount": "cross-env cloc . --exclude_dir='node_modules'",
     "test:All": "cross-env NODE_ENV=test node --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand",

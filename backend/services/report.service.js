@@ -6,7 +6,7 @@ import mapSequelizeError from "../utils/mapSequelizeError.js";
 export async function reportUser(reportObj, offenderId, userId) {
   try {
     await sequelize.transaction(async (t) => {
-      Reports.create(
+      await Reports.create(
         { userId, offenderId, report: reportObj },
         { transaction: t }
       );
