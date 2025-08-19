@@ -565,17 +565,16 @@
         }
 
         if (payload === null) {
-          socket?.emit(evtName);
+          socket?.emit(evtName, null, (response) => {
+            log("response", response);
+          });
           log("emit", {
             event: evtName,
             payload: null,
-            ack: (response) => {
-              console.log("response");
-            },
           });
         } else {
           socket?.emit(evtName, payload, (response) => {
-            console.log(response);
+            log("response", response);
           });
           log("emit", { event: evtName, payload });
         }

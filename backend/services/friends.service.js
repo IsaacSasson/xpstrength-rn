@@ -16,6 +16,9 @@ import AddHistory from "../utils/AddHistory.js";
 //Sends back to user Friend Profile, and sends to Friend Users Profile when added, also creates Addings
 export async function addFriend(friendUsername, socket, bucket) {
   try {
+    if (!friendUsername) {
+      throw new AppError("Username not supplied", 400, "BAD-DATA-WS");
+    }
     return await sequelize.transaction(async (t) => {
       let friend = await User.findOne({
         where: { username: friendUsername },
@@ -101,7 +104,7 @@ export async function addFriend(friendUsername, socket, bucket) {
           "friend-request-initiated",
           socket.data.user.id,
           IncomingReq.id,
-          { profileData: parseProfileObj(socket.data.user) },
+          { profileData: await parseProfileObj(socket.data.user) },
           friendBucket.sockets.values().next().value,
           true
         );
@@ -111,7 +114,7 @@ export async function addFriend(friendUsername, socket, bucket) {
           "friend-request-initiated",
           socket.data.user.id,
           IncomingReq.id,
-          { profileData: parseProfileObj(socket.data.user) },
+          { profileData: await parseProfileObj(socket.data.user) },
           null,
           false
         );
@@ -128,7 +131,7 @@ export async function addFriend(friendUsername, socket, bucket) {
 
       await history.log(t);
 
-      const safeProfile = parseProfileObj(friend);
+      const safeProfile = await parseProfileObj(friend);
       const userId = socket.data.user.id; // I know its bad at the end of the file but who cares!
       return ok(
         "FRIEND_REQUEST_SENT",
@@ -271,7 +274,7 @@ export async function acceptRequest(friendUserId, socket, bucket, auto) {
           "friend-request-accepted",
           userId,
           friendResource.id,
-          parseProfileObj(userAcc),
+          await parseProfileObj(userAcc),
           friendBucket.sockets.values().next().value,
           true
         );
@@ -281,7 +284,7 @@ export async function acceptRequest(friendUserId, socket, bucket, auto) {
           "friend-request-accepted",
           userId,
           friendResource.id,
-          parseProfileObj(userAcc),
+          await parseProfileObj(userAcc),
           null,
           false
         );
@@ -299,7 +302,7 @@ export async function acceptRequest(friendUserId, socket, bucket, auto) {
 
       await history.log(t);
 
-      const safeProfile = parseProfileObj(friendAcc);
+      const safeProfile = await parseProfileObj(friendAcc);
       const friendResourceId = friendResource.id;
       const userResourceId = userResource.id;
 
@@ -883,7 +886,7 @@ export async function getKnownProfile(profileId) {
     if (!profile) {
       throw new AppError("Profile not found for profileId", 400, "BAD-DATA-WS");
     }
-    profile = parseProfileObj(profile);
+    profile = await parseProfileObj(profile);
     const { profilePic, ...noPic } = profile;
 
     return noPic;

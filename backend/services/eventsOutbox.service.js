@@ -7,11 +7,13 @@ import { io } from "../server.js";
 
 //Singular event sent to user
 export function sendEvent(event, socket) {
+  console.log(`Sending ${event} to user`);
   io.to(`user:${socket.data.user.id}`).emit("newEvent", event);
 }
 
 //Multiple events sent to user via an Array of events
 export function sendEvents(events, socket) {
+  console.log(`Sending ${events} to user`);
   io.to(`user:${socket.data.user.id}`).emit("newEvents", events);
 }
 
@@ -28,7 +30,6 @@ export async function createEvent(
     await sequelize.transaction(async (t) => {
       let newEvent = new AddEvent(userId, type, actorId, resourceId, payload);
       newEvent = await newEvent.forward(t);
-
       const plain = newEvent.get ? newEvent.get({ plain: true }) : newEvent;
 
       if (forward) {
@@ -36,11 +37,7 @@ export async function createEvent(
           try {
             sendEvent(plain, socket);
           } catch (err) {
-            throw new AppError(
-              "Failed to send event back through socket",
-              500,
-              "WEBSOCKET"
-            );
+            throw new AppError(err, 500, "WEBSOCKET");
           }
         });
       }
