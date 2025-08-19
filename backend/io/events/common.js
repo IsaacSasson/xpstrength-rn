@@ -1,6 +1,7 @@
 import { safeHandler } from "../../utils/safeHandler.js";
 import AppError from "../../utils/AppError.js";
 import EventService from "../../services/eventsOutbox.service.js";
+import FriendService from "../../services/friends.service.js";
 import { getFriendData } from "../../utils/GetFriendData.js";
 
 export function attachCommonHandlers(io, socket, buckets) {
@@ -82,6 +83,12 @@ export function attachCommonHandlers(io, socket, buckets) {
     if (!bucket) return;
     bucket.sockets.delete(socket);
     if (bucket.sockets.size === 0) {
+      const uniqueIds = [...bucket.friends];
+      await Promise.all(
+        uniqueIds.map((id) =>
+          FriendService.statusChanged(userId, id, "Offline")
+        )
+      );
       buckets.delete(userId); // drop cache when last socket leaves
     }
   });

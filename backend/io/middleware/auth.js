@@ -1,6 +1,7 @@
 import { verifyWebSocketToken } from "../../utils/security.js";
 import { getFriendData } from "../../utils/GetFriendData.js";
 import AppError from "../../utils/AppError.js";
+import FriendService from "../../services/friends.service.js";
 import { nextWithAppError } from "../../utils/socketErrors.js";
 import { ensureBucket, buckets } from "../state/buckets.js";
 
@@ -45,6 +46,12 @@ export default async function authMiddleware(socket, next) {
       bucket.incomingRequests = friendData.incomingRequests;
       bucket.outgoingRequests = friendData.outgoingRequests;
       bucket.blocked = friendData.blocked;
+      const uniqueIds = [...bucket.friends];
+      await Promise.all(
+        uniqueIds.map((id) =>
+          FriendService.statusChanged(user.id, id, "Online")
+        )
+      );
     }
 
     bucket.sockets.add(socket);
