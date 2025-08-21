@@ -76,8 +76,30 @@ export async function getPersonalBest(req, res, next) {
   }
 }
 
+export async function getStats(req, res, next) {
+  const user = req?.user ?? null;
+
+  try {
+    if (!user) {
+      throw new AppError("Malfored user data.", 400, "BAD_DATA");
+    }
+
+    const Stats = await progressService.getStats(user);
+
+    return res.status(200).json({
+      data: {
+        Stats,
+      },
+      message: "User succesfully retrieved their Stats",
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export default {
   getWorkoutHistory,
   getWorkoutHistoryPaginated,
   getPersonalBest,
+  getStats,
 };

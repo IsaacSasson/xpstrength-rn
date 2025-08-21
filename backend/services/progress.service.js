@@ -1,6 +1,6 @@
 import mapSequelizeError from "../utils/mapSequelizeError.js";
 import AppError from "../utils/AppError.js";
-import { User, WorkoutLog, PersonalBest } from "../models/index.js";
+import { User, WorkoutLog, PersonalBest, Stats } from "../models/index.js";
 import { sequelize } from "../config/db.config.js";
 import { Op } from "sequelize";
 import AddHistory from "../utils/AddHistory.js";
@@ -83,4 +83,28 @@ export async function getPB(user) {
   }
 }
 
-export default { getWorkoutHistory, getPB };
+export async function getStats(user) {
+  try {
+    const userId = user.id;
+    const stats = await Stats.findOne({
+      where: { userId },
+      attributes: [
+        "total",
+        "chest",
+        "core",
+        "back",
+        "shoulders",
+        "triceps",
+        "biceps",
+        "legs",
+      ],
+      raw: true,
+    });
+
+    return stats;
+  } catch (err) {
+    throw mapSequelizeError(err);
+  }
+}
+
+export default { getWorkoutHistory, getPB, getStats };

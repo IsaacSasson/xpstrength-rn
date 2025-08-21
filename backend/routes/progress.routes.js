@@ -3,6 +3,7 @@ import {
   getWorkoutHistory,
   getWorkoutHistoryPaginated,
   getPersonalBest,
+  getStats,
 } from "../controllers/progress.controller.js";
 const progressRouter = Router();
 
@@ -19,7 +20,7 @@ progressRouter.get(
 progressRouter.get("/pb", getPersonalBest);
 
 //Returns muscle category stats that we tracked
-//progressRouter.get("/stats");
+progressRouter.get("/stats", getStats);
 
 //Returns custom user Goals that user made
 //progressRouter.get("/goal");

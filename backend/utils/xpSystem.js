@@ -201,6 +201,7 @@ export async function addXpToCoreMuscle(
     stats[muscleCategory].volume += volume;
     stats[muscleCategory].weight += weight;
     stats[muscleCategory].reps += reps;
+    stats[muscleCategory].sets += sets;
     stats.total.sets += sets;
     stats.total.reps += reps;
     stats.total.weight += weight;
