@@ -128,10 +128,31 @@ export async function createGoal(req, res, next) {
   }
 }
 
+export async function getGoals(req, res, next) {
+  try {
+    const user = req?.user ?? null;
+    if (!user) {
+      throw new AppError("Malfored User Id", 400, "BAD_DATA");
+    }
+
+    const goals = await progressService.getGoals(user);
+
+    return res.status(200).json({
+      data: {
+        goals,
+      },
+      message: "Succesfully retrived user goals",
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export default {
   getWorkoutHistory,
   getWorkoutHistoryPaginated,
   getPersonalBest,
   getStats,
   createGoal,
+  getGoals,
 };

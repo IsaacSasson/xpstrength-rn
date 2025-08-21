@@ -5,6 +5,7 @@ import {
   getPersonalBest,
   getStats,
   createGoal,
+  getGoals,
 } from "../controllers/progress.controller.js";
 const progressRouter = Router();
 
@@ -24,7 +25,7 @@ progressRouter.get("/pb", getPersonalBest);
 progressRouter.get("/stats", getStats);
 
 //Returns custom user Goals that user made
-//progressRouter.get("/goal");
+progressRouter.get("/goals", getGoals);
 
 //Allows user to create a customGoal
 progressRouter.post("/goal", createGoal);

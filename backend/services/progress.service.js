@@ -148,4 +148,27 @@ export async function createGoal(user, name, type, details, total) {
   });
 }
 
-export default { getWorkoutHistory, getPB, getStats, createGoal };
+export async function getGoals(user) {
+  try {
+    const goals = await Goal.findAll({
+      where: { userId: user.id },
+      attributes: [
+        "id",
+        "name",
+        "type",
+        "details",
+        "total",
+        "updatedAt",
+        "createdAt",
+        "current",
+      ],
+      raw: true,
+    });
+
+    return goals;
+  } catch (err) {
+    throw mapSequelizeError(err);
+  }
+}
+
+export default { getWorkoutHistory, getPB, getStats, createGoal, getGoals };
