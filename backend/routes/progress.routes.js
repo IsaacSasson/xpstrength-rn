@@ -32,4 +32,4 @@ progressRouter.post("/unequip-spotlight");
 //Gets list of milestones user has acomplished
 progressRouter.get("/milestones");
 
-export default Router;
+export default progressRouter;
