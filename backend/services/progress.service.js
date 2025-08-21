@@ -1,6 +1,6 @@
 import mapSequelizeError from "../utils/mapSequelizeError.js";
 import AppError from "../utils/AppError.js";
-import { User, WorkoutLog } from "../models/index.js";
+import { User, WorkoutLog, PersonalBest } from "../models/index.js";
 import { sequelize } from "../config/db.config.js";
 import { Op } from "sequelize";
 import AddHistory from "../utils/AddHistory.js";
@@ -39,4 +39,48 @@ export async function getWorkoutHistory(user, paginated = false) {
   }
 }
 
-export default { getWorkoutHistory };
+export async function getPB(user) {
+  try {
+    const userId = user.id;
+    return await sequelize.transaction(async (t) => {
+      const row = await PersonalBest.findOne({
+        where: { userId },
+        attributes: ["personalBests"],
+        transaction: t,
+        raw: true,
+      });
+      let result = {};
+      const bests = row?.personalBests || {};
+      let data = null;
+      for (const key of Object.keys(bests)) {
+        data = await WorkoutLog.findOne({
+          where: { id: bests[key] },
+          attributes: ["exercises", "updatedAt"],
+          transaction: t,
+          raw: true,
+        });
+        for (const value of data.exercises) {
+          if (value.exercise === parseInt(key)) {
+            result[key] = {
+              sets: value.sets,
+              cooldown: value.cooldown,
+              timestamp: data["updatedAt"],
+              PR: value.sets.reduce((prev, curr) => {
+                if (prev < curr.weight) {
+                  return curr.weight;
+                }
+                return prev;
+              }, 0),
+            };
+            break;
+          }
+        }
+      }
+      return result;
+    });
+  } catch (err) {
+    throw mapSequelizeError(err);
+  }
+}
+
+export default { getWorkoutHistory, getPB };

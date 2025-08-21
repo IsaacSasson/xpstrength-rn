@@ -24,7 +24,6 @@ export async function getWorkoutHistoryPaginated(req, res, next) {
   const user = req?.user ?? null;
   const block = req?.params?.page ?? null;
   const blockSize = req?.params?.pageSize ?? null;
-  console.log("ran Paginated version");
   try {
     if (!user || block == null || blockSize == null) {
       throw new AppError("Malfored request parameters.", 400, "BAD_DATA");
@@ -56,4 +55,29 @@ export async function getWorkoutHistoryPaginated(req, res, next) {
   }
 }
 
-export default { getWorkoutHistory, getWorkoutHistoryPaginated };
+export async function getPersonalBest(req, res, next) {
+  const user = req?.user ?? null;
+
+  try {
+    if (!user) {
+      throw new AppError("Malfored user data.", 400, "BAD_DATA");
+    }
+
+    const PBData = await progressService.getPB(user);
+
+    return res.status(200).json({
+      data: {
+        PBData,
+      },
+      message: "User succesfully retrieved their personal best data",
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export default {
+  getWorkoutHistory,
+  getWorkoutHistoryPaginated,
+  getPersonalBest,
+};

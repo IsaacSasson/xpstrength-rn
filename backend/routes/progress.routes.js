@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   getWorkoutHistory,
   getWorkoutHistoryPaginated,
+  getPersonalBest,
 } from "../controllers/progress.controller.js";
 const progressRouter = Router();
 
@@ -15,7 +16,7 @@ progressRouter.get(
 );
 
 //Returns personal best Object
-//progressRouter.get("/pb");
+progressRouter.get("/pb", getPersonalBest);
 
 //Returns muscle category stats that we tracked
 //progressRouter.get("/stats");
