@@ -16,6 +16,7 @@ import Stats from "./stats.model.js";
 import History from "./history.model.js";
 import Event from "./eventQueue.model.js";
 import Auth from "./auth.model.js";
+import Spotlight from "./spotlights.model.js";
 
 export {
   Friend,
@@ -35,6 +36,7 @@ export {
   History,
   Event,
   Auth,
+  Spotlight,
 };
 
 export default {
@@ -55,4 +57,5 @@ export default {
   History,
   Event,
   Auth,
+  Spotlight,
 };

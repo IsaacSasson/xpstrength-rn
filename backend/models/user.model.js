@@ -21,6 +21,7 @@ import Stats from "./stats.model.js";
 import History from "./history.model.js";
 import Event from "./eventQueue.model.js";
 import Auth from "./auth.model.js";
+import Spotlight from "./spotlights.model.js";
 
 import { checkShopProductFormat } from "../validators/user/checkShopProductFormat.js";
 import { isTextClean } from "../validators/general/isTextClean.js";
@@ -38,6 +39,14 @@ const User = sequelize.define(
       autoIncrement: true,
       primaryKey: true,
     },
+    /*
+    publicId: {     
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    unique: true,
+    allowNull: false,
+  },
+  */
     username: {
       type: DataTypes.STRING(30),
       allowNull: false,
@@ -374,6 +383,10 @@ Blocked.belongsTo(User, { foreignKey: "blockedId" });
 User.hasMany(Reports, { foreignKey: "userId" });
 Reports.belongsTo(User, { foreignKey: "userId" });
 Reports.belongsTo(User, { foreignKey: "offenderId" });
+
+// User-Spotlight Relationships
+User.hasMany(Spotlight, { foreignKey: "userId" });
+Spotlight.belongsTo(User, { foreignKey: "userId" });
 
 //User-Auth Relationships
 User.hasOne(Auth, { foreignKey: "userId" });
