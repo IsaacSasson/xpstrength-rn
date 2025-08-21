@@ -1,4 +1,4 @@
-import { Sequelize, DataTypes } from "sequelize";
+import { Sequelize, DataTypes, BOOLEAN } from "sequelize";
 import { sequelize } from "../config/db.config.js";
 import spotLightTypes from "../../shared/spotlightTypes.json" with {type: 'json'};
 
@@ -35,6 +35,9 @@ const Spotlight = sequelize.define(
     payload: {
       type: DataTypes.JSON,
       allowNull: true
+    },
+    equiped: {
+      type: BOOLEAN, allowNull: false, defaultValue: true
     }
   },
   {
