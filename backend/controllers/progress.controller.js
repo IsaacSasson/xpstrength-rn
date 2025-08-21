@@ -97,9 +97,41 @@ export async function getStats(req, res, next) {
   }
 }
 
+export async function createGoal(req, res, next) {
+  try {
+    const user = req?.user ?? null;
+    const body = req?.body ?? null;
+    const name = body?.name ?? null;
+    const type = body?.type ?? null;
+    const details = body?.details ?? null;
+    const total = body?.total ?? null;
+    if (!user || !name || !type || !details || !total) {
+      throw new AppError("Malformed goal data provided", 400, "BAD_DATA");
+    }
+
+    const goal = await progressService.createGoal(
+      user,
+      name,
+      type,
+      details,
+      total
+    );
+
+    return res.status(201).json({
+      data: {
+        goal,
+      },
+      message: "Succesfully created a new goal!",
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export default {
   getWorkoutHistory,
   getWorkoutHistoryPaginated,
   getPersonalBest,
   getStats,
+  createGoal,
 };

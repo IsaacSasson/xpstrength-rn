@@ -1,6 +1,12 @@
 import mapSequelizeError from "../utils/mapSequelizeError.js";
 import AppError from "../utils/AppError.js";
-import { User, WorkoutLog, PersonalBest, Stats } from "../models/index.js";
+import {
+  User,
+  WorkoutLog,
+  PersonalBest,
+  Stats,
+  Goal,
+} from "../models/index.js";
 import { sequelize } from "../config/db.config.js";
 import { Op } from "sequelize";
 import AddHistory from "../utils/AddHistory.js";
@@ -107,4 +113,39 @@ export async function getStats(user) {
   }
 }
 
-export default { getWorkoutHistory, getPB, getStats };
+export async function createGoal(user, name, type, details, total) {
+  return await sequelize.transaction(async (t) => {
+    const goal = await Goal.create(
+      {
+        userId: user.id,
+        name,
+        type,
+        details,
+        total,
+        current: 0,
+      },
+      { transaction: t }
+    );
+
+    const newHistory = new AddHistory(
+      "PROGRESS",
+      "User succesfully created a new Goal",
+      user.id,
+      goal.id
+    );
+
+    await newHistory.log(t);
+
+    return {
+      id: goal.id,
+      name: goal.name,
+      type: goal.type,
+      details: goal.details,
+      total: goal.total,
+      updatedAt: goal.updatedAt,
+      createdAt: goal.createdAt,
+    };
+  });
+}
+
+export default { getWorkoutHistory, getPB, getStats, createGoal };

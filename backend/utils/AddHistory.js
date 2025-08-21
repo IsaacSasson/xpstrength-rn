@@ -21,6 +21,9 @@ export default class AddHistory {
       case "FRIEND":
         this.message = message;
         break;
+      case "PROGRESS":
+        this.message = message;
+        break;
       default:
         throw new AppError("Unknown ActionType", 500, "INTERNAL-ERROR");
     }
