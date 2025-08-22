@@ -6,6 +6,8 @@ import {
   getStats,
   createGoal,
   getGoals,
+  putGoal,
+  deleteGoal,
 } from "../controllers/progress.controller.js";
 const progressRouter = Router();
 
@@ -31,10 +33,10 @@ progressRouter.get("/goals", getGoals);
 progressRouter.post("/goal", createGoal);
 
 //Allows user to update a customGoal
-//progressRouter.put("/goal");
+progressRouter.put("/goal", putGoal);
 
 //Allows user to delete a customGoal
-//progressRouter.delete("/goal");
+progressRouter.delete("/goal", deleteGoal);
 
 //Returns user custom Spotlights they made from spotlight service
 //progressRouter.get("/spotlights");
@@ -47,5 +49,8 @@ progressRouter.post("/goal", createGoal);
 
 //Gets list of milestones user has acomplished
 //progressRouter.get("/milestones");
+
+//Add Photo to user completed milestone
+//progressRouter.push("/milestone");
 
 export default progressRouter;

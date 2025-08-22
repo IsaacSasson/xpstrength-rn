@@ -128,6 +128,59 @@ export async function createGoal(req, res, next) {
   }
 }
 
+export async function putGoal(req, res, next) {
+  try {
+    const user = req?.user ?? null;
+    const body = req?.body ?? null;
+    const id = body?.id ?? null;
+    const name = body?.name ?? null;
+    const type = body?.type ?? null;
+    const details = body?.details ?? null;
+    const total = body?.total ?? null;
+    const current = body?.current ?? null;
+    if (!user || !id) {
+      throw new AppError("Malformed user data provided", 400, "BAD_DATA");
+    }
+
+    const goal = await progressService.updateGoal(
+      user,
+      id,
+      name,
+      type,
+      details,
+      total,
+      current
+    );
+
+    return res.status(201).json({
+      data: {
+        goal,
+      },
+      message: "Succesfully updated old goal",
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function deleteGoal(req, res, next) {
+  try {
+    const user = req?.user ?? null;
+    const id = req?.body?.id ?? null;
+
+    if (!user || !id) {
+      throw new AppError("Malformed user data provided", 400, "BAD_DATA");
+    }
+    await progressService.deleteGoal(user, id);
+
+    return res.status(201).json({
+      message: "Goal succesfully deleted",
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function getGoals(req, res, next) {
   try {
     const user = req?.user ?? null;
@@ -155,4 +208,6 @@ export default {
   getStats,
   createGoal,
   getGoals,
+  putGoal,
+  deleteGoal,
 };

@@ -148,6 +148,89 @@ export async function createGoal(user, name, type, details, total) {
   });
 }
 
+export async function updateGoal(
+  user,
+  id,
+  name,
+  type,
+  details,
+  total,
+  current
+) {
+  return await sequelize.transaction(async (t) => {
+    const goal = await Goal.findOne({
+      where: { id: id, userId: user.id },
+      transaction: t,
+    });
+
+    if (!goal) {
+      throw new AppError(
+        "Could not find goal owned by user with ID provided",
+        400,
+        "BAD_DATA"
+      );
+    }
+
+    goal.name = name ?? goal.name;
+    goal.type = type ?? goal.type;
+    goal.details = details ?? goal.details;
+    goal.total = total ?? goal.total;
+    goal.current = current ?? goal.current;
+
+    goal.save({ transaction: t });
+
+    const newHistory = new AddHistory(
+      "PROGRESS",
+      "User succesfully updated a Goal",
+      user.id,
+      id
+    );
+
+    await newHistory.log(t);
+
+    return {
+      id: goal.id,
+      name: goal.name,
+      type: goal.type,
+      details: goal.details,
+      total: goal.total,
+      current: goal.current,
+      updatedAt: goal.updatedAt,
+      createdAt: goal.createdAt,
+    };
+  });
+}
+
+export async function deleteGoal(user, id) {
+  return await sequelize.transaction(async (t) => {
+    const goal = await Goal.findOne({
+      where: { id: id, userId: user.id },
+      transaction: t,
+    });
+
+    if (!goal) {
+      throw new AppError(
+        "Could not find goal owned by user with ID provided",
+        400,
+        "BAD_DATA"
+      );
+    }
+
+    goal.destroy({ transaction: t });
+
+    const newHistory = new AddHistory(
+      "PROGRESS",
+      "User succesfully deleted a Goal",
+      user.id,
+      id
+    );
+
+    await newHistory.log(t);
+
+    return;
+  });
+}
+
 export async function getGoals(user) {
   try {
     const goals = await Goal.findAll({
@@ -171,4 +254,12 @@ export async function getGoals(user) {
   }
 }
 
-export default { getWorkoutHistory, getPB, getStats, createGoal, getGoals };
+export default {
+  getWorkoutHistory,
+  getPB,
+  getStats,
+  createGoal,
+  getGoals,
+  updateGoal,
+  deleteGoal,
+};
