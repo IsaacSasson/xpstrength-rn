@@ -388,6 +388,18 @@ Reports.belongsTo(User, { foreignKey: "offenderId" });
 User.hasMany(Spotlight, { foreignKey: "userId" });
 Spotlight.belongsTo(User, { foreignKey: "userId" });
 
+//Spotlight-Miletone relationships
+Milestone.hasMany(Spotlight, { foreignKey: "milestoneId" });
+Spotlight.belongsTo(Milestone, { foreignKey: "milestoneId" });
+
+//Spotlight-WorkoutLog relationships
+WorkoutLog.hasMany(Spotlight, { foreignKey: "workoutId" });
+Spotlight.belongsTo(WorkoutLog, { foreignKey: "workoutIf" });
+
+//Spotlight-Goal relationships
+Goal.hasMany(Spotlight, { foreignKey: "goalId" });
+Spotlight.belongsTo(Goal, { foreignKey: "goalId" });
+
 //User-Auth Relationships
 User.hasOne(Auth, { foreignKey: "userId" });
 Auth.belongsTo(User, { foreignKey: "userId" });

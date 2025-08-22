@@ -28,15 +28,34 @@ const Spotlight = sequelize.define(
         isIn: [spotLightTypes]
       },
     },
-    references: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
+    goalId: { 
+      type: DataTypes.INTEGER, 
+      references: { 
+        model: "Goals", 
+        id: "id" 
+      }, 
+      onDelete: "CASCADE" 
+    },
+    workoutId: { 
+      type: DataTypes.INTEGER, 
+      references: { 
+        model: "workoutLog", 
+        id: "id" 
+      }, 
+      onDelete: "CASCADE" 
+    },
+    milestoneId: { 
+      type: DataTypes.INTEGER, 
+      references: { 
+        model: "Milestones", 
+        id: "id" 
+      }, 
+      onDelete: "CASCADE" 
     },
     payload: {
-      type: DataTypes.JSON,
-      allowNull: true
+      type: DataTypes.JSON, allowNull: true
     },
-    equiped: {
+    equipped: {
       type: BOOLEAN, allowNull: false, defaultValue: true
     }
   },
@@ -45,6 +64,14 @@ const Spotlight = sequelize.define(
     timestamps: true,
     underscored: true,
     indexes: [{ fields: ["user_id"] }],
+    validate: {
+      exactlyOneTarget() {
+        const n = [this.goalId, this.workoutId, this.postId].filter(Boolean).length;
+        if (n !== 1) {
+          throw new Error("Exactly one of goalId, workoutId, postId must be set")
+        };
+      }
+},
   }
 );
 
