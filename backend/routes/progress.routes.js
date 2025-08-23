@@ -46,9 +46,12 @@ progressRouter.delete("/goal", deleteGoal);
 //Returns user custom Spotlights they made from spotlight service
 progressRouter.get("/spotlights", getSpotlights);
 
+//Create new Spotlight
 progressRouter.post("/spotlight", createSpotlight);
 
+//Delete Spotlight
 progressRouter.delete("/spotlight", deleteSpotlight);
+
 //Equips a spotlight to a users active spotlight slots ( Can also create spotlight if it doesn't exist)
 progressRouter.put("/equip-spotlight", equipSpotlight);
 

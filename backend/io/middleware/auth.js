@@ -4,6 +4,7 @@ import AppError from "../../utils/AppError.js";
 import FriendService from "../../services/friends.service.js";
 import { nextWithAppError } from "../../utils/socketErrors.js";
 import { ensureBucket, buckets } from "../state/buckets.js";
+import { Auth } from "../../models/index.js";
 
 export default async function authMiddleware(socket, next) {
   try {
@@ -21,6 +22,11 @@ export default async function authMiddleware(socket, next) {
     const msUntilExpiry = payload.exp * 1000 - Date.now();
     if (msUntilExpiry <= 0) {
       return next(new AppError("Token Expired", 403, "UNAUTHORIZED"));
+    }
+
+    const authRow = await Auth.findOne({ where: { userId: payload.id } });
+    if (!authRow || !authRow.authorized) {
+      throw new AppError("User is not authorized", 403, "UNAUTHORIZED");
     }
 
     // attach user and add expiry to socket
