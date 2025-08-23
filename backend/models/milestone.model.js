@@ -1,9 +1,8 @@
 import { Sequelize, DataTypes } from "sequelize";
 import { sequelize } from "../config/db.config.js";
-import {
-  checkMilestoneFormat,
-  validateProfilePic,
-} from "../validators/milestone/checkMilestoneFormat.js";
+import { checkMilestoneFormat } from "../validators/milestone/checkMilestoneFormat.js";
+
+import { validateProfilePic } from "../validators/user/validateProfilePic.js";
 
 const Milestone = sequelize.define(
   "Milestones",

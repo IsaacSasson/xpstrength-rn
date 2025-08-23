@@ -58,6 +58,7 @@ progressRouter.put("/equip-spotlight", equipSpotlight);
 //Unequips a spotlight from a users active spotlight slots
 progressRouter.put("/unequip-spotlight", unequipSpotlight);
 
+//Milestones will get its own endpoint
 //Gets list of milestones user has acomplished with attached images
 //progressRouter.get("/milestones");
 

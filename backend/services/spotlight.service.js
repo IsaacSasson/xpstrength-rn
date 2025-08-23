@@ -47,7 +47,7 @@ export async function getEquippedSpotlights(userId) {
       raw: true,
     });
 
-    const result = await Promise.all(
+    let result = await Promise.all(
       spotlights.map(async (spotlight) => {
         const type = spotlight.type;
         let payload = "Failed to retrieve";
@@ -179,7 +179,6 @@ export async function deleteSpotlight(user, spotlightId) {
     if (!spotlight) {
       throw new AppError("Spotlight not found to delete", 400, "BAD_DATA");
     }
-
     if (spotlight.equipped) {
       console.log("Emitting Spotlight removed from equipped");
     }

@@ -1,7 +1,6 @@
 import AppError from "../utils/AppError.js";
 import progressService from "../services/progress.service.js";
 import spotlightServive from "../services/spotlight.service.js";
-import milestoneService from "../services/milestone.service.js";
 
 export async function getWorkoutHistory(req, res, next) {
   const user = req?.user ?? null;
@@ -105,9 +104,9 @@ export async function createGoal(req, res, next) {
     const data = req?.body?.data ?? null;
     const name = data?.name ?? null;
     const type = data?.type ?? null;
-    const details = data?.details ?? null;
+    const details = data?.details ?? " ";
     const total = data?.total ?? null;
-    if (!user || !name || !type || !details || !total) {
+    if (!user || !name || !type || !total) {
       throw new AppError("Malformed goal data provided", 400, "BAD_DATA");
     }
 
@@ -257,7 +256,7 @@ export async function createSpotlight(req, res, next) {
 export async function equipSpotlight(req, res, next) {
   try {
     const user = req?.user ?? null;
-    const spotlightId = req?.body?.data?.id ?? null;
+    const spotlightId = req?.body?.data?.spotlightId ?? null;
 
     if (!user || !spotlightId) {
       throw new AppError("Malformed data payload", 400, "BAD_DATA");
@@ -276,7 +275,7 @@ export async function equipSpotlight(req, res, next) {
 export async function deleteSpotlight(req, res, next) {
   try {
     const user = req?.user ?? null;
-    const spotlightId = req?.body?.data?.id ?? null;
+    const spotlightId = req?.body?.data?.spotlightId ?? null;
 
     if (!user || !spotlightId) {
       throw new AppError("Malformed data payload", 400, "BAD_DATA");
@@ -295,7 +294,7 @@ export async function deleteSpotlight(req, res, next) {
 export async function unequipSpotlight(req, res, next) {
   try {
     const user = req?.user ?? null;
-    const spotlightId = req?.body?.data?.id ?? null;
+    const spotlightId = req?.body?.data?.spotlightId ?? null;
 
     if (!user || !spotlightId) {
       throw new AppError("Malformed data payload", 400, "BAD_DATA");

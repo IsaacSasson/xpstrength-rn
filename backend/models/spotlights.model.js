@@ -56,7 +56,7 @@ const Spotlight = sequelize.define(
       type: DataTypes.JSON, allowNull: true
     },
     equipped: {
-      type: BOOLEAN, allowNull: false, defaultValue: true
+      type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true
     }
   },
   {
