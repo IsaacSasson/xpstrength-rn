@@ -10,6 +10,8 @@ import {
   WorkoutPlan,
   History,
 } from "../models/index.js";
+
+import spotlightService from "./spotlight.service.js";
 import { sequelize } from "../config/db.config.js";
 import { Op } from "sequelize";
 import AppHistory from "../utils/AddHistory.js";
@@ -20,8 +22,9 @@ export async function getProfileData(user) {
   try {
     const { password, profilePic, ...safeUser } =
       user.get?.({ plain: true }) || user;
+    const spotlights = await spotlightService.getEquippedSpotlights(user.id);
 
-    return safeUser;
+    return { profile: safeUser, spotlights: spotlights };
   } catch (err) {
     throw mapSequelizeError(err);
   }
@@ -41,6 +44,9 @@ export async function saveProfilePic(newPFP, user) {
   try {
     await sequelize.transaction(async (t) => {
       const userId = user.id;
+
+      console.log("User profile picture changed");
+
       if (newPFP) {
         user.profilePic = newPFP;
         const history = new AppHistory(
@@ -133,6 +139,8 @@ export async function setProfileData(
       await user.save({ transaction: t });
 
       const newAccessToken = await generateAuthToken(user);
+
+      console.log("User Profile Data Changed");
 
       const newProfile = {
         usernameChanged: match && newUsername ? newUsername : "Not Changed",
@@ -523,6 +531,9 @@ export async function logWorkout(user, workout) {
       await history.log(t);
       user.totalWorkouts += 1;
       user.totalTimeWorkedOut += workoutLength;
+
+      console.log("Profile Changed");
+
       await user.save({ transaction: t });
 
       return newWorkout;

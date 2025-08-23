@@ -179,6 +179,10 @@ export async function updateGoal(
 
     goal.save({ transaction: t });
 
+    if (name || type || details || total || current) {
+      console.log("Goal Updated -> Spotlight Updated -> Profile Updated");
+    }
+
     const newHistory = new AddHistory(
       "PROGRESS",
       "User succesfully updated a Goal",

@@ -224,7 +224,11 @@ export async function parseProfileObj(profile) {
     ...safeProfile
   } = profile.get?.({ plain: true }) || profile;
 
-  return safeProfile;
+  const spotlights = await spotlightService.getEquippedSpotlights(
+    safeProfile.id
+  );
+
+  return { profile: safeProfile, spotlights: spotlights };
 }
 
 /**
@@ -324,7 +328,7 @@ export async function acceptRequest(friendUserId, socket, bucket, auto) {
         }
 
         friendAcc.totalFriends += 1;
-
+        console.log("User Profile Changed");
         await friendAcc.save({ transaction: t });
 
         const userAcc = await User.findOne({
@@ -778,6 +782,7 @@ export async function removeFriend(friendId, socket, bucket) {
           );
         }
 
+        console.log("User Profile Changed");
         userAcc.totalFriends = Math.max(0, userAcc.totalFriends - 1);
 
         await userAcc.save({ transaction: t });
