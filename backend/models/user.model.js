@@ -257,16 +257,6 @@ User.beforeSave("Validate Images", async (user, options) => {
   }
 });
 
-User.afterCreate("Create Associating Milestones Row", async (user, options) => {
-  await Milestone.create(
-    {
-      userId: user.id,
-      milestones: [],
-    },
-    { transaction: options.transaction }
-  );
-});
-
 User.afterCreate(
   "Create Associating Personal Bests Row",
   async (user, options) => {
@@ -280,7 +270,7 @@ User.afterCreate(
 );
 
 User.afterCreate(
-  "Create Associating ExerciseLog Row",
+  "Create Associating ExerciseHistory Row",
   async (user, options) => {
     await ExerciseLog.create(
       {
@@ -319,7 +309,7 @@ User.afterCreate("Create Associating Auth Row", async (user, options) => {
 });
 
 // User-Milestone Relationships
-User.hasOne(Milestone, { foreignKey: "userId" });
+User.hasMany(Milestone, { foreignKey: "userId" });
 Milestone.belongsTo(User, { foreignKey: "userId" });
 
 //User-Goal Relationships
