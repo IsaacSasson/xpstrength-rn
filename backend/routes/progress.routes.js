@@ -8,6 +8,11 @@ import {
   getGoals,
   putGoal,
   deleteGoal,
+  getSpotlights,
+  createSpotlight,
+  equipSpotlight,
+  unequipSpotlight,
+  deleteSpotlight,
 } from "../controllers/progress.controller.js";
 const progressRouter = Router();
 
@@ -39,18 +44,21 @@ progressRouter.put("/goal", putGoal);
 progressRouter.delete("/goal", deleteGoal);
 
 //Returns user custom Spotlights they made from spotlight service
-//progressRouter.get("/spotlights");
+progressRouter.get("/spotlights", getSpotlights);
 
+progressRouter.post("/spotlight", createSpotlight);
+
+progressRouter.delete("/spotlight", deleteSpotlight);
 //Equips a spotlight to a users active spotlight slots ( Can also create spotlight if it doesn't exist)
-//progressRouter.post("/equip-spotlight");
+progressRouter.put("/equip-spotlight", equipSpotlight);
 
 //Unequips a spotlight from a users active spotlight slots
-//progressRouter.post("/unequip-spotlight");
+progressRouter.put("/unequip-spotlight", unequipSpotlight);
 
-//Gets list of milestones user has acomplished
+//Gets list of milestones user has acomplished with attached images
 //progressRouter.get("/milestones");
 
 //Add Photo to user completed milestone
-//progressRouter.push("/milestone");
+//progressRouter.post("/milestone");
 
 export default progressRouter;

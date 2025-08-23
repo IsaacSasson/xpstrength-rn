@@ -2,7 +2,6 @@ import mapSequelizeError from "../utils/mapSequelizeError.js";
 import AppError from "../utils/AppError.js";
 import { Spotlight, User, PersonalBest, Milestone } from "../models/index.js";
 import { sequelize } from "../config/db.config.js";
-import AddHistory from "../utils/AddHistory.js";
 import progressService from "./progress.service.js";
 
 //Complete, fetches all possible spotlights a user has
@@ -242,3 +241,12 @@ export async function unequipSpotlight(user, spotlightId) {
     throw mapSequelizeError(err);
   }
 }
+
+export default {
+  getSpotlights,
+  equipSpotlight,
+  unequipSpotlight,
+  deleteSpotlight,
+  createSpotlight,
+  getEquippedSpotlights,
+};

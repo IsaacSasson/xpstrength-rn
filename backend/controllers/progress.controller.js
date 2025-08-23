@@ -1,5 +1,7 @@
 import AppError from "../utils/AppError.js";
 import progressService from "../services/progress.service.js";
+import spotlightServive from "../services/spotlight.service.js";
+import milestoneService from "../services/milestone.service.js";
 
 export async function getWorkoutHistory(req, res, next) {
   const user = req?.user ?? null;
@@ -100,11 +102,11 @@ export async function getStats(req, res, next) {
 export async function createGoal(req, res, next) {
   try {
     const user = req?.user ?? null;
-    const body = req?.body ?? null;
-    const name = body?.name ?? null;
-    const type = body?.type ?? null;
-    const details = body?.details ?? null;
-    const total = body?.total ?? null;
+    const data = req?.body?.data ?? null;
+    const name = data?.name ?? null;
+    const type = data?.type ?? null;
+    const details = data?.details ?? null;
+    const total = data?.total ?? null;
     if (!user || !name || !type || !details || !total) {
       throw new AppError("Malformed goal data provided", 400, "BAD_DATA");
     }
@@ -131,13 +133,13 @@ export async function createGoal(req, res, next) {
 export async function putGoal(req, res, next) {
   try {
     const user = req?.user ?? null;
-    const body = req?.body ?? null;
-    const id = body?.id ?? null;
-    const name = body?.name ?? null;
-    const type = body?.type ?? null;
-    const details = body?.details ?? null;
-    const total = body?.total ?? null;
-    const current = body?.current ?? null;
+    const data = req?.body?.data ?? null;
+    const id = data?.id ?? null;
+    const name = data?.name ?? null;
+    const type = data?.type ?? null;
+    const details = data?.details ?? null;
+    const total = data?.total ?? null;
+    const current = data?.current ?? null;
     if (!user || !id) {
       throw new AppError("Malformed user data provided", 400, "BAD_DATA");
     }
@@ -166,7 +168,7 @@ export async function putGoal(req, res, next) {
 export async function deleteGoal(req, res, next) {
   try {
     const user = req?.user ?? null;
-    const id = req?.body?.id ?? null;
+    const id = req?.body?.data?.id ?? null;
 
     if (!user || !id) {
       throw new AppError("Malformed user data provided", 400, "BAD_DATA");
@@ -201,6 +203,114 @@ export async function getGoals(req, res, next) {
   }
 }
 
+export async function getSpotlights(req, res, next) {
+  try {
+    const user = req?.user ?? null;
+
+    if (!user) {
+      throw new AppError("Malfored user Id", 400, "BAD_DATA");
+    }
+
+    const spotlights = await spotlightServive.getSpotlights(user);
+
+    return res.status(200).json({
+      data: {
+        spotlights,
+      },
+      message: "Succesfully retrived user spotlights",
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function createSpotlight(req, res, next) {
+  try {
+    const user = req?.user ?? null;
+    const data = req?.body?.data ?? null;
+    const referenceIds = data?.referenceIds ?? null;
+    const type = data?.type ?? null;
+    const autoequip = data?.autoequip ?? false;
+
+    if (!user || !data || !referenceIds || !type) {
+      throw new AppError("Data Payload malformed", 400, "BAD_DATA");
+    }
+
+    const spotlight = await spotlightServive.createSpotlight(
+      user,
+      referenceIds,
+      type,
+      autoequip
+    );
+
+    return res.status(201).json({
+      data: {
+        spotlight,
+      },
+      message: "Succesfully created spotlight",
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function equipSpotlight(req, res, next) {
+  try {
+    const user = req?.user ?? null;
+    const spotlightId = req?.body?.data?.id ?? null;
+
+    if (!user || !spotlightId) {
+      throw new AppError("Malformed data payload", 400, "BAD_DATA");
+    }
+
+    await spotlightServive.equipSpotlight(user, spotlightId);
+
+    return res.status(200).json({
+      message: "Spotlight succesfully equipped",
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function deleteSpotlight(req, res, next) {
+  try {
+    const user = req?.user ?? null;
+    const spotlightId = req?.body?.data?.id ?? null;
+
+    if (!user || !spotlightId) {
+      throw new AppError("Malformed data payload", 400, "BAD_DATA");
+    }
+
+    await spotlightServive.deleteSpotlight(user, spotlightId);
+
+    return res.status(200).json({
+      message: "Spotlight succesfully deleted",
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function unequipSpotlight(req, res, next) {
+  try {
+    const user = req?.user ?? null;
+    const spotlightId = req?.body?.data?.id ?? null;
+
+    if (!user || !spotlightId) {
+      throw new AppError("Malformed data payload", 400, "BAD_DATA");
+    }
+
+    await spotlightServive.unequipSpotlight(user, spotlightId);
+
+    return res.status(200).json({
+      message: "Spotlight succesfully unequipped",
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export default {
   getWorkoutHistory,
   getWorkoutHistoryPaginated,
@@ -210,4 +320,9 @@ export default {
   getGoals,
   putGoal,
   deleteGoal,
+  getSpotlights,
+  equipSpotlight,
+  deleteSpotlight,
+  createSpotlight,
+  unequipSpotlight,
 };
