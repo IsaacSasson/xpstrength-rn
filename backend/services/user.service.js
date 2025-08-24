@@ -18,6 +18,7 @@ import AppHistory from "../utils/AddHistory.js";
 import { workoutAddXP } from "../utils/xpSystem.js";
 import { generateAuthToken } from "../utils/security.js";
 import FriendEmitters from "../io/emitters/friends.js";
+import StreakService from "./streaks.service.js";
 
 export async function getProfileData(user) {
   try {
@@ -25,7 +26,13 @@ export async function getProfileData(user) {
       user.get?.({ plain: true }) || user;
     const spotlights = await spotlightService.getEquippedSpotlights(user.id);
 
-    return { profile: safeUser, spotlights: spotlights };
+    const streakData = await StreakService.getStreakData(user.id);
+
+    return {
+      profile: safeUser,
+      spotlights: spotlights,
+      streakData: streakData,
+    };
   } catch (err) {
     throw mapSequelizeError(err);
   }
@@ -536,6 +543,8 @@ export async function logWorkout(user, workout) {
       FriendEmitters.profileUpdatedEmitter(user.id);
 
       await user.save({ transaction: t });
+
+      StreakService.updateStreak(user);
 
       return newWorkout;
     });

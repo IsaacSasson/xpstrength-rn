@@ -41,6 +41,7 @@ import EventService from "./eventsOutbox.service.js";
 import { buckets } from "../io/state/buckets.js";
 import AddHistory from "../utils/AddHistory.js";
 import FriendEmitters from "../io/emitters/friends.js";
+import StreakService from "./streaks.service.js";
 
 /**
  * Send a friend request to a user by username.
@@ -229,7 +230,13 @@ export async function parseProfileObj(profile) {
     safeProfile.id
   );
 
-  return { profile: safeProfile, spotlights: spotlights };
+  const streakData = await StreakService.getStreakData(safeProfile.id);
+
+  return {
+    profile: safeProfile,
+    spotlights: spotlights,
+    streakData: streakData,
+  };
 }
 
 /**

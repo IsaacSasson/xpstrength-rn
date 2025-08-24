@@ -323,8 +323,100 @@ export async function milestoneAddXP(user, milestone) {
   return;
 }
 
-export async function streakAddXP(user) {
-  return;
+export async function streakAddXP(user, bucket, streak) {
+    try 
+    {
+      if (streak.currentStreak % 7 === 0 && streak.currentStreak !== 0) {
+        xpBonus = streak.currentStreak / 7;
+        const userId = user.id;
+        const baseXP = 100;
+        const newXp = baseXP * xpBonus;
+        const oldXp = user.xp;
+        const totalXp = Math.round(newXp + oldXp);
+        const oldLevel = user.level;
+        let newLevel = oldLevel;
+        let userCoins = user.totalCoins;
+        
+        if (bucket) {
+          await EventService.createEvent(
+            userId,
+            "consistentStreakXP",
+            userId,
+            streak.id,
+            {
+              streakXPBonus: newXp,
+            },
+            bucket.sockets.values().next().value,
+            true
+          );
+        } else {
+          await EventService.createEvent(
+            userId,
+            "consistentStreakXP",
+            userId,
+            streak.id,
+            {
+              streakXPBonus: newXp,
+            },
+            null,
+            false
+          );
+        }
+        
+        let events = []
+        
+        await sequelize.transaction(async (t) => {
+          while (totalXp >= (await totalXpForUserLevel(newLevel + 1))) {
+            newLevel += 1;
+            userCoins += userLevelUpRewards.coins;
+
+            events.push({newLevel, rewards: userLevelUpRewards})
+
+            const history = new AddHistory(
+              "USER",
+              `User successfully leveled up to level ${newLevel}`,
+              user.id,
+              null
+            );
+            await history.log(t);
+          }
+
+          user.xp = totalXp;
+          user.level = newLevel;
+          user.totalCoins = userCoins;
+          await user.save({ transaction: t });
+        });
+
+        for (const event of events) {
+          if (bucket) {
+            await EventService.createEvent(
+              userId,
+              "userLevelUp",
+              userId,
+              streak.id,
+              event,
+              bucket.sockets.values().next().value,
+              true
+            );
+          } else {
+            await EventService.createEvent(
+              userId,
+              "userLevelUp",
+              userId,
+              streak.id,
+              event,
+              null,
+              false
+            );
+          }
+        }
+
+        return;
+      }
+      return;
+    } catch(err) {
+      console.log(err);
+    }
 }
 
 export async function userXpDelta(level) {

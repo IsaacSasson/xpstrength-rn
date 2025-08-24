@@ -3,7 +3,7 @@ import {
   getCoins,
   getUnlocks,
   postPurchase,
-} from "../controllers/shop.controller";
+} from "../controllers/shop.controller.js";
 const shopRouter = Router();
 
 //Will have global market in the end
