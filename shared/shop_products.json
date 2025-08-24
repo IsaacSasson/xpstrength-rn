@@ -1,37 +1,44 @@
 [
-    {
-        "id": "0",
-        "productType": "paint",
-        "color": "Classic Purple"
-    },
-    {
-        "id": "1",
-        "productType": "paint",
-        "color": "Inferno Red"
-    },
-    {
-        "id": "2",
-        "productType": "paint",
-        "color": "Sunrise Orange"
-    },
-    {
-        "id": "3",
-        "productType": "paint",
-        "color": "Premium Gold"
-    },
-    {
-        "id": "4",
-        "productType": "paint",
-        "color": "Forest Green"
-    },
-    {
-        "id": "5",
-        "productType": "paint",
-        "color": "Ocean Blue"
-    },
-    {
-        "id": "6",
-        "productType": "paint",
-        "color": "Neon Future"
-    }
+  {
+    "name": "purple_default",
+    "id": 0,
+    "price": 0,
+    "description": "The default purple theme. Bold and energetic."
+  },
+  {
+    "name": "red_inferno",
+    "id": 1,
+    "price": 500,
+    "description": "Fiery and intense. Perfect for high-intensity workouts."
+  },
+  {
+    "name": "orange_sunrise",
+    "id": 2,
+    "price": 500,
+    "description": "Warm and motivating. Start your day with energy."
+  },
+  {
+    "name": "green_forest",
+    "id": 3,
+    "price": 750,
+    "description": "Natural and calming. Find your zen while working out."
+  },
+  {
+    "name": "blue_ocean",
+    "id": 4,
+    "price": 750,
+    "description": "Deep and focused. Dive into your training routine."
+  },
+  {
+    "name": "gold_premium",
+    "id": 5,
+    "price": 1500,
+    "description": "Luxurious and prestigious. Show off your achievements."
+  },
+  {
+    "name": "neon_future",
+    "id": 6,
+    "price": 2000,
+    "description": "Futuristic and bright. Train like you're from the future."
+  }
 ]

@@ -1,20 +1,20 @@
-/*import { Router } from "express";
-
+import { Router } from "express";
+import {
+  getCoins,
+  getUnlocks,
+  postPurchase,
+} from "../controllers/shop.controller.js";
 const shopRouter = Router();
 
 //Will have global market in the end
 
-//Items available in the shop
-shopRouter.get("/items");
-
 //Your coins you have
-shopRouter.get("/coins");
+shopRouter.get("/coins", getCoins);
 
 //Your purchased Items
-shopRouter.get("/purchases");
+shopRouter.get("/purchases", getUnlocks);
 
 //To purchase an item from the Shop
-shopRouter.post("/purchase");
+shopRouter.post("/purchase", postPurchase);
 
 export default shopRouter;
-*/

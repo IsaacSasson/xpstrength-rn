@@ -1,5 +1,5 @@
-import { buckets } from "../state/buckets";
-import FriendService from "../../services/friends.service";
+import { buckets } from "../state/buckets.js";
+import FriendService from "../../services/friends.service.js";
 
 export async function profileUpdatedEmitter(userId) {
   try {
