@@ -17,6 +17,7 @@ import History from "./history.model.js";
 import Event from "./eventQueue.model.js";
 import Auth from "./auth.model.js";
 import Spotlight from "./spotlights.model.js";
+import Streak from "./streak.model.js";
 
 export {
   Friend,
@@ -37,6 +38,7 @@ export {
   Event,
   Auth,
   Spotlight,
+  Streak,
 };
 
 export default {
@@ -58,4 +60,5 @@ export default {
   Event,
   Auth,
   Spotlight,
+  Streak,
 };

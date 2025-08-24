@@ -22,6 +22,7 @@ import History from "./history.model.js";
 import Event from "./eventQueue.model.js";
 import Auth from "./auth.model.js";
 import Spotlight from "./spotlights.model.js";
+import Streak from "./streak.model.js";
 
 import { checkShopProductFormat } from "../validators/user/checkShopProductFormat.js";
 import { isTextClean } from "../validators/general/isTextClean.js";
@@ -308,6 +309,15 @@ User.afterCreate("Create Associating Auth Row", async (user, options) => {
   );
 });
 
+User.afterCreate("Create Associating Streak Row", async (user, options) => {
+  await Streak.create(
+    {
+      userId: user.id,
+    },
+    { transaction: options.transaction }
+  );
+});
+
 // User-Milestone Relationships
 User.hasMany(Milestone, { foreignKey: "userId" });
 Milestone.belongsTo(User, { foreignKey: "userId" });
@@ -335,6 +345,10 @@ ExerciseLog.belongsTo(User, { foreignKey: "userId" });
 //User-plannedWorkout RelationShips
 User.hasOne(WorkoutPlan, { foreignKey: "userId" });
 WorkoutPlan.belongsTo(User, { foreignKey: "userId" });
+
+//User-Streak Relationships
+User.hasOne(Streak, { foreignKey: "userId" });
+Streak.belongsTo(User, { foreignKey: "userId" });
 
 //User-Stats Relationships
 User.hasOne(Stats, { foreignKey: "userId" });
