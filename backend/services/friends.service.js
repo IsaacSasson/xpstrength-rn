@@ -40,6 +40,7 @@ import mapSequelizeError from "../utils/mapSequelizeError.js";
 import EventService from "./eventsOutbox.service.js";
 import { buckets } from "../io/state/buckets.js";
 import AddHistory from "../utils/AddHistory.js";
+import FriendEmitters from "../io/emitters/friends.js";
 
 /**
  * Send a friend request to a user by username.
@@ -328,7 +329,6 @@ export async function acceptRequest(friendUserId, socket, bucket, auto) {
         }
 
         friendAcc.totalFriends += 1;
-        console.log("User Profile Changed");
         await friendAcc.save({ transaction: t });
 
         const userAcc = await User.findOne({
@@ -393,6 +393,7 @@ export async function acceptRequest(friendUserId, socket, bucket, auto) {
     bucket.incomingRequests.delete(friendUserId);
     bucket.friends.add(friendUserId);
 
+    FriendEmitters.profileUpdatedEmitter(userId);
     const safeProfile = await parseProfileObj(friendAcc);
     const friendResourceId = friendResource.id;
     const userResourceId = userResource.id;
@@ -782,7 +783,6 @@ export async function removeFriend(friendId, socket, bucket) {
           );
         }
 
-        console.log("User Profile Changed");
         userAcc.totalFriends = Math.max(0, userAcc.totalFriends - 1);
 
         await userAcc.save({ transaction: t });
@@ -825,6 +825,7 @@ export async function removeFriend(friendId, socket, bucket) {
 
     bucket.friends.delete(friendId);
 
+    FriendEmitters.profileUpdatedEmitter(userId);
     return ok(
       "FRIEND_REMOVED",
       {

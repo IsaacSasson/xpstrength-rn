@@ -3,6 +3,7 @@ import AppError from "../utils/AppError.js";
 import { Spotlight, User, PersonalBest, Milestone } from "../models/index.js";
 import { sequelize } from "../config/db.config.js";
 import progressService from "./progress.service.js";
+import FriendEmitters from "../io/emitters/friends.js";
 
 //Complete, fetches all possible spotlights a user has
 export async function getSpotlights(user) {
@@ -162,7 +163,7 @@ export async function createSpotlight(user, referenceIds, type, autoEquip) {
     }
 
     if (autoEquip) {
-      console.log("Emitting Equipped");
+      FriendEmitters.profileUpdatedEmitter(user.id);
     }
     return result;
   } catch (err) {
@@ -180,7 +181,7 @@ export async function deleteSpotlight(user, spotlightId) {
       throw new AppError("Spotlight not found to delete", 400, "BAD_DATA");
     }
     if (spotlight.equipped) {
-      console.log("Emitting Spotlight removed from equipped");
+      FriendEmitters.profileUpdatedEmitter(user.id);
     }
 
     await spotlight.destroy();
@@ -208,7 +209,7 @@ export async function equipSpotlight(user, spotlightId) {
     spotlight.equipped = true;
     spotlight.save();
 
-    console.log("Emitting Equipped");
+    FriendEmitters.profileUpdatedEmitter(user.id);
 
     return;
   } catch (err) {
@@ -233,7 +234,7 @@ export async function unequipSpotlight(user, spotlightId) {
     spotlight.equipped = false;
     spotlight.save();
 
-    console.log("Emitting unequip");
+    FriendEmitters.profileUpdatedEmitter(user.id);
 
     return;
   } catch (err) {

@@ -17,7 +17,6 @@ export function attachCommonHandlers(io, socket, buckets) {
       return;
     }
     const friendData = await getFriendData(socket.data.user);
-    console.log(friendData);
     bucket.friends = friendData.friends;
     bucket.incomingRequests = friendData.incomingRequests;
     bucket.outgoingRequests = friendData.outgoingRequests;

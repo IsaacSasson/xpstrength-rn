@@ -17,6 +17,7 @@ import { Op } from "sequelize";
 import AppHistory from "../utils/AddHistory.js";
 import { workoutAddXP } from "../utils/xpSystem.js";
 import { generateAuthToken } from "../utils/security.js";
+import FriendEmitters from "../io/emitters/friends.js";
 
 export async function getProfileData(user) {
   try {
@@ -45,7 +46,7 @@ export async function saveProfilePic(newPFP, user) {
     await sequelize.transaction(async (t) => {
       const userId = user.id;
 
-      console.log("User profile picture changed");
+      FriendEmitters.profilePictureUpdatedEmitter(user.id);
 
       if (newPFP) {
         user.profilePic = newPFP;
@@ -140,7 +141,7 @@ export async function setProfileData(
 
       const newAccessToken = await generateAuthToken(user);
 
-      console.log("User Profile Data Changed");
+      FriendEmitters.profileUpdatedEmitter(user.id);
 
       const newProfile = {
         usernameChanged: match && newUsername ? newUsername : "Not Changed",
@@ -532,7 +533,7 @@ export async function logWorkout(user, workout) {
       user.totalWorkouts += 1;
       user.totalTimeWorkedOut += workoutLength;
 
-      console.log("Profile Changed");
+      FriendEmitters.profileUpdatedEmitter(user.id);
 
       await user.save({ transaction: t });
 

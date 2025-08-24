@@ -1,5 +1,6 @@
 import mapSequelizeError from "../utils/mapSequelizeError.js";
 import AppError from "../utils/AppError.js";
+import FriendEmitters from "../io/emitters/friends.js";
 import {
   User,
   WorkoutLog,
@@ -157,7 +158,7 @@ export async function updateGoal(
   total,
   current
 ) {
-  return await sequelize.transaction(async (t) => {
+  let res = await sequelize.transaction(async (t) => {
     const goal = await Goal.findOne({
       where: { id: id, userId: user.id },
       transaction: t,
@@ -179,10 +180,6 @@ export async function updateGoal(
 
     goal.save({ transaction: t });
 
-    if (name || type || details || total || current) {
-      console.log("Goal Updated -> Spotlight Updated -> Profile Updated");
-    }
-
     const newHistory = new AddHistory(
       "PROGRESS",
       "User succesfully updated a Goal",
@@ -203,6 +200,12 @@ export async function updateGoal(
       createdAt: goal.createdAt,
     };
   });
+
+  if (name || type || details || total || current) {
+    FriendEmitters.profileUpdatedEmitter(user.id);
+  }
+
+  return res;
 }
 
 export async function deleteGoal(user, id) {
