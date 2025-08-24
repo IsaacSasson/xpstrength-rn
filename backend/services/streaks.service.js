@@ -81,7 +81,7 @@ export async function updateStreak(user, opts = {}) {
       await streak.save({
         transaction: t,
       });
-      streakAddXP(user, bucket, streak);
+      await streakAddXP(user, bucket, streak);
       return streak;
     });
 

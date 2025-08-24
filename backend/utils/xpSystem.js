@@ -327,6 +327,9 @@ export async function streakAddXP(user, bucket, streak) {
     try 
     {
       if (streak.currentStreak % 7 === 0 && streak.currentStreak !== 0) {
+
+        const user = await User.findOne({where: { id: user.id}});
+
         let xpBonus = streak.currentStreak / 7;
         const userId = user.id;
         const baseXP = 100;
