@@ -540,11 +540,7 @@ export async function logWorkout(user, workout) {
       user.totalWorkouts += 1;
       user.totalTimeWorkedOut += workoutLength;
 
-      FriendEmitters.profileUpdatedEmitter(user.id);
-
       await user.save({ transaction: t });
-
-      StreakService.updateStreak(user);
 
       return newWorkout;
     });
@@ -554,7 +550,17 @@ export async function logWorkout(user, workout) {
       newWorkout
     );
 
-    return { events, newXp, xpPerCategory };
+    const streak = await StreakService.updateStreak(user);
+
+    FriendEmitters.profileUpdatedEmitter(user.id);
+
+    return {
+      events,
+      newXp,
+      xpPerCategory,
+      currentStreak: streak.currentStreak,
+      highestStreak: streak.highestStreak,
+    };
   } catch (err) {
     throw mapSequelizeError(err);
   }

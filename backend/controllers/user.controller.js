@@ -310,16 +310,16 @@ export async function postLogWorkout(req, res, next) {
       throw new AppError("WorkoutLog Data Malformed", 400, "BAD_DATA");
     }
 
-    const { events, newXp, xpPerCategory } = await userService.logWorkout(
-      user,
-      workoutLog
-    );
+    const { events, newXp, xpPerCategory, currentStreak, highestStreak } =
+      await userService.logWorkout(user, workoutLog);
 
     return res.status(201).json({
       data: {
         events,
         userGainedXP: newXp,
         muscleCategoryGainedXP: xpPerCategory,
+        currentStreak,
+        highestStreak,
       },
       message: "User workout succesfully logged!",
     });

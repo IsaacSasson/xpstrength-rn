@@ -4,7 +4,9 @@ import FriendService from "../../services/friends.service.js";
 export async function profileUpdatedEmitter(userId) {
   try {
     const bucket = buckets.get(userId);
-
+    if (!bucket) {
+      return;
+    }
     const uniqueIds = [
       ...new Set([
         ...bucket.friends,
@@ -24,6 +26,10 @@ export async function profileUpdatedEmitter(userId) {
 export async function profilePictureUpdatedEmitter(userId) {
   try {
     const bucket = buckets.get(userId);
+
+    if (!bucket) {
+      return;
+    }
 
     const uniqueIds = [
       ...new Set([

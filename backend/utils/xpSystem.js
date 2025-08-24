@@ -159,7 +159,7 @@ export async function addXpToCoreMuscle(
   //The max XP they can get for a workout is their volume but we decrease the amount by how long they rest
   //If someone benches 245 for 5 reps and 5 sets but they take a 5 min break we divide by that volume
   //We also scale it based on how big that muscle group is so it doesnt grow disproportianly compared to the weight
-  const scaledVolume = Math.max(volume * (60 / cooldown), volume) * muscleXPScaler[muscleCategory]
+  const scaledVolume = Math.max(volume * (60 / Math.max(cooldown, 1)), volume) * muscleXPScaler[muscleCategory]
 
   //Return to the user xp gained per muscle category from the exercise
   xpGainedPerCategory = { ...xpGainedPerCategory, [exerciseId]: {[muscleCategory]: scaledVolume}}
@@ -331,6 +331,7 @@ export async function streakAddXP(user, bucket, streak) {
         const userId = user.id;
         const baseXP = 100;
         const newXp = baseXP * xpBonus;
+        console.log(newXp, oldXp);
         const oldXp = user.xp;
         const totalXp = Math.round(newXp + oldXp);
         const oldLevel = user.level;

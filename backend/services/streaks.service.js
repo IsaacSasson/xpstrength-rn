@@ -19,15 +19,14 @@ export async function updateStreak(user, opts = {}) {
   const userId = user.id;
 
   const { now = new Date(), zone = "America/New_York" } = opts;
-
+  const bucket = buckets.get(userId);
   try {
-    const { streak } = await sequelize.transaction(async (t) => {
+    const streak = await sequelize.transaction(async (t) => {
       // 1) Load plan
       const planRow = await WorkoutPlan.findOne({
         where: { userId },
         attributes: ["plan"],
         transaction: t,
-        lock: t.LOCK.UPDATE,
       });
 
       if (
@@ -43,7 +42,6 @@ export async function updateStreak(user, opts = {}) {
       const streak = await Streak.findOne({
         where: { userId },
         transaction: t,
-        lock: t.LOCK.UPDATE,
       });
       if (!streak) {
         throw new AppError("Streak not found", 400, "BAD_DATA");
@@ -55,13 +53,13 @@ export async function updateStreak(user, opts = {}) {
 
       // If today is a rest day, no streak changes
       if (plan[todayIdx] === -1) {
-        return;
+        return streak;
       }
 
       // Idempotency: if we've already counted a workout today, do nothing
       const lastAtDT = DateTime.fromJSDate(streak.updatedAt ?? now, { zone });
       if (lastAtDT >= todayStart) {
-        return;
+        return streak;
       }
 
       // 3) Compute the single backward window that ended at start of today
@@ -82,49 +80,14 @@ export async function updateStreak(user, opts = {}) {
 
       await streak.save({
         transaction: t,
-        fields: ["currentStreak", "highestStreak", "updatedAt"],
       });
-
+      streakAddXP(user, bucket, streak);
       return streak;
     });
 
-    const bucket = buckets.get(userId);
-
-    //Add event that streaks were updated
-    if (bucket) {
-      await EventService.createEvent(
-        userId,
-        "streakUpdated",
-        userId,
-        streak.id,
-        {
-          currentStreak: streak.currentStreak,
-          highestStreak: streak.highestStreak,
-          updatedAt: streak.updatedAt,
-        },
-        bucket.sockets.values().next().value,
-        true
-      );
-    } else {
-      await EventService.createEvent(
-        userId,
-        "streakUpdated",
-        userId,
-        streak.id,
-        {
-          currentStreak: streak.currentStreak,
-          highestStreak: streak.highestStreak,
-          updatedAt: streak.updatedAt,
-        },
-        null,
-        false
-      );
-    }
-
-    streakAddXP(user, bucket, streak);
-    return;
+    return streak;
   } catch (err) {
-    console.log(err);
+    throw mapSequelizeError(err);
   }
 }
 
@@ -132,7 +95,7 @@ export async function getStreakData(userId) {
   try {
     let StreakData = await Streak.findOne({
       where: { userId: userId },
-      attributes: ["currentStreak, highestStreak, updatedAt"],
+      attributes: ["currentStreak", "highestStreak", "updatedAt"],
     });
 
     return {
