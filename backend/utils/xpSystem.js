@@ -327,7 +327,7 @@ export async function streakAddXP(user, bucket, streak) {
     try 
     {
       if (streak.currentStreak % 7 === 0 && streak.currentStreak !== 0) {
-        xpBonus = streak.currentStreak / 7;
+        let xpBonus = streak.currentStreak / 7;
         const userId = user.id;
         const baseXP = 100;
         const newXp = baseXP * xpBonus;
@@ -338,6 +338,30 @@ export async function streakAddXP(user, bucket, streak) {
         let newLevel = oldLevel;
         let userCoins = user.totalCoins;
         
+        let events = []
+        
+        await sequelize.transaction(async (t) => {
+          while (totalXp >= (await totalXpForUserLevel(newLevel + 1))) {
+            newLevel += 1;
+            userCoins += userLevelUpRewards.coins;
+
+            events.push({newLevel, rewards: userLevelUpRewards})
+
+            const history = new AddHistory(
+              "USER",
+              `User successfully leveled up to level ${newLevel}`,
+              user.id,
+              null
+            );
+            await history.log(t);
+          }
+
+          user.xp = totalXp;
+          user.level = newLevel;
+          user.totalCoins = userCoins;
+          await user.save({ transaction: t });
+        });
+
         if (bucket) {
           await EventService.createEvent(
             userId,
@@ -363,30 +387,6 @@ export async function streakAddXP(user, bucket, streak) {
             false
           );
         }
-        
-        let events = []
-        
-        await sequelize.transaction(async (t) => {
-          while (totalXp >= (await totalXpForUserLevel(newLevel + 1))) {
-            newLevel += 1;
-            userCoins += userLevelUpRewards.coins;
-
-            events.push({newLevel, rewards: userLevelUpRewards})
-
-            const history = new AddHistory(
-              "USER",
-              `User successfully leveled up to level ${newLevel}`,
-              user.id,
-              null
-            );
-            await history.log(t);
-          }
-
-          user.xp = totalXp;
-          user.level = newLevel;
-          user.totalCoins = userCoins;
-          await user.save({ transaction: t });
-        });
 
         for (const event of events) {
           if (bucket) {

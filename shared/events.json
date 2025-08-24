@@ -10,6 +10,8 @@
   "userLevelUp",
   "muscleLevelUp",
   "milestoneComplete",
+  "consistentStreakXP",
+  "streakUpdated",
   "newPersonalBest",
   "firstTimeCompletingExercise",
   "dummyEvent"
