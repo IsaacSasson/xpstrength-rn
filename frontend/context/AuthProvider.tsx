@@ -1,3 +1,4 @@
+// Path: /context/AuthProvider.tsx
 import React, {
   createContext,
   useContext,
@@ -74,10 +75,14 @@ const createAuthenticatedFetch = () => {
       const refreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
       if (!refreshToken) return null;
 
-      const res = await originalFetch(`${API_BASE_URL}/api/v1/auth/access-token`, {
-        method: "GET",
-        headers: { refreshToken: refreshToken },
-      });
+      const res = await originalFetch(
+        `${API_BASE_URL}/api/v1/auth/access-token`,
+        {
+          method: "GET",
+          // Server expects lowercase 'refreshtoken'
+          headers: { refreshtoken: refreshToken },
+        }
+      );
 
       if (!res.ok) return null;
 
@@ -99,7 +104,10 @@ const createAuthenticatedFetch = () => {
     }
   };
 
-  global.fetch = async (input: RequestInfo | URL, init?: RetriableRequestInit): Promise<Response> => {
+  global.fetch = async (
+    input: RequestInfo | URL,
+    init?: RetriableRequestInit
+  ): Promise<Response> => {
     const url = typeof input === "string" ? input : input.toString();
 
     // Only intercept calls to our API
@@ -251,7 +259,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       logout,
       clearAuth,
     };
-  }, [user, accessToken, isLoading, isAuthenticated, signIn, logout, clearAuth]);
+  }, [user, accessToken, isLoading, isAuthenticated, signIn, logout]);
 
   useEffect(() => {
     if (user && accessToken) {
@@ -279,6 +287,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
           if (newAccess) setAccessTokenState(newAccess);
           if (newRefresh) await setRefreshToken(newRefresh);
+
+          // Optional: fetch profile here to auto-populate user on cold start
+          // If you have an endpoint like /me, you can setUserWithLoadingState(...)
         } else {
           await setRefreshToken(null);
         }
