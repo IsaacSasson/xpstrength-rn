@@ -25,3 +25,5 @@ milestoneRouter.post(
 
 //Gets milestone Image for a specific owned milestone image Id
 milestoneRouter.get("/:milestone/image", getMilestoneImage);
+
+export default milestoneRouter;

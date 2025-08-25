@@ -6,6 +6,7 @@ import networkRouter from "./network.routes.js";
 import userRouter from "./user.routes.js";
 import progressRouter from "./progress.routes.js";
 import shopRouter from "./shop.routes.js";
+import milestoneRouter from "./milestone.routes.js";
 import error from "../middleware/error.middleware.js";
 
 const v1Router = Router();
@@ -19,6 +20,7 @@ v1Router.use("/network", authMiddle, networkRouter);
 v1Router.use("/user", authMiddle, userRouter);
 v1Router.use("/progress", authMiddle, progressRouter);
 v1Router.use("/shop", authMiddle, shopRouter);
+v1Router.use("/milestone", authMiddle, milestoneRouter);
 
 //Global Error Handling
 v1Router.use(error);

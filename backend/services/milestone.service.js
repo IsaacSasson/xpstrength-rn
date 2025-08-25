@@ -8,9 +8,9 @@ import {
   Friend,
   Streak,
   Goal,
-} from "../models";
-import buckets from "../io/state/buckets.js";
-import milestoneAddXP from "../utils/xpSystem.js";
+} from "../models/index.js";
+import { buckets } from "../io/state/buckets.js";
+import { milestoneAddXP } from "../utils/xpSystem.js";
 import milestoneTable from "../../shared/milestones.json" with { type: "json"};
 import { fn, col } from "sequelize";
 

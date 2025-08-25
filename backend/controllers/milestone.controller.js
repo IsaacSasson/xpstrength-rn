@@ -1,5 +1,5 @@
-import AppError from "../utils/AppError";
-import milestoneService from "../services/milestone.service";
+import AppError from "../utils/AppError.js";
+import milestoneService from "../services/milestone.service.js";
 import { Milestone } from "../models/index.js";
 
 export async function getOwnedMilestones(req, res, next) {
@@ -13,7 +13,7 @@ export async function getOwnedMilestones(req, res, next) {
     const base = req.baseUrl ? req.baseUrl : ""; // depends on your router mount
     const milestones = owned.map((r) => ({
       milestone: r.milestone,
-      imageUrl: `/api/v1/milestones/${r.milestone}/image`, // adjust path as needed
+      imageUrl: `/api/v1/milestone/milestones/${r.milestone}/image`, // adjust path as needed
     }));
 
     res.status(200).json({
