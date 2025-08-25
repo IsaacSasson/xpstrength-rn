@@ -201,111 +201,51 @@ const ActiveWorkout = () => {
   }, [newUid]);
 
   useEffect(() => {
-    const initializeWorkout = async () => {
-      try {
-        const prewarmedData = getPrewarmedWorkout();
-        if (prewarmedData?.exercises?.length) {
-          log("[Workout] Using prewarmed data");
-          setWorkoutTitle(prewarmedData.title || "Workout");
-
-          const exercisesWithNotes = prewarmedData.exercises.map((ex: any) => {
-            const uid = ex.uid ?? newUid(ex.id ?? "x");
-            const notesKey = `${uid}_notes_loaded`;
-
-            if (!notesLoadedRef.current.has(notesKey)) {
-              notesLoadedRef.current.add(notesKey);
-              return withUid({
-                ...ex,
-                notes: loadExistingNotes(ex.id) || ex.notes || ""
-              });
-            }
-
-            return withUid(ex);
-          });
-
-          setExercises(exercisesWithNotes as Exercise[]);
-          setSelectedExerciseIdx(0);
-          setIsLoading(false);
-          setInitError(null);
-          return;
-        }
-
-        const preset = getLaunchPreset();
-
-        if (!preset) {
-          if (activeSession?.exercises?.length) {
-            setWorkoutTitle(activeSession.title || "Workout");
-            const exercisesWithNotes = activeSession.exercises.map((ex: any) => {
-              const uid = ex.uid ?? newUid(ex.id ?? "x");
-              const notesKey = `${uid}_notes_loaded`;
-
-              if (!notesLoadedRef.current.has(notesKey)) {
-                notesLoadedRef.current.add(notesKey);
-                return withUid({
-                  ...ex,
-                  notes: loadExistingNotes(ex.id) || ex.notes || ""
-                });
-              }
-
-              return withUid(ex);
-            });
-            setExercises(exercisesWithNotes as Exercise[]);
-            setSelectedExerciseIdx(0);
-            setIsLoading(false);
-            setInitError(null);
-            return;
-          }
-          throw new Error("No workout data found");
-        }
-
-        const exerciseIds = preset.exercises.map((ex) => ex.id);
-        const cacheKey = makeCacheKey(preset.workoutId, unitSystem, exerciseIds);
-        const cached = await readCachedSession(cacheKey);
-
-        if (cached?.exercises?.length) {
-          log("[Workout] Using cached data");
-          setWorkoutTitle(cached.title || "Workout");
-          const exercisesWithNotes = cached.exercises.map((ex: any) => {
-            const uid = ex.uid ?? newUid(ex.id ?? "x");
-            const notesKey = `${uid}_notes_loaded`;
-
-            if (!notesLoadedRef.current.has(notesKey)) {
-              notesLoadedRef.current.add(notesKey);
-              return withUid({
-                ...ex,
-                notes: loadExistingNotes(ex.id) || ex.notes || ""
-              });
-            }
-
-            return withUid(ex);
-          });
-          setExercises(exercisesWithNotes as Exercise[]);
-          setSelectedExerciseIdx(0);
-          setIsLoading(false);
-          setInitError(null);
-          return;
-        }
-
-        log("[Workout] Building from scratch");
+  const initializeWorkout = async () => {
+    try {
+      console.log("🔍 DEBUG - ActiveWorkout initializing...");
+      
+      // Check for launch preset FIRST (this should take priority)
+      const preset = getLaunchPreset();
+      console.log("🔍 DEBUG - Launch preset:", preset ? "EXISTS" : "NONE");
+      
+      if (preset) {
+        console.log("🔍 DEBUG - Launch preset data:", JSON.stringify(preset, null, 2));
+        console.log("[Workout] Using launch preset (priority over prewarmed data)");
+        
         setWorkoutTitle(preset.name || "Workout");
 
         const processedExercises = preset.exercises.map((ex) => {
+          console.log(`🔍 DEBUG - Processing preset exercise ${ex.id}:`, {
+            setsArray: ex.sets,
+            setsCount: ex.setsCount,
+            defaultReps: ex.reps
+          });
+
           const meta = getExerciseMeta(ex.id);
           const name = meta?.name || `Exercise ${ex.id}`;
 
           let sets: Array<{ id: number; reps: number; lbs: number; checked: boolean }>;
 
           if (Array.isArray(ex.sets) && ex.sets.length > 0) {
+            console.log(`🔍 DEBUG - Using sets array for exercise ${ex.id}`);
             sets = ex.sets.map((s, j) => {
-              const reps = Number(s?.reps) || 0;
+              const reps = Number(s?.reps) || 10;
               let displayWeight = 0;
+              
               if (s?.weight != null) {
+                console.log(`🔍 DEBUG - Parsing weight: "${s.weight}"`);
                 const parsed = parseWeight(String(s.weight));
+                console.log(`🔍 DEBUG - Parsed weight:`, parsed);
                 displayWeight = convertWeight(parsed.value, parsed.unit, unitSystem);
+                console.log(`🔍 DEBUG - Display weight:`, displayWeight);
               }
+              
+              console.log(`🔍 DEBUG - Final set ${j}:`, { reps, lbs: displayWeight });
               return { id: j + 1, reps, lbs: displayWeight, checked: false };
             });
           } else {
+            console.log(`🔍 DEBUG - Using default sets for exercise ${ex.id}`);
             const count = ex.setsCount || 3;
             const defaultReps = ex.reps || 10;
             sets = Array.from({ length: count }, (_, j) => ({
@@ -325,7 +265,7 @@ const ActiveWorkout = () => {
             notes = loadExistingNotes(ex.id);
           }
 
-          return withUid({
+          const finalExercise = withUid({
             id: ex.id,
             name,
             images: meta?.images || [],
@@ -334,23 +274,86 @@ const ActiveWorkout = () => {
             sets,
             notes,
           });
+
+          console.log(`🔍 DEBUG - Final processed exercise:`, finalExercise);
+          return finalExercise;
         });
 
         setExercises(processedExercises as Exercise[]);
         setSelectedExerciseIdx(0);
         setIsLoading(false);
         setInitError(null);
-      } catch (error) {
-        console.error("Failed to initialize workout:", error);
-        setInitError("Failed to load workout. Please try again.");
-        setIsLoading(false);
+        return;
       }
-    };
 
-    initializeWorkout();
-    // Dependencies intentionally exclude exerciseHistory so notes saves won't rebuild the workout.
-    // loadExistingNotes is stable due to reading from a ref.
-  }, [activeSession, unitSystem, getExerciseMeta, parseWeight, convertWeight, loadExistingNotes, withUid, newUid]);
+      // If no launch preset, then check prewarmed data
+      const prewarmedData = getPrewarmedWorkout();
+      console.log("🔍 DEBUG - Prewarmed data:", prewarmedData ? "EXISTS" : "NONE");
+      
+      if (prewarmedData?.exercises?.length) {
+        console.log("[Workout] Using prewarmed data");
+        console.log("🔍 DEBUG - Prewarmed exercises:", JSON.stringify(prewarmedData.exercises, null, 2));
+        setWorkoutTitle(prewarmedData.title || "Workout");
+
+        const exercisesWithNotes = prewarmedData.exercises.map((ex: any) => {
+          const uid = ex.uid ?? newUid(ex.id ?? "x");
+          const notesKey = `${uid}_notes_loaded`;
+
+          if (!notesLoadedRef.current.has(notesKey)) {
+            notesLoadedRef.current.add(notesKey);
+            return withUid({
+              ...ex,
+              notes: loadExistingNotes(ex.id) || ex.notes || ""
+            });
+          }
+
+          return withUid(ex);
+        });
+
+        setExercises(exercisesWithNotes as Exercise[]);
+        setSelectedExerciseIdx(0);
+        setIsLoading(false);
+        setInitError(null);
+        return;
+      }
+
+      // Finally, check active session as fallback
+      if (activeSession?.exercises?.length) {
+        console.log("🔍 DEBUG - Using activeSession");
+        setWorkoutTitle(activeSession.title || "Workout");
+        const exercisesWithNotes = activeSession.exercises.map((ex: any) => {
+          const uid = ex.uid ?? newUid(ex.id ?? "x");
+          const notesKey = `${uid}_notes_loaded`;
+
+          if (!notesLoadedRef.current.has(notesKey)) {
+            notesLoadedRef.current.add(notesKey);
+            return withUid({
+              ...ex,
+              notes: loadExistingNotes(ex.id) || ex.notes || ""
+            });
+          }
+
+          return withUid(ex);
+        });
+        setExercises(exercisesWithNotes as Exercise[]);
+        setSelectedExerciseIdx(0);
+        setIsLoading(false);
+        setInitError(null);
+        return;
+      }
+
+      throw new Error("No workout data found");
+    } catch (error) {
+      console.error("Failed to initialize workout:", error);
+      setInitError("Failed to load workout. Please try again.");
+      setIsLoading(false);
+    }
+  };
+
+  initializeWorkout();
+  // Dependencies intentionally exclude exerciseHistory so notes saves won't rebuild the workout.
+  // loadExistingNotes is stable due to reading from a ref.
+}, [activeSession, unitSystem, getExerciseMeta, parseWeight, convertWeight, loadExistingNotes, withUid, newUid]);
 
   /* ---------- When exerciseHistory changes, update only the 'notes' field in-place ---------- */
   useEffect(() => {
@@ -538,61 +541,76 @@ const ActiveWorkout = () => {
   );
 
   /* ----------------------- Finish workout with real API ----------------------- */
-  const handleFinishWorkout = async () => {
-    try {
-      setIsFinishing(true);
+  // Update for active-workout.tsx - Replace the handleFinishWorkout function
 
-      const apiExercises = exercises
-        .filter(ex => ex.sets.some(set => set.checked))
-        .map(ex => convertExerciseToLogFormat(ex, convertWeight, unitSystem));
+const handleFinishWorkout = async () => {
+  try {
+    setIsFinishing(true);
 
-      if (apiExercises.length === 0) {
-        Alert.alert("No completed exercises", "You need to complete at least one set to finish your workout.");
-        return;
-      }
+    const apiExercises = exercises
+      .filter(ex => ex.sets.some(set => set.checked))
+      .map(ex => convertExerciseToLogFormat(ex, convertWeight, unitSystem));
 
-      const totalVolumeLbs = exercises.reduce(
-        (sum, ex) => sum + ex.sets
-          .filter(s => s.checked)
-          .reduce((acc, s) => {
-            const wLbs = unitSystem === "metric" ? convertWeight(s.lbs, "metric", "imperial") : s.lbs;
-            return acc + wLbs * s.reps;
-          }, 0),
-        0
-      );
-
-      const workoutPayload = {
-        length: elapsed,
-        exercises: apiExercises
-      };
-
-      const result = await workoutLoggingApi.logWorkout(workoutPayload);
-
-      if (!result.success) {
-        Alert.alert("Error", result.error || "Failed to save workout");
-        return;
-      }
-
-      clearActiveSession();
-      clearWorkoutData();
-
-      router.replace({
-        pathname: "/home/finished-workout",
-        params: {
-          volume: String(totalVolumeLbs),
-          elapsed: String(elapsed),
-          xpGained: String(result.userGainedXP || 0),
-          events: JSON.stringify(result.events || []),
-          muscleCategoryXP: JSON.stringify(result.muscleCategoryGainedXP || {}),
-        },
-      });
-    } catch (error) {
-      console.error("❌ Error finishing workout:", error);
-      Alert.alert("Error", "Failed to save workout. Please try again.");
-    } finally {
-      setIsFinishing(false);
+    if (apiExercises.length === 0) {
+      Alert.alert("No completed exercises", "You need to complete at least one set to finish your workout.");
+      return;
     }
-  };
+
+    const totalVolumeLbs = exercises.reduce(
+      (sum, ex) => sum + ex.sets
+        .filter(s => s.checked)
+        .reduce((acc, s) => {
+          const wLbs = unitSystem === "metric" ? convertWeight(s.lbs, "metric", "imperial") : s.lbs;
+          return acc + wLbs * s.reps;
+        }, 0),
+      0
+    );
+
+    const workoutPayload = {
+      length: elapsed,
+      exercises: apiExercises
+    };
+
+    const result = await workoutLoggingApi.logWorkout(workoutPayload);
+
+    if (!result.success) {
+      Alert.alert("Error", result.error || "Failed to save workout");
+      return;
+    }
+
+    // Prepare exercise breakdown for the finished workout screen
+    const exerciseBreakdown = exercises
+      .filter(ex => ex.sets.some(set => set.checked))
+      .map(ex => ({
+        name: ex.name,
+        sets: ex.sets.map(set => ({
+          reps: set.reps,
+          lbs: set.lbs,
+          completed: !!set.checked,
+        })),
+      }));
+
+    clearActiveSession();
+    clearWorkoutData();
+
+    router.replace({
+      pathname: "/home/finished-workout",
+      params: {
+        volume: String(totalVolumeLbs),
+        elapsed: String(elapsed),
+        xpGained: String(result.userGainedXP || 0),
+        events: JSON.stringify(result.events || []),
+        muscleCategoryXP: JSON.stringify(result.muscleCategoryGainedXP || {}),
+        exerciseBreakdown: JSON.stringify(exerciseBreakdown), // Add this line
+      },
+    });
+  } catch (error) {
+    console.error("❌ Error finishing workout:", error);
+    Alert.alert("Error", "Failed to save workout. Please try again.");
+  } finally {
+    setIsFinishing(false);
+  }
+};
 
   /* -------------------------------- render ------------------------------- */
   if (initError) {

@@ -80,32 +80,80 @@ const TodaysWorkout: React.FC<Props> = ({ workout, allowCreate = true, selectedD
      Build the lightweight launch preset from a workout object.
   ----------------------------------------------------------------------- */
   const buildLaunchPresetFromWorkout = useCallback((workoutData: any) => {
+    const weightUnit = unitSystem === "metric" ? "kg" : "lbs";
+    
+    console.log("🔍 DEBUG - Building launch preset with unit system:", unitSystem);
+    console.log("🔍 DEBUG - Raw workout data:", JSON.stringify(workoutData, null, 2));
+    
     return {
       name: workoutData.name || "Workout",
       dayIndex,
       workoutId: workoutData.id,
       exercises: (workoutData.exercises || []).map((ex: any) => {
-        const id = Number(ex.exercise ?? ex.id);
-        if (Array.isArray(ex.sets)) {
+        const exerciseId = Number(ex.exercise ?? ex.id);
+        
+        console.log(`🔍 DEBUG - Processing exercise ${exerciseId}:`, {
+          originalSets: ex.sets,
+          originalReps: ex.reps,
+          setsIsArray: Array.isArray(ex.sets)
+        });
+
+        // Handle array of sets (new format with individual set data)
+        if (Array.isArray(ex.sets) && ex.sets.length > 0) {
+          const processedSets = ex.sets.map((s: any, index: number) => {
+            const reps = Number(s?.reps) || 10;
+            
+            // Handle weight with multiple possible formats
+            let weight = `0 ${weightUnit}`;
+            if (s?.weight != null) {
+              const weightValue = s.weight;
+              console.log(`🔍 DEBUG - Set ${index} weight value:`, weightValue, typeof weightValue);
+              
+              if (typeof weightValue === 'string') {
+                // If already formatted with units, use as-is
+                if (weightValue.includes('lbs') || weightValue.includes('kg')) {
+                  weight = weightValue;
+                } else {
+                  // Parse number from string and add units
+                  const numValue = parseFloat(weightValue) || 0;
+                  weight = `${numValue} ${weightUnit}`;
+                }
+              } else if (typeof weightValue === 'number') {
+                weight = `${weightValue} ${weightUnit}`;
+              }
+            }
+            
+            console.log(`🔍 DEBUG - Set ${index} processed:`, { reps, weight });
+            
+            return { reps, weight };
+          });
+
           return {
-            id,
-            sets: ex.sets.map((s: any) => ({
-              reps: Number(s?.reps) || 0,
-              weight: s?.weight ?? null,
-            })),
+            id: exerciseId,
+            sets: processedSets,
             setsCount: ex.sets.length,
-            reps: 0,
+            reps: 0, // Not used when sets array exists
           };
         }
+        
+        // Handle legacy format (sets as count, reps as default)
+        const setsCount = Math.max(Number(ex.sets ?? 0), 3);
+        const defaultReps = Number(ex.reps ?? 10);
+        
+        console.log(`🔍 DEBUG - Using legacy format for exercise ${exerciseId}:`, {
+          setsCount,
+          defaultReps
+        });
+        
         return {
-          id,
+          id: exerciseId,
           sets: [],
-          setsCount: Math.max(Number(ex.sets ?? 0), 0),
-          reps: Number(ex.reps ?? 0),
+          setsCount,
+          reps: defaultReps,
         };
       }),
     };
-  }, [dayIndex]);
+  }, [dayIndex, unitSystem]);
 
   /* ----------------------------------------------------------------------
      Background prewarming: data + SVGs (non-blocking)
@@ -160,12 +208,29 @@ const TodaysWorkout: React.FC<Props> = ({ workout, allowCreate = true, selectedD
   ----------------------------------------------------------------------- */
   const goToActiveWorkout = () => {
     const workoutData = getWorkoutForDay(dayIndex);
+    
+    // DEBUG: Log the actual workout data structure
+    console.log("🔍 DEBUG - Raw workout data from getWorkoutForDay:", JSON.stringify(workoutData, null, 2));
+    
     if (!workoutData || !workoutData.exercises || workoutData.exercises.length === 0) {
       Alert.alert("No workout", "This day doesn't have an assigned workout.");
       return;
     }
 
+    // DEBUG: Log individual exercises
+    workoutData.exercises.forEach((ex: any, index: number) => {
+      console.log(`🔍 DEBUG - Exercise ${index}:`, {
+        id: ex.exercise || ex.id,
+        sets: ex.sets,
+        reps: ex.reps,
+      });
+    });
+
     const launchPreset = buildLaunchPresetFromWorkout(workoutData);
+    
+    // DEBUG: Log the processed launch preset
+    console.log("🔍 DEBUG - Processed launch preset:", JSON.stringify(launchPreset, null, 2));
+    
     setLaunchPreset(launchPreset);
 
     router.replace({ pathname: "/home/active-workout" });

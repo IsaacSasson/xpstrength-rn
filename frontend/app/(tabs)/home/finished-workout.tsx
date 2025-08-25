@@ -1,5 +1,5 @@
 // Path: /app/(tabs)/finished-workout.tsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Animated,
   Platform,
   Vibration,
+  LayoutChangeEvent,
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
@@ -32,10 +33,8 @@ type MuscleCategory =
   | "triceps"
   | "shoulders";
 
-type MuscleXpByExercise = Record<string, Partial<Record<MuscleCategory, number>>>;
-
 interface WorkoutEvent {
-  id: number;
+  id: number | string;
   type:
     | "userLevelUp"
     | "muscleLevelUp"
@@ -45,16 +44,6 @@ interface WorkoutEvent {
   createdAt: string;
 }
 
-const CATEGORY_ORDER: MuscleCategory[] = [
-  "chest",
-  "back",
-  "shoulders",
-  "biceps",
-  "triceps",
-  "core",
-  "legs",
-];
-
 const CATEGORY_LABEL: Record<MuscleCategory, string> = {
   chest: "Chest",
   legs: "Legs",
@@ -63,16 +52,6 @@ const CATEGORY_LABEL: Record<MuscleCategory, string> = {
   biceps: "Biceps",
   triceps: "Triceps",
   shoulders: "Shoulders",
-};
-
-const MUSCLE_EMOJIS: Partial<Record<MuscleCategory, string>> = {
-  chest: "💪",
-  legs: "🦵",
-  back: "🏋️",
-  core: "🔥",
-  biceps: "💪",
-  triceps: "💪",
-  shoulders: "🏋️",
 };
 
 const formatTime = (sec: number) => `${Math.floor(sec / 60)}m ${sec % 60}s`;
@@ -103,54 +82,134 @@ const hapticFeedback = async (type: "light" | "medium" | "heavy" | "success") =>
   } catch {}
 };
 
-/* --------------------- Basic non-animated bar ---------------------- */
-const ProgressBar: React.FC<{
-  ratio: number; // 0..1
-  color: string;
-}> = ({ ratio, color }) => {
-  const clamped = Math.max(0, Math.min(1, ratio || 0));
+/* ------------------------ Calendar Component ------------------------ */
+const WorkoutCalendar: React.FC<{
+  completedDates: Date[];
+  primaryColor: string;
+  tertiaryColor: string;
+}> = ({ completedDates, primaryColor }) => {
+  const dateKey = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+      d.getDate()
+    ).padStart(2, "0")}`;
+
+  const completedSet = useMemo(() => new Set(completedDates.map(dateKey)), [completedDates]);
+
+  const today = new Date();
+  const sunday = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate() - today.getDay()
+  );
+
+  const weekDates = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(sunday);
+      d.setDate(sunday.getDate() + i);
+      return d;
+    });
+  }, [sunday]);
+
+  const renderDay = (date: Date) => {
+    const key = dateKey(date);
+    const isToday = key === dateKey(today);
+    const isCompleted = completedSet.has(key);
+
+    let circleStyle = { backgroundColor: "#2c2b37" };
+    let textStyle: { color?: string } = { color: "#ffffff" };
+
+    if (isToday) {
+      circleStyle.backgroundColor = primaryColor;
+      textStyle.color = "#0F0E1A";
+    } else if (isCompleted) {
+      circleStyle.backgroundColor = (primaryColor || "#6C5CE7") + "60";
+      textStyle.color = "#ffffff";
+    }
+
+    return (
+      <View key={key} style={{ alignItems: "center", width: 40 }}>
+        <View
+          style={[
+            {
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              justifyContent: "center",
+              alignItems: "center",
+            },
+            circleStyle,
+          ]}
+        >
+          <Text style={[{ fontSize: 16 }, textStyle]}>{date.getDate()}</Text>
+        </View>
+      </View>
+    );
+  };
+
   return (
-    <View className="h-3 w-full bg-black-200 rounded-full overflow-hidden">
+    <View
+      style={{
+        backgroundColor: "rgba(255,255,255,0.03)",
+        borderRadius: 16,
+        padding: 20,
+        marginBottom: 24,
+        borderWidth: 1,
+        borderColor: "rgba(255,255,255,0.06)",
+      }}
+    >
+      <Text className="text-white font-psemibold text-lg text-center mb-4">
+        This Week's Progress
+      </Text>
+
+      {/* Weekday letters */}
       <View
-        className="h-full"
         style={{
-          width: `${clamped * 100}%`,
-          backgroundColor: color,
+          flexDirection: "row",
+          justifyContent: "space-between",
+          width: "90%",
+          alignSelf: "center",
+          marginBottom: 8,
         }}
-      />
+      >
+        {["S", "M", "T", "W", "T", "F", "S"].map((l, i) => (
+          <Text
+            key={`${l}-${i}`}
+            style={{
+              color: "#9e9e9e",
+              fontSize: 14,
+              width: 40,
+              textAlign: "center",
+            }}
+          >
+            {l}
+          </Text>
+        ))}
+      </View>
+
+      {/* Day circles */}
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          width: "90%",
+          alignSelf: "center",
+        }}
+      >
+        {weekDates.map(renderDay)}
+      </View>
     </View>
   );
 };
 
-/* ------------------------ Animated progress bar ------------------------ */
-const AnimatedProgressBar: React.FC<{
-  progress: Animated.AnimatedInterpolation<string | number>;
-  color: string;
-}> = ({ progress, color }) => {
-  return (
-    <View className="h-3 w-full bg-black-200 rounded-full overflow-hidden">
-      <Animated.View
-        className="h-full"
-        style={{
-          width: progress,
-          backgroundColor: color,
-        }}
-      />
-    </View>
-  );
-};
-
-/* ----------------------------- Level math ----------------------------- */
-// Returns the level for a given total XP.
+/* ----------------------------- Level Math ----------------------------- */
 const levelFromXp = (xp: number): number => {
   let level = 1;
-  while (level <= 1000 && totalXpForUserLevel(level + 1) <= xp) {
+  while (level < 9999 && totalXpForUserLevel(level + 1) <= xp) {
     level++;
   }
   return level;
 };
 
-// Returns progress info for a given level and total XP.
 const levelProgress = (level: number, totalXp: number) => {
   const floor = totalXpForUserLevel(level);
   const next = totalXpForUserLevel(level + 1);
@@ -160,46 +219,410 @@ const levelProgress = (level: number, totalXp: number) => {
   return { current: inLevel, needed, ratio };
 };
 
-/* ---------------------------- Event Card ---------------------------- */
-const EventCard: React.FC<{
+const xpNeededForLevel = (level: number) =>
+  Math.max(1, totalXpForUserLevel(level + 1) - totalXpForUserLevel(level));
+
+/* ----------------------- LevelProgress (bar+counter) ----------------------- */
+const LevelProgress: React.FC<{
+  color: string;
+  startLevel: number;
+  endLevel: number;
+  startProg: { current: number; needed: number; ratio: number };
+  endProg: { current: number; needed: number; ratio: number };
+  duration?: number;
+}> = ({ color, startLevel, endLevel, startProg, endProg, duration = 1500 }) => {
+  const barRatio = useRef(new Animated.Value(startProg.ratio)).current;
+  const xpValue = useRef(new Animated.Value(startProg.current)).current;
+  const levelScale = useRef(new Animated.Value(1)).current;
+
+  const [displayLevel, setDisplayLevel] = useState(startLevel);
+  const [displayNeeded, setDisplayNeeded] = useState(startProg.needed);
+  const [displayXP, setDisplayXP] = useState(Math.round(startProg.current));
+  const [hasAnimated, setHasAnimated] = useState(false);
+
+  const [containerW, setContainerW] = useState(0);
+  const onBarLayout = (e: LayoutChangeEvent) => setContainerW(Math.max(0, e.nativeEvent.layout.width));
+
+  const animatedWidth = Animated.multiply(barRatio, containerW);
+  const levelUps = Math.max(0, endLevel - startLevel);
+
+  useEffect(() => {
+    const id = xpValue.addListener(({ value }) => setDisplayXP(Math.round(value)));
+    return () => {
+      xpValue.removeListener(id);
+    };
+  }, [xpValue]);
+
+  useEffect(() => {
+    if (hasAnimated || containerW <= 0) return;
+    setHasAnimated(true);
+
+    const totalDistance =
+      levelUps === 0
+        ? Math.abs(endProg.ratio - startProg.ratio)
+        : (1 - startProg.ratio) + Math.max(0, levelUps - 1) * 1 + endProg.ratio;
+
+    const baseDur = Math.max(300, duration);
+    const durFor = (dist: number) =>
+      totalDistance === 0 ? 0 : Math.max(150, Math.round((dist / totalDistance) * baseDur));
+
+    const runSegment = (toRatio: number, toXP: number, ms: number) =>
+      new Promise<void>((resolve) => {
+        Animated.parallel([
+          Animated.timing(barRatio, { toValue: toRatio, duration: ms, useNativeDriver: false }),
+          Animated.timing(xpValue, { toValue: toXP, duration: ms, useNativeDriver: false }),
+        ]).start(() => resolve());
+      });
+
+    const onLevelUp = async () => {
+      setDisplayLevel((prev) => prev + 1);
+      await hapticFeedback("success");
+      await new Promise<void>((resolve) => {
+        Animated.sequence([
+          Animated.spring(levelScale, { toValue: 1.12, friction: 3, useNativeDriver: true }),
+          Animated.spring(levelScale, { toValue: 1, friction: 5, useNativeDriver: true }),
+        ]).start(() => resolve());
+      });
+    };
+
+    (async () => {
+      if (levelUps === 0) {
+        await runSegment(endProg.ratio, endProg.current, durFor(Math.abs(endProg.ratio - startProg.ratio)));
+        setDisplayNeeded(endProg.needed);
+        return;
+      }
+
+      const startToFullDist = 1 - startProg.ratio;
+      await runSegment(1, startProg.needed, durFor(startToFullDist));
+      await onLevelUp();
+
+      for (let lv = startLevel + 1; lv < endLevel; lv++) {
+        barRatio.setValue(0);
+        xpValue.setValue(0);
+        setDisplayNeeded(xpNeededForLevel(lv));
+        await runSegment(1, xpNeededForLevel(lv), durFor(1));
+        await onLevelUp();
+      }
+
+      barRatio.setValue(0);
+      xpValue.setValue(0);
+      setDisplayNeeded(endProg.needed);
+      await runSegment(endProg.ratio, endProg.current, durFor(endProg.ratio));
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [containerW]);
+
+  return (
+    <View className="w-full">
+      <View className="flex-row items-center justify-between mb-3">
+        <Animated.Text
+          className="text-white font-pbold text-lg"
+          style={{ transform: [{ scale: levelScale }] }}
+        >
+          Level {displayLevel}
+        </Animated.Text>
+
+        <Text className="text-gray-100">
+          {displayXP}/{displayNeeded} XP
+        </Text>
+      </View>
+
+      <View
+        onLayout={onBarLayout}
+        style={{
+          height: 12,
+          width: "100%",
+          backgroundColor: "rgba(255,255,255,0.08)",
+          borderRadius: 999,
+          overflow: "hidden",
+        }}
+      >
+        <Animated.View
+          style={{
+            height: "100%",
+            width: animatedWidth as unknown as number,
+            backgroundColor: color,
+            borderRadius: 999,
+          }}
+        />
+      </View>
+    </View>
+  );
+};
+
+/* ------------------------- Exercise Breakdown ------------------------- */
+const ExerciseBreakdown: React.FC<{
+  primaryColor: string;
+  tertiaryColor: string;
+  convertWeight: (weight: number, from: "imperial" | "metric", to: "imperial" | "metric") => number;
+  unitSystem: "imperial" | "metric";
+}> = ({ primaryColor, tertiaryColor, convertWeight, unitSystem }) => {
+  const { exerciseBreakdown = "[]" } = useLocalSearchParams<{ exerciseBreakdown?: string }>();
+
+  const exercises = useMemo(() => {
+    try {
+      return JSON.parse(String(exerciseBreakdown) || "[]");
+    } catch {
+      return [];
+    }
+  }, [exerciseBreakdown]);
+
+  if (exercises.length === 0) {
+    return null;
+  }
+
+  return (
+    <View
+      className="rounded-2xl p-5 mb-6"
+      style={{
+        backgroundColor: "rgba(255,255,255,0.02)",
+        borderWidth: 1,
+        borderColor: primaryColor + "40",
+        shadowColor: primaryColor,
+        shadowOpacity: 0.25,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 0 },
+        elevation: 6,
+      }}
+    >
+      <Text className="text-white font-psemibold text-base mb-5 text-center">
+        Exercise Breakdown
+      </Text>
+
+      {exercises.map((exercise: any, index: number) => {
+        const completedSets = exercise.sets.filter((set: any) => set.completed);
+        const totalSets = exercise.sets.length;
+        const isLast = index === exercises.length - 1;
+
+        return (
+          <View
+            key={exercise.name + index}
+            className="last:mb-0"
+            style={{
+              backgroundColor: "rgba(255,255,255,0.03)",
+              borderRadius: 14,
+              padding: 14,
+              borderWidth: 1,
+              borderColor: "rgba(255,255,255,0.15)",
+              shadowColor: "#000",
+              shadowOpacity: 0.15,
+              shadowRadius: 6,
+              shadowOffset: { width: 0, height: 3 },
+              elevation: 3,
+              marginBottom: isLast ? 0 : 24,
+            }}
+          >
+            <View className="flex-row items-center justify-between mb-3">
+              <Text className="text-white font-pmedium text-base flex-1" numberOfLines={1}>
+                {exercise.name}
+              </Text>
+              <View className="flex-row items-center">
+                <MaterialCommunityIcons name="check-circle" size={16} color={primaryColor} />
+                <Text className="text-white ml-1.5 font-pmedium text-xs">
+                  {completedSets.length}/{totalSets}
+                </Text>
+              </View>
+            </View>
+
+            <View className="flex-row flex-wrap">
+              {exercise.sets.map((set: any, setIndex: number) => (
+                <View
+                  key={setIndex}
+                  className="mr-2 mb-2"
+                  style={{
+                    backgroundColor: set.completed
+                      ? primaryColor + "22"
+                      : "rgba(255,255,255,0.08)",
+                    borderRadius: 8,
+                    paddingVertical: 6,
+                    paddingHorizontal: 10,
+                    borderWidth: 1,
+                    borderColor: set.completed
+                      ? primaryColor + "55"
+                      : "rgba(255,255,255,0.2)",
+                    shadowColor: set.completed ? primaryColor : "#000",
+                    shadowOpacity: set.completed ? 0.25 : 0.08,
+                    shadowRadius: set.completed ? 3 : 2,
+                    shadowOffset: { width: 0, height: 2 },
+                    elevation: set.completed ? 2 : 1,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: set.completed ? primaryColor : "#CDCDE0",
+                      fontSize: 12,
+                      fontWeight: "600",
+                    }}
+                  >
+                    {set.reps} × {convertWeight(Number(set.lbs) || 0, "imperial", unitSystem).toFixed(0)}
+                    {unitSystem === "metric" ? "kg" : "lbs"}
+                  </Text>
+                </View>
+              ))}
+            </View>
+
+            {completedSets.length > 0 && (
+              <View
+                className="mt-3 pt-3"
+                style={{
+                  borderTopWidth: 1,
+                  borderTopColor: "rgba(255,255,255,0.1)",
+                }}
+              >
+                <Text className="text-gray-100 text-xs font-pmedium">
+                  Volume:{" "}
+                  {completedSets
+                    .reduce((total: number, set: any) => {
+                      const weight = convertWeight(Number(set.lbs) || 0, "imperial", unitSystem);
+                      return total + weight * (Number(set.reps) || 0);
+                    }, 0)
+                    .toFixed(0)}{" "}
+                  {unitSystem === "metric" ? "kg" : "lbs"}
+                </Text>
+              </View>
+            )}
+          </View>
+        );
+      })}
+    </View>
+  );
+};
+
+/* ------------------------ Achievements Consolidation ----------------------- */
+// Helper to read rewards from either the correct key or the legacy 'reards' key.
+const readRewards = (e: WorkoutEvent) => {
+  return e?.payload?.rewards ?? e?.payload?.reards ?? {};
+};
+
+const consolidateLevelUps = (events: WorkoutEvent[]): WorkoutEvent[] => {
+  const userLevel = events.filter((e) => e.type === "userLevelUp");
+  const muscleLevels = events.filter((e) => e.type === "muscleLevelUp");
+  const others = events.filter((e) => e.type !== "userLevelUp" && e.type !== "muscleLevelUp");
+
+  const consolidated: WorkoutEvent[] = [];
+
+  // ---- Consolidate USER level-ups into a single range ----
+  if (userLevel.length > 0) {
+    const newLevels = userLevel
+      .map((e) => Number(e.payload?.newLevel))
+      .filter((n) => Number.isFinite(n) && n > 0)
+      .sort((a, b) => a - b);
+
+    if (newLevels.length > 0) {
+      const minNew = newLevels[0];
+      const maxNew = newLevels[newLevels.length - 1];
+      const fromLevel = Math.max(0, minNew - 1);
+
+      // coins can be scattered; sum across both rewards/reards
+      const totalCoins = userLevel.reduce((sum, e) => sum + (Number(readRewards(e).coins) || 0), 0);
+
+      // XP equivalent to traverse from -> to using your XP table
+      const xpEquivalent = Math.max(
+        0,
+        totalXpForUserLevel(maxNew) - totalXpForUserLevel(fromLevel)
+      );
+
+      consolidated.push({
+        id: `user-${fromLevel}-${maxNew}`,
+        type: "userLevelUp",
+        createdAt: userLevel[userLevel.length - 1]?.createdAt || new Date().toISOString(),
+        payload: {
+          fromLevel,
+          newLevel: maxNew,
+          rewards: { coins: totalCoins },
+          xpEquivalent,
+          consolidated: true,
+        },
+      });
+    }
+  }
+
+  // ---- Consolidate MUSCLE level-ups per muscle (case-insensitive) ----
+  const byMuscle: Record<string, WorkoutEvent[]> = {};
+  for (const e of muscleLevels) {
+    const rawMuscle =
+      e?.payload?.type ??
+      e?.payload?.muscle ??
+      e?.payload?.muscleGroup ??
+      "";
+    const key = String(rawMuscle).toLowerCase().trim(); // normalize
+    if (!byMuscle[key]) byMuscle[key] = [];
+    byMuscle[key].push(e);
+  }
+
+  Object.entries(byMuscle).forEach(([key, group]) => {
+    const levels = group
+      .map((e) => Number(e.payload?.newLevel))
+      .filter((n) => Number.isFinite(n) && n >= 0)
+      .sort((a, b) => a - b);
+
+    if (levels.length === 0) return;
+
+    const minNew = levels[0];
+    const maxNew = levels[levels.length - 1];
+    const fromLevel = Math.max(0, minNew - 1);
+
+    // Sum XP from rewards (support both rewards/reards and userXP/userXp)
+    const totalUserXp = group.reduce((sum, e) => {
+      const r = readRewards(e);
+      const xp = Number(r.userXP ?? r.userXp ?? r.xp ?? 0);
+      return sum + (Number.isFinite(xp) ? xp : 0);
+    }, 0);
+
+    const sample = group[group.length - 1];
+    consolidated.push({
+      id: `muscle-${key}-${fromLevel}-${maxNew}`,
+      type: "muscleLevelUp",
+      createdAt: sample?.createdAt || new Date().toISOString(),
+      payload: {
+        type: key as MuscleCategory, // we’ll prettify label later
+        fromLevel,
+        newLevel: maxNew,
+        rewards: { userXp: totalUserXp }, // keep camel for downstream UI
+        consolidated: true,
+      },
+    });
+  });
+
+  // Only return consolidated level-ups + all *non-level* events
+  // (original raw level-up events are intentionally excluded)
+  return [...consolidated, ...others];
+};
+
+/* ---------------------------- Achievement Card ---------------------------- */
+const AchievementCard: React.FC<{
   event: WorkoutEvent;
   primaryColor: string;
-  secondaryColor: string;
   tertiaryColor: string;
   index: number;
-  convertWeight: (
-    weight: number,
-    from: "imperial" | "metric",
-    to: "imperial" | "metric"
-  ) => number;
-  unitSystem: "imperial" | "metric";
   getExerciseName: (id: number | string) => string;
+  convertWeight: (weight: number, from: "imperial" | "metric", to: "imperial" | "metric") => number;
+  unitSystem: "imperial" | "metric";
 }> = ({
   event,
   primaryColor,
-  secondaryColor,
   tertiaryColor,
   index,
+  getExerciseName,
   convertWeight,
   unitSystem,
-  getExerciseName,
 }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(50)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
-    const delay = index * 600;
+    const delay = index * 200;
     const t = setTimeout(() => {
-      hapticFeedback("medium");
+      hapticFeedback("light");
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
-          duration: 600,
+          duration: 400,
           useNativeDriver: true,
         }),
         Animated.timing(slideAnim, {
           toValue: 0,
-          duration: 600,
+          duration: 400,
           useNativeDriver: true,
         }),
       ]).start();
@@ -207,118 +630,108 @@ const EventCard: React.FC<{
     return () => clearTimeout(t);
   }, [index]);
 
-  const renderEventContent = () => {
+  const getEventIcon = () => {
     switch (event.type) {
       case "userLevelUp":
-        return (
-          <View className="items-center p-6">
-            <View
-              className="w-20 h-20 rounded-full items-center justify-center mb-4"
-              style={{ backgroundColor: primaryColor }}
-            >
-              <FontAwesome5 name="trophy" size={32} color="#FFF" />
-            </View>
-            <Text className="text-white font-pbold text-2xl mb-2">Level Up!</Text>
-            <Text className="text-gray-100 text-center mb-4 text-lg">
-              Congratulations! You reached level {event.payload.newLevel}
-            </Text>
-            <View className="flex-row items-center bg-yellow-500/20 px-4 py-2 rounded-xl">
-              <FontAwesome5 name="coins" size={20} color="#FFD700" />
-              <Text className="text-yellow-400 ml-3 font-pbold text-lg">
-                +{event.payload.rewards.coins} coins earned
-              </Text>
-            </View>
-          </View>
-        );
+        return "trophy";
+      case "muscleLevelUp":
+        return "medal";
+      case "firstTimeCompletingExercise":
+        return "star";
+      case "newPersonalBest":
+        return "crown";
+      default:
+        return "award";
+    }
+  };
 
+  const getEventColor = () => {
+    switch (event.type) {
+      case "userLevelUp":
+        return "#FFD700";
+      case "muscleLevelUp":
+        return primaryColor;
+      case "firstTimeCompletingExercise":
+        return "#10B981";
+      case "newPersonalBest":
+        return "#F59E0B";
+      default:
+        return primaryColor;
+    }
+  };
+
+  const prettyMuscle = (k: string) => {
+    const norm = String(k || "").toLowerCase();
+    return CATEGORY_LABEL[(norm as MuscleCategory) || "core"] || (norm.charAt(0).toUpperCase() + norm.slice(1));
+  };
+
+  const getEventTitle = () => {
+    switch (event.type) {
+      case "userLevelUp":
+        return "Level Up!";
+      case "muscleLevelUp":
+        return `${prettyMuscle(event.payload?.type)} Level Up!`;
+      case "firstTimeCompletingExercise":
+        return "First Achievement!";
+      case "newPersonalBest":
+        return "Personal Best!";
+      default:
+        return "Achievement!";
+    }
+  };
+
+  const getEventDescription = () => {
+    switch (event.type) {
+      case "userLevelUp": {
+        const from = event.payload?.fromLevel;
+        const to = event.payload?.newLevel;
+        if (Number.isFinite(from) && Number.isFinite(to)) {
+          return `Level ${from} → ${to}`;
+        }
+        return `Reached level ${event.payload?.newLevel}`;
+      }
       case "muscleLevelUp": {
-        const muscle = (event.payload?.type || "") as MuscleCategory;
-        return (
-          <View className="items-center p-6">
-            <Text className="text-5xl mb-4">{MUSCLE_EMOJIS[muscle] || "💪"}</Text>
-            <Text className="text-white font-pbold text-xl mb-2">
-              {CATEGORY_LABEL[muscle] || "Muscle"} Level Up!
-            </Text>
-            <Text className="text-gray-100 text-center mb-4 text-lg">
-              Your {CATEGORY_LABEL[muscle]?.toLowerCase()} reached level {event.payload.newLevel}
-            </Text>
-            <View className="flex-row items-center bg-purple-500/20 px-4 py-2 rounded-xl">
-              <FontAwesome5 name="star" size={18} color={primaryColor} />
-              <Text className="ml-3 font-pbold text-lg" style={{ color: primaryColor }}>
-                +{event.payload.rewards.userXP} XP bonus
-              </Text>
-            </View>
-          </View>
-        );
+        const from = event.payload?.fromLevel;
+        const to = event.payload?.newLevel;
+        const label = prettyMuscle(event.payload?.type);
+        if (Number.isFinite(from) && Number.isFinite(to)) {
+          return `${label} level ${from} → ${to}`;
+        }
+        return `${label} reached level ${event.payload?.newLevel}`;
       }
-
-      case "firstTimeCompletingExercise": {
-        const exerciseName = getExerciseName(event.payload.exerciseId);
-        return (
-          <View className="items-center p-6">
-            <View
-              className="w-20 h-20 rounded-full items-center justify-center mb-4"
-              style={{ backgroundColor: "#10B981" }}
-            >
-              <FontAwesome5 name="medal" size={32} color="#FFF" />
-            </View>
-            <Text className="text-white font-pbold text-xl mb-2">First Achievement!</Text>
-            <Text className="text-gray-100 text-center mb-4 text-lg">
-              You completed <Text className="font-pbold text-white">{exerciseName}</Text> for the first time
-            </Text>
-            <View className="flex-row items-center bg-green-500/20 px-4 py-2 rounded-xl">
-              <FontAwesome5 name="star" size={18} color="#10B981" />
-              <Text className="text-green-400 ml-3 font-pbold text-lg">
-                +{event.payload.rewards.userXp} XP earned
-              </Text>
-            </View>
-          </View>
-        );
-      }
-
+      case "firstTimeCompletingExercise":
+        return `Completed ${getExerciseName(event.payload.exerciseId)} for the first time`;
       case "newPersonalBest": {
         const exerciseName = getExerciseName(event.payload.exerciseId);
-        const oldWeight = convertWeight(event.payload.oldWeight, "imperial", unitSystem);
         const newWeight = convertWeight(event.payload.newWeight, "imperial", unitSystem);
         const unit = unitSystem === "metric" ? "kg" : "lbs";
-        return (
-          <View className="items-center p-6">
-            <View
-              className="w-20 h-20 rounded-full items-center justify-center mb-4"
-              style={{ backgroundColor: "#F59E0B" }}
-            >
-              <FontAwesome5 name="crown" size={32} color="#FFF" />
-            </View>
-            <Text className="text-white font-pbold text-xl mb-2">Personal Best!</Text>
-            <Text className="text-gray-100 text-center mb-4 text-lg">
-              New record for <Text className="font-pbold text-white">{exerciseName}</Text>
-            </Text>
-            <View className="flex-row items-center mb-4 bg-orange-500/20 px-4 py-2 rounded-xl">
-              <Text className="text-gray-100 text-lg">
-                {oldWeight.toFixed(1)} {unit}
-              </Text>
-              <FontAwesome5
-                name="arrow-right"
-                size={20}
-                color={primaryColor}
-                style={{ marginHorizontal: 12 }}
-              />
-              <Text className="text-white font-pbold text-lg">
-                {newWeight.toFixed(1)} {unit}
-              </Text>
-            </View>
-            <View className="flex-row items-center">
-              <FontAwesome5 name="star" size={18} color="#F59E0B" />
-              <Text className="text-yellow-400 ml-3 font-pbold text-lg">
-                +{event.payload.rewards.userXp} XP earned
-              </Text>
-            </View>
-          </View>
-        );
+        return `New record: ${exerciseName} - ${newWeight.toFixed(1)} ${unit}`;
       }
-
       default:
-        return null;
+        return "Great job!";
+    }
+  };
+
+  const getReward = () => {
+    switch (event.type) {
+      case "userLevelUp": {
+        const xpEq = Number(event.payload?.xpEquivalent) || 0;
+        const coins = Number(event.payload?.rewards?.coins) || 0;
+        const xpPart = xpEq > 0 ? `+${xpEq} XP` : "";
+        const coinPart = coins > 0 ? `+${coins} coins` : "";
+        return [xpPart, coinPart].filter(Boolean).join(" • ");
+      }
+      case "muscleLevelUp": {
+        const r = event.payload?.rewards ?? event.payload?.reards ?? {};
+        const totalXp = Number(r.userXP ?? r.userXp ?? r.xp ?? 0) || 0;
+        return totalXp > 0 ? `+${totalXp} XP` : "";
+      }
+      case "firstTimeCompletingExercise":
+        return `+${event.payload?.rewards?.userXp || 0} XP`;
+      case "newPersonalBest":
+        return `+${event.payload?.rewards?.userXp || 0} XP`;
+      default:
+        return "";
     }
   };
 
@@ -327,22 +740,38 @@ const EventCard: React.FC<{
       style={{
         opacity: fadeAnim,
         transform: [{ translateY: slideAnim }],
-        marginBottom: 20,
+        backgroundColor: tertiaryColor,
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 12,
+        borderLeftWidth: 4,
+        borderLeftColor: getEventColor(),
       }}
     >
-      <View
-        className="rounded-2xl"
-        style={{
-          backgroundColor: tertiaryColor,
-          borderWidth: 2,
-          borderColor: primaryColor,
-          shadowColor: primaryColor,
-          shadowOpacity: 0.3,
-          shadowRadius: 10,
-          shadowOffset: { width: 0, height: 4 },
-        }}
-      >
-        {renderEventContent()}
+      <View className="flex-row items-center">
+        <View
+          style={{
+            backgroundColor: getEventColor() + "20",
+            borderRadius: 24,
+            width: 48,
+            height: 48,
+            alignItems: "center",
+            justifyContent: "center",
+            marginRight: 16,
+          }}
+        >
+          <FontAwesome5 name={getEventIcon()} size={20} color={getEventColor()} />
+        </View>
+
+        <View className="flex-1">
+          <Text className="text-white font-psemibold text-lg">{getEventTitle()}</Text>
+          <Text className="text-gray-100 text-sm mt-1">{getEventDescription()}</Text>
+          {getReward() && (
+            <Text style={{ color: getEventColor() }} className="font-pmedium text-sm mt-2">
+              {getReward()}
+            </Text>
+          )}
+        </View>
       </View>
     </Animated.View>
   );
@@ -353,7 +782,7 @@ const EventCard: React.FC<{
 /* ------------------------------------------------------------------ */
 const FinishedWorkout = () => {
   const { primaryColor, secondaryColor, tertiaryColor } = useThemeContext();
-  const { convertWeight, formatWeight, unitSystem, getExerciseMeta } = useWorkouts(); // single destructure here
+  const { convertWeight, formatWeight, unitSystem, getExerciseMeta } = useWorkouts();
   const { profile, addExperience, addCurrency } = useUser();
   const insets = useSafeAreaInsets();
 
@@ -371,9 +800,9 @@ const FinishedWorkout = () => {
     muscleCategoryXP?: string;
   }>();
 
-  const volumeNum = Number(volume);
-  const elapsedNum = Number(elapsed);
-  const xpGainNum = Number(xpGained);
+  const volumeNum = Number(volume) || 0;
+  const elapsedNum = Number(elapsed) || 0;
+  const xpGainNum = Number(xpGained) || 0;
 
   const workoutEvents: WorkoutEvent[] = useMemo(() => {
     try {
@@ -383,167 +812,110 @@ const FinishedWorkout = () => {
     }
   }, [events]);
 
-  const muscleCategoryGains: MuscleXpByExercise = useMemo(() => {
-    try {
-      const parsed = JSON.parse(String(muscleCategoryXP) || "{}");
-      return parsed && typeof parsed === "object" ? parsed : {};
-    } catch {
-      return {};
-    }
-  }, [muscleCategoryXP]);
+  // 🔧 Consolidate level-up spam into single per-group entries
+  const consolidatedEvents = useMemo(
+    () => consolidateLevelUps(workoutEvents),
+    [workoutEvents]
+  );
 
   const convertedVolume = convertWeight(volumeNum, "imperial", unitSystem);
   const formattedVolume = formatWeight(convertedVolume, unitSystem);
 
-  /* ------------------ Build animation phases from XP ------------------ */
-  const startTotalXP = profile?.xp ?? 0;
-  const endTotalXP = startTotalXP + Math.max(0, xpGainNum);
+  // Capture pre-gain XP once for stable animation
+  const initialXpRef = useRef<number | null>(null);
+  if (initialXpRef.current === null) {
+    initialXpRef.current = profile?.xp ?? 0;
+  }
 
-  const startLevel = levelFromXp(startTotalXP);
-  const endLevel = levelFromXp(endTotalXP);
+  const xpData = useMemo(() => {
+    const startTotalXP = initialXpRef.current ?? 0;
+    const endTotalXP = startTotalXP + Math.max(0, xpGainNum);
 
-  const startProg = levelProgress(startLevel, startTotalXP);
-  const endProg = levelProgress(endLevel, endTotalXP);
+    const startLevel = levelFromXp(startTotalXP);
+    const endLevel = levelFromXp(endTotalXP);
 
-  type Phase = {
-    level: number;
-    fromRatio: number;
-    toRatio: number;
-    needed: number;
-  };
+    const startProg = levelProgress(startLevel, startTotalXP);
+    const endProg = levelProgress(endLevel, endTotalXP);
 
-  const buildPhases = (): Phase[] => {
-    const phases: Phase[] = [];
-    if (xpGainNum <= 0) {
-      phases.push({
-        level: startLevel,
-        fromRatio: startProg.ratio,
-        toRatio: startProg.ratio,
-        needed: startProg.needed,
-      });
-      return phases;
+    return {
+      startLevel,
+      endLevel,
+      startProg,
+      endProg,
+      levelUps: Math.max(0, endLevel - startLevel),
+      leveledUp: endLevel > startLevel,
+    };
+  }, [xpGainNum]);
+
+  // Apply rewards once
+  const [hasProcessedRewards, setHasProcessedRewards] = useState(false);
+  useEffect(() => {
+    if (!hasProcessedRewards && xpGainNum > 0) {
+      setHasProcessedRewards(true);
+      addExperience(xpGainNum, true);
+
+      // Sum coins across both rewards & reards for robustness
+      const totalCoins = workoutEvents
+        .filter((e) => e.type === "userLevelUp")
+        .reduce((sum, e) => sum + (Number(readRewards(e).coins) || 0), 0);
+
+      if (totalCoins > 0) {
+        addCurrency(totalCoins);
+      }
     }
+  }, [xpGainNum, workoutEvents, addExperience, addCurrency, hasProcessedRewards]);
 
-    if (startLevel === endLevel) {
-      phases.push({
-        level: startLevel,
-        fromRatio: startProg.ratio,
-        toRatio: endProg.ratio,
-        needed: startProg.needed,
-      });
-      return phases;
-    }
-
-    // Phase 1: finish current level
-    phases.push({
-      level: startLevel,
-      fromRatio: startProg.ratio,
-      toRatio: 1,
-      needed: startProg.needed,
-    });
-
-    // Any full intermediate levels
-    for (let L = startLevel + 1; L < endLevel; L++) {
-      const needed = levelProgress(L, totalXpForUserLevel(L)).needed;
-      phases.push({
-        level: L,
-        fromRatio: 0,
-        toRatio: 1,
-        needed,
-      });
-    }
-
-    // Final partial
-    phases.push({
-      level: endLevel,
-      fromRatio: 0,
-      toRatio: endProg.ratio,
-      needed: endProg.needed,
-    });
-
-    return phases;
-  };
-
-  const phases = useMemo(
-    buildPhases,
-    [startLevel, endLevel, startProg.needed, startProg.ratio, endProg.ratio, endProg.needed, xpGainNum]
+  const getExerciseName = useCallback(
+    (id: number | string): string => {
+      const meta = getExerciseMeta(id);
+      return meta?.name || `Exercise ${id}`;
+    },
+    [getExerciseMeta]
   );
 
-  /* ---------------------- Animation state/values ---------------------- */
-  const [showEvents, setShowEvents] = useState(false);
-  const [displayLevel, setDisplayLevel] = useState(startLevel);
-  const [displayNeeded, setDisplayNeeded] = useState(startProg.needed);
-  const [displayXP, setDisplayXP] = useState(Math.round(startProg.ratio * startProg.needed));
-  const [xpBarAnimated, setXpBarAnimated] = useState(false);
+  const completedWorkoutDates = useMemo(() => {
+    const today = new Date();
+    const dates = [today];
+    const twoDaysAgo = new Date(today);
+    twoDaysAgo.setDate(today.getDate() - 2);
+    dates.push(twoDaysAgo);
+    const fiveDaysAgo = new Date(today);
+    fiveDaysAgo.setDate(today.getDate() - 5);
+    dates.push(fiveDaysAgo);
+    return dates;
+  }, []);
 
-  const progress = useRef(new Animated.Value(phases[0]?.fromRatio ?? 0)).current;
-  const widthInterpolation = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: ["0%", "100%"],
-    extrapolate: "clamp",
-  });
+  /* ---------------------------------------------------------------
+   * ABSOLUTE TOP OVERLAY
+   * - Change OVERLAY_MODE to "custom" and set CUSTOM_OVERLAY_HEIGHT
+   *   if you want a fixed height.
+   * - Default "statusBar" uses the safe-area top inset (iPhone notch).
+   * --------------------------------------------------------------- */
+  const OVERLAY_MODE: "statusBar" | "custom" = "statusBar";
+  const CUSTOM_OVERLAY_HEIGHT = 54; // only used when OVERLAY_MODE === "custom"
+  const topOverlayHeight =
+    OVERLAY_MODE === "statusBar" ? insets.top : CUSTOM_OVERLAY_HEIGHT;
 
-  useEffect(() => {
-    let isCancelled = false;
+  // tweak the color/opacity here
+  const topOverlayColor = "#0F0E1A"; // ~15% opacity
 
-    const runPhase = (i: number) => {
-      if (isCancelled || i >= phases.length) {
-        if (xpGainNum > 0) addExperience(xpGainNum, true);
-
-        const totalCoins =
-          workoutEvents
-            .filter((e) => e.type === "userLevelUp")
-            .reduce((sum, e) => sum + (e.payload?.rewards?.coins || 0), 0) || 0;
-        if (totalCoins > 0) addCurrency(totalCoins);
-
-        setShowEvents(true);
-        return;
-      }
-
-      const phase = phases[i];
-
-      setDisplayLevel(phase.level);
-      setDisplayNeeded(phase.needed);
-      progress.setValue(phase.fromRatio);
-
-      const sub = progress.addListener(({ value }) => {
-        setDisplayXP(Math.round(value * phase.needed));
-      });
-
-      const distance = Math.max(0, phase.toRatio - phase.fromRatio);
-      const base = 900;
-      const duration = Math.max(250, base + distance * 1100);
-
-      const willFinishALevel = phase.toRatio === 1 && distance > 0;
-      if (willFinishALevel) hapticFeedback("success");
-
-      Animated.timing(progress, {
-        toValue: phase.toRatio,
-        duration,
-        useNativeDriver: false,
-      }).start(() => {
-        progress.removeListener(sub);
-        setTimeout(() => runPhase(i + 1), 300);
-      });
-    };
-
-    setXpBarAnimated(true);
-    setTimeout(() => runPhase(0), 600);
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [phases, xpGainNum, addExperience, addCurrency, workoutEvents, progress]);
-
-  /* ----------------------- Exercise name helper ----------------------- */
-  const getExerciseName = (id: number | string): string => {
-    const meta = getExerciseMeta(id);
-    return meta?.name || `Exercise ${id}`;
-  };
-
-  /* ------------------------------- UI -------------------------------- */
   return (
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
+      {/* Absolute top overlay above everything in this screen */}
+      <View
+        pointerEvents="none"
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: topOverlayHeight,
+          backgroundColor: topOverlayColor,
+          zIndex: 9999,
+          elevation: 9999,
+        }}
+      />
+
       <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
 
       <ScrollView
@@ -554,31 +926,40 @@ const FinishedWorkout = () => {
         }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View className="items-center mb-8">
-          <Text className="text-4xl mb-3">🎉</Text>
+        <View className="items-center my-8">
           <Text className="text-3xl font-pbold text-center" style={{ color: primaryColor }}>
             Workout Complete!
           </Text>
           <Text className="text-gray-100 text-center mt-2 text-lg">
-            Amazing work! Keep building those gains.
+            Excellent work! You're getting stronger every day.
           </Text>
         </View>
 
-        {/* Summary */}
+        {/* Calendar */}
+        <WorkoutCalendar
+          completedDates={completedWorkoutDates}
+          primaryColor={primaryColor}
+          tertiaryColor={tertiaryColor}
+        />
+
+        {/* Workout Summary */}
         <View
           className="rounded-2xl p-6 mb-6"
           style={{
             backgroundColor: tertiaryColor,
             borderWidth: 1,
-            borderColor: "rgba(255,255,255,0.1)",
+            borderColor: primaryColor + "20",
           }}
         >
-          <View className="flex-row justify-between mb-8">
+          <Text className="text-white font-psemibold text-xl mb-6 text-center">
+            Workout Summary
+          </Text>
+
+          <View className="flex-row justify-between mb-6">
             <View className="items-center flex-1">
               <View
                 className="w-16 h-16 rounded-full items-center justify-center mb-3"
-                style={{ backgroundColor: `${primaryColor}20` }}
+                style={{ backgroundColor: primaryColor + "20" }}
               >
                 <MaterialCommunityIcons name="weight-lifter" size={28} color={primaryColor} />
               </View>
@@ -589,7 +970,7 @@ const FinishedWorkout = () => {
             <View className="items-center flex-1">
               <View
                 className="w-16 h-16 rounded-full items-center justify-center mb-3"
-                style={{ backgroundColor: `${secondaryColor}20` }}
+                style={{ backgroundColor: secondaryColor + "20" }}
               >
                 <FontAwesome5 name="stopwatch" size={24} color={secondaryColor} />
               </View>
@@ -600,9 +981,9 @@ const FinishedWorkout = () => {
             <View className="items-center flex-1">
               <View
                 className="w-16 h-16 rounded-full items-center justify-center mb-3"
-                style={{ backgroundColor: `${primaryColor}20` }}
+                style={{ backgroundColor: "#FFD700" + "20" }}
               >
-                <FontAwesome5 name="star" size={24} color={primaryColor} />
+                <FontAwesome5 name="star" size={24} color="#FFD700" />
               </View>
               <Text className="text-white text-xl font-pbold">{xpGainNum}</Text>
               <Text className="text-gray-100 text-sm">XP Earned</Text>
@@ -610,94 +991,51 @@ const FinishedWorkout = () => {
           </View>
 
           {/* XP Progress */}
-          <View className="w-full">
-            <View className="flex-row items-center justify-between mb-3">
-              <Text className="text-white font-pbold text-lg">Level {displayLevel}</Text>
-              <Text className="text-gray-100">
-                {Math.round(displayXP)}/{Math.round(displayNeeded)} XP
-              </Text>
-            </View>
+          <LevelProgress
+            color={primaryColor}
+            startLevel={xpData.startLevel}
+            endLevel={xpData.endLevel}
+            startProg={xpData.startProg}
+            endProg={xpData.endProg}
+            duration={1500}
+          />
 
-            {xpBarAnimated ? (
-              <AnimatedProgressBar progress={widthInterpolation} color={primaryColor} />
-            ) : (
-              <ProgressBar ratio={startProg.ratio} color={primaryColor} />
-            )}
-
-            {endLevel > startLevel && xpBarAnimated && displayLevel === endLevel && (
-              <Text className="text-center mt-3 font-pbold" style={{ color: primaryColor }}>
-                🎉 Level Up! Welcome to level {endLevel}!
-              </Text>
-            )}
-          </View>
+          {xpData.leveledUp && (
+            <Text className="text-center mt-3 font-pbold" style={{ color: primaryColor }}>
+              🎉 Congratulations! You reached level {xpData.endLevel}!
+            </Text>
+          )}
         </View>
 
-        {/* Muscle Group Gains */}
-        {Object.keys(muscleCategoryGains).length > 0 && (
-          <View
-            className="rounded-2xl p-5 mb-6"
-            style={{
-              backgroundColor: tertiaryColor,
-              borderWidth: 1,
-              borderColor: "rgba(255,255,255,0.1)",
-            }}
-          >
-            <Text className="text-white font-pbold text-xl mb-4">💪 Muscle Group Progress</Text>
+        {/* Exercise Breakdown */}
+        <ExerciseBreakdown
+          primaryColor={primaryColor}
+          tertiaryColor={tertiaryColor}
+          convertWeight={convertWeight}
+          unitSystem={unitSystem}
+        />
 
-            {Object.entries(muscleCategoryGains).map(([exerciseId, gains]) => {
-              const exerciseName = getExerciseName(exerciseId);
-              const ordered = CATEGORY_ORDER.filter((cat) => (gains?.[cat] || 0) > 0);
-              if (ordered.length === 0) return null;
-
-              return (
-                <View key={exerciseId} className="mb-4 last:mb-0">
-                  <Text className="text-white font-pmedium mb-3 text-lg">{exerciseName}</Text>
-                  {ordered.map((cat) => (
-                    <View
-                      key={`${exerciseId}-${cat}`}
-                      className="flex-row justify-between items-center py-3 px-4 mb-2 rounded-xl"
-                      style={{ backgroundColor: "rgba(255,255,255,0.05)" }}
-                    >
-                      <View className="flex-row items-center">
-                        <Text className="text-2xl mr-3">{MUSCLE_EMOJIS[cat] || "💪"}</Text>
-                        <Text className="text-gray-100 font-pmedium">{CATEGORY_LABEL[cat]}</Text>
-                      </View>
-                      <View className="flex-row items-center">
-                        <FontAwesome5 name="star" size={14} color={primaryColor} />
-                        <Text className="ml-2 font-pbold" style={{ color: primaryColor }}>
-                          +{Math.round(gains?.[cat] || 0)} XP
-                        </Text>
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              );
-            })}
-          </View>
-        )}
-
-        {/* Events */}
-        {showEvents && workoutEvents.length > 0 && (
+        {/* Achievements (consolidated) */}
+        {consolidatedEvents.length > 0 && (
           <View className="mb-6">
-            <Text className="text-white font-pbold text-2xl mb-6 text-center">🏆 Achievements Unlocked!</Text>
-            {workoutEvents.map((event, index) => (
-              <EventCard
-                key={`${event.type}-${event.id}-${index}`}
+            <Text className="text-white font-pbold text-2xl mb-6 text-center">🏆 Achievements Unlocked</Text>
+            {consolidatedEvents.map((event, index) => (
+              <AchievementCard
+                key={`${event.type}-${event.payload?.type ?? "user"}-${event.payload?.fromLevel ?? "?"}-${event.payload?.newLevel ?? "?"}-${index}`}
                 event={event}
                 primaryColor={primaryColor}
-                secondaryColor={secondaryColor}
                 tertiaryColor={tertiaryColor}
                 index={index}
+                getExerciseName={getExerciseName}
                 convertWeight={convertWeight}
                 unitSystem={unitSystem}
-                getExerciseName={getExerciseName}
               />
             ))}
           </View>
         )}
       </ScrollView>
 
-      {/* Continue */}
+      {/* Continue Button */}
       <View
         className="absolute bottom-0 left-0 right-0 p-4"
         style={{

@@ -15,7 +15,7 @@ import { router } from "expo-router";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import { useThemeContext } from "@/context/ThemeContext";
 
-const SUPPORT_EMAIL = "support@yourapp.com";
+const SUPPORT_EMAIL = "xpstrength.feedback@gmail.com";
 const DISCORD_URL   = "https://discord.gg/your‑invite‑code";
 
 const Support = () => {

@@ -128,6 +128,11 @@ const Profile = () => {
     await refreshProfile();
   };
 
+  const handleAchievementsMenu = () => {
+    // TODO: Implement achievements menu functionality
+    console.log("Achievements menu pressed");
+  };
+
   // Determine which image to display - prefer the latest profilePictureUri
   const profileImage = useMemo(() => {
     if (profilePictureUri) {
@@ -152,7 +157,7 @@ const Profile = () => {
     <View style={{ flex: 1, backgroundColor: "#0F0E1A" }}>
       <StatusBar barStyle="light-content" backgroundColor="#0F0E1A" />
       <TopBar
-        subtext={profile ? `It's You, ${profile.username}!` : "It's you!"}
+        subtext="It's You!"
         title="Your Profile"
         titleTop
       />
@@ -197,10 +202,10 @@ const Profile = () => {
                 />
                 <View className="ml-3">
                   <Text
-                    className="text-white font-psemibold text-xl"
+                    className="font-psemibold text-xl"
                     style={{ color: primaryColor, textTransform: "none" }}
                   >
-                    {profile.username}
+                    {profile.username || user?.username || 'Unknown User'}
                   </Text>
 
                   <Text className="text-gray-100 text-xs">
@@ -219,7 +224,7 @@ const Profile = () => {
                   </Text>
 
                   <Text className="text-gray-100 text-xs">
-                    Member since {profile.createdAt ? formatDate(profile.createdAt) : "Unknown"}
+                    Member since {(profile.createdAt || profile.createdAt) ? formatDate(profile.createdAt || profile.createdAt) : "January 2025"}
                   </Text>
                 </View>
               </View>
@@ -276,9 +281,19 @@ const Profile = () => {
           </View>
         )}
 
-        <Text className="text-white text-xl font-psemibold mb-6">
-          Featured Achievements
-        </Text>
+        <View className="flex-row items-center justify-between mb-6">
+          <Text className="text-white text-xl font-psemibold">
+            Featured Achievements
+          </Text>
+          <TouchableOpacity 
+            onPress={handleAchievementsMenu}
+            className="p-2"
+            activeOpacity={0.7}
+          >
+            <FontAwesome5 name="ellipsis-v" size={16} color={primaryColor} />
+          </TouchableOpacity>
+        </View>
+        
         <View className="flex-row mb-6">
           {[
             { id: 1, icon: "dumbbell", title: "Workout Warrior" },
