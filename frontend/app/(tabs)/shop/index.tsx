@@ -7,23 +7,23 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 
-// Import our context hooks
 import { useThemeContext } from "@/context/ThemeContext";
-import { useUserProgress } from "@/context/UserProvider";
-import { useShop } from "@/hooks/useShop"; // Import our new hook
+import { useUserProgress } from "@/context/UserProvider"; // level only
+import { useShop } from "@/hooks/useShop";
 import { SHOP_THEMES } from "@/context/constants/themeConstants";
-
-// Import our ThemeCard component
 import ThemeCard from "@/components/shop/ThemeCard";
 
-// Custom TopBar component with currency display
-const ShopTopBar = () => {
+const DEFAULT_FREE_THEME_ID = "purple_default";
+
+/* ------------------------------ Top Bar ------------------------------ */
+const ShopTopBar = ({ coins }: { coins: number | null }) => {
   const { primaryColor } = useThemeContext();
-  const { currency, level } = useUserProgress();
+  const { level } = useUserProgress();
 
   return (
     <View className="justify-between items-start flex-row mb-6">
@@ -38,65 +38,84 @@ const ShopTopBar = () => {
         </View>
         <View className="flex-row items-center">
           <FontAwesome5 name="coins" size={16} color={primaryColor} />
-          <Text className="text-white font-pmedium ml-1">{currency}</Text>
+          <Text className="text-white font-pmedium ml-1">{coins ?? "…"}</Text>
         </View>
       </View>
     </View>
   );
 };
 
+/* -------------------------------- Screen ----------------------------- */
 const Shop = () => {
-  // Use our hooks
   const { primaryColor, setActiveThemeId, activeThemeId } = useThemeContext();
-  const { currency, addCurrency } = useUserProgress();
-  const { ownedThemes, buyTheme } = useShop();
-  
-  // State to track the selected theme for preview
-  const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
+  const { coins, ownedThemes, buyTheme, grantCoins, loading, error } = useShop();
 
-  // Get all available themes directly from constants
+  const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
   const availableThemes = Object.values(SHOP_THEMES);
 
-  // Handle theme purchase or activation
-  const handleThemeAction = (themeId: string) => {
+  const handleThemeAction = async (themeId: string) => {
     const isOwned = ownedThemes.includes(themeId);
     const isActive = activeThemeId === themeId;
-    
-    if (isActive) {
-      // Already applied, do nothing
-      return;
-    }
-    
-    // Set as selected when activated
-    setSelectedTheme(themeId);
-    
+
+    // Determine price (default theme is free)
+    const base = SHOP_THEMES[themeId];
+    const price = themeId === DEFAULT_FREE_THEME_ID ? 0 : Number(base?.price ?? 0);
+    const currentCoins = coins ?? 0;
+
+    // Already active → ignore
+    if (isActive) return;
+
+    // Owned → apply (allow highlight)
     if (isOwned) {
-      // Apply the theme if already owned
+      setSelectedTheme(themeId);
       setActiveThemeId(themeId);
       Alert.alert("Theme Applied", `${SHOP_THEMES[themeId].name} theme has been applied!`);
-    } else {
-      // Try to purchase the theme
-      const success = buyTheme(themeId);
-      
-      if (success) {
-        setActiveThemeId(themeId); // Auto-apply on purchase
-        Alert.alert(
-          "Purchase Successful", 
-          `You've purchased ${SHOP_THEMES[themeId].name} theme for ${SHOP_THEMES[themeId].price} StrengthCoins! The theme has been applied.`
-        );
+      return;
+    }
+
+    // Not owned: pre-check (UI guard), but still rely on server for truth
+    if (price > currentCoins) {
+      Alert.alert(
+        "Insufficient StrengthCoins",
+        `You need ${price - currentCoins} more StrengthCoins to purchase ${SHOP_THEMES[themeId].name}.`
+      );
+      // IMPORTANT: do NOT setSelectedTheme → no highlight
+      return;
+    }
+
+    try {
+      await buyTheme(themeId);
+      setSelectedTheme(themeId); // highlight only after successful purchase
+      setActiveThemeId(themeId);
+      Alert.alert(
+        "Purchase Successful",
+        `You've purchased ${SHOP_THEMES[themeId].name} for ${price} StrengthCoins. The theme has been applied.`
+      );
+    } catch (e: any) {
+      const code = (e && (e as any).code) || "";
+      if (code === "INSUFFICIENT_FUNDS") {
+        Alert.alert("Insufficient StrengthCoins", e.message || "You don't have enough coins.");
       } else {
-        Alert.alert(
-          "Insufficient StrengthCoins", 
-          `You need ${SHOP_THEMES[themeId].price - currency} more StrengthCoins to purchase this theme.`
-        );
+        Alert.alert("Purchase Failed", e?.message || "Unable to complete purchase.");
       }
+      // No highlight on failure
     }
   };
 
-  // For demo purposes - add StrengthCoins
-  const handleAddCoins = () => {
-    addCurrency(500);
-    Alert.alert("Coins Added", "You've earned 500 StrengthCoins for completing a workout!");
+  const handleGet500 = async () => {
+    try {
+      await grantCoins(500); // requires backend route
+      Alert.alert("Coins Added", "You received 500 StrengthCoins!");
+    } catch (e: any) {
+      // If the endpoint doesn't exist yet, tell you exactly what to add
+      const msg =
+        e?.message ||
+        "Failed to grant coins. Add POST /api/v1/shop/grant-coins { data: { amount } } on the backend.";
+      Alert.alert(
+        "Grant Coins Unavailable",
+        `${msg}\n\nProposed route:\nPOST /api/v1/shop/grant-coins\n{ data: { amount: 500 } }\n→ return new total in data/coins/amount`
+      );
+    }
   };
 
   return (
@@ -105,57 +124,49 @@ const Shop = () => {
 
       <SafeAreaView edges={["top"]} className="bg-primary">
         <View className="px-4 pt-6">
-          <ShopTopBar />
+          <ShopTopBar coins={coins} />
         </View>
       </SafeAreaView>
-
-      <View className="px-4 py-4 flex-row justify-between items-center bg-black-100">
-        <View className="flex-row items-center">
-          <FontAwesome5 name="coins" size={20} color={primaryColor} />
-          <Text className="text-white font-psemibold text-lg ml-2">
-            {currency} <Text className="text-gray-100">StrengthCoins</Text>
-          </Text>
+      
+      {!!error && (
+        <View className="px-4 py-2 bg-red-900/40">
+          <Text className="text-red-200 font-pmedium">Shop error: {error}</Text>
         </View>
-
-        <TouchableOpacity
-          style={{ backgroundColor: primaryColor }}
-          className="py-2 px-4 rounded-lg flex-row items-center"
-          onPress={handleAddCoins}
-        >
-          <FontAwesome5 name="plus" size={14} color="#FFF" />
-          <Text className="text-white font-pmedium ml-2">Get More</Text>
-        </TouchableOpacity>
-      </View>
+      )}
 
       <ScrollView className="px-4 py-4">
         <Text className="text-white font-psemibold text-xl mb-4">Available Themes</Text>
-        
-        {/* Owned Themes Section */}
-        {ownedThemes.length > 1 && (
+
+        {/* Owned section */}
+        {ownedThemes.length > 0 && (
           <View className="mb-6">
             <Text className="text-gray-100 font-pmedium mb-3">Your Themes</Text>
             {availableThemes
-              .filter(theme => ownedThemes.includes(theme.id))
-              .map(theme => (
-                <ThemeCard
-                  key={theme.id}
-                  theme={theme}
-                  isActive={activeThemeId === theme.id}
-                  isOwned={true}
-                  onAction={handleThemeAction}
-                  isSelected={selectedTheme === theme.id}
-                  primaryColor={primaryColor}
-                />
-              ))}
+              .filter((theme) => ownedThemes.includes(theme.id))
+              .map((theme) => {
+                const injected =
+                  theme.id === DEFAULT_FREE_THEME_ID ? { ...theme, price: 0 } : theme;
+                return (
+                  <ThemeCard
+                    key={theme.id}
+                    theme={injected}
+                    isActive={activeThemeId === theme.id}
+                    isOwned={true}
+                    onAction={handleThemeAction}
+                    isSelected={selectedTheme === theme.id}
+                    primaryColor={primaryColor}
+                  />
+                );
+              })}
           </View>
         )}
-        
-        {/* Available for Purchase Section */}
+
+        {/* For purchase section (never show default here) */}
         <View>
           <Text className="text-gray-100 font-pmedium mb-3">Available for Purchase</Text>
           {availableThemes
-            .filter(theme => !ownedThemes.includes(theme.id))
-            .map(theme => (
+            .filter((theme) => theme.id !== DEFAULT_FREE_THEME_ID && !ownedThemes.includes(theme.id))
+            .map((theme) => (
               <ThemeCard
                 key={theme.id}
                 theme={theme}

@@ -1,72 +1,81 @@
-// API Configuration
-const LOCALHOST = 'https://tg1bczp0-4000.use.devtunnels.ms'; // iOS simulator or web
-export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? LOCALHOST;
+// Path: /utils/api.ts
 
-// Simple API utility functions - auth is handled automatically by the AuthProvider interceptor
+// Base URL
+const FALLBACK = "https://m7txxrts-4000.use.devtunnels.ms";
+export const API_BASE_URL =
+  (typeof process !== "undefined" && (process.env as any)?.EXPO_PUBLIC_API_URL) || FALLBACK;
+
+// ---- Access token handling -------------------------------------------------
+let _accessToken: string | null = null;
+
+/**
+ * Called by AuthProvider / UserProvider:
+ *   (api as any).setAccessToken(token)
+ */
+function setAccessToken(token: string | null) {
+  _accessToken = token || null;
+}
+
+function withAuthHeaders(extra?: Record<string, string>) {
+  return {
+    "Content-Type": "application/json",
+    ...( _accessToken ? { Authorization: `Bearer ${_accessToken}` } : {} ),
+    ...(extra || {}),
+  };
+}
+
+function url(endpoint: string) {
+  return `${API_BASE_URL}${endpoint}`;
+}
+
+// ---- Core request helpers --------------------------------------------------
+async function request(
+  endpoint: string,
+  init: RequestInit
+): Promise<Response> {
+  const headers = withAuthHeaders(init.headers as Record<string, string>);
+  return fetch(url(endpoint), { ...init, headers });
+}
+
+// ---- Public API ------------------------------------------------------------
 export const api = {
-  // Helper to construct full URLs
-  url: (endpoint: string) => `${API_BASE_URL}${endpoint}`,
+  setAccessToken,
 
-  // Convenience methods for common HTTP verbs
+  url,
+
   get: (endpoint: string, options?: RequestInit) =>
-    fetch(api.url(endpoint), {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
-      ...options,
-    }),
+    request(endpoint, { method: "GET", ...(options || {}) }),
 
   post: (endpoint: string, data?: any, options?: RequestInit) =>
-    fetch(api.url(endpoint), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
-      body: data ? JSON.stringify(data) : undefined,
-      ...options,
+    request(endpoint, {
+      method: "POST",
+      body: data !== undefined ? JSON.stringify(data) : undefined,
+      ...(options || {}),
     }),
 
   put: (endpoint: string, data?: any, options?: RequestInit) =>
-    fetch(api.url(endpoint), {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
-      body: data ? JSON.stringify(data) : undefined,
-      ...options,
+    request(endpoint, {
+      method: "PUT",
+      body: data !== undefined ? JSON.stringify(data) : undefined,
+      ...(options || {}),
     }),
 
   patch: (endpoint: string, data?: any, options?: RequestInit) =>
-    fetch(api.url(endpoint), {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
-      body: data ? JSON.stringify(data) : undefined,
-      ...options,
+    request(endpoint, {
+      method: "PATCH",
+      body: data !== undefined ? JSON.stringify(data) : undefined,
+      ...(options || {}),
     }),
 
   delete: (endpoint: string, options?: RequestInit) =>
-    fetch(api.url(endpoint), {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
-      ...options,
-    }),
+    request(endpoint, { method: "DELETE", ...(options || {}) }),
 
-  // Special method for FormData (like file uploads)
+  // Do NOT set Content-Type for FormData — the browser/native sets the boundary
   postFormData: (endpoint: string, formData: FormData, options?: RequestInit) =>
-    fetch(api.url(endpoint), {
-      method: 'POST',
+    fetch(url(endpoint), {
+      method: "POST",
       body: formData,
-      // Don't set Content-Type for FormData, let browser set it with boundary
-      ...options,
+      headers: _accessToken ? { Authorization: `Bearer ${_accessToken}` } : undefined,
+      ...(options || {}),
     }),
 };
